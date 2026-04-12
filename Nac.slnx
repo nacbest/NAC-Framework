@@ -12,5 +12,7 @@
     <Project Path="src/Nac.Observability/Nac.Observability.csproj" />
     <Project Path="src/Nac.Testing/Nac.Testing.csproj" />
     <Project Path="src/Nac.MultiTenancy/Nac.MultiTenancy.csproj" />
+    <Project Path="src/Nac.Cli/Nac.Cli.csproj" />
+    <Project Path="src/Nac.Templates/Nac.Templates.csproj" />
   </Folder>
 </Solution>

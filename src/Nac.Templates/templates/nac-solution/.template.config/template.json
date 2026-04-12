@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "NAC Team",
+  "classifications": ["Web", "NAC", "Modular"],
+  "identity": "Nac.Templates.Solution",
+  "name": "NAC Modular Solution",
+  "shortName": "nac",
+  "tags": {
+    "language": "C#",
+    "type": "solution"
+  },
+  "sourceName": "NacApp",
+  "preferNameDirectory": true,
+  "symbols": {
+    "db": {
+      "type": "parameter",
+      "datatype": "choice",
+      "defaultValue": "postgresql",
+      "choices": [
+        { "choice": "postgresql", "description": "PostgreSQL" },
+        { "choice": "sqlserver", "description": "SQL Server" }
+      ],
+      "description": "Database provider"
+    }
+  }
+}

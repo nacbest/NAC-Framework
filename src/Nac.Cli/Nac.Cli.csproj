@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <Description>NAC Framework CLI — scaffold solutions, modules, features, and entities.</Description>
+    <PackageTags>nac;framework;cli;scaffold;codegen</PackageTags>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>nac</ToolCommandName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.CommandLine" Version="2.0.5" />
+  </ItemGroup>
+
+</Project>
