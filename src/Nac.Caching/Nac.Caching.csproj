@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>NAC Framework — Query caching behavior and command cache invalidation for the mediator pipeline.</Description>
+    <PackageTags>nac;framework;caching;pipeline;behavior</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Nac.Abstractions\Nac.Abstractions.csproj" />
+    <ProjectReference Include="..\Nac.Mediator\Nac.Mediator.csproj" />
+  </ItemGroup>
+
+</Project>

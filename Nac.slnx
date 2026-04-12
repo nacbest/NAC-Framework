@@ -8,5 +8,6 @@
     <Project Path="src/Nac.Messaging/Nac.Messaging.csproj" />
     <Project Path="src/Nac.WebApi/Nac.WebApi.csproj" />
     <Project Path="src/Nac.Auth/Nac.Auth.csproj" />
+    <Project Path="src/Nac.Caching/Nac.Caching.csproj" />
   </Folder>
 </Solution>
