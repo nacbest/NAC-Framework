@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Nac.Abstractions/Nac.Abstractions.csproj" />
+    <Project Path="src/Nac.Domain/Nac.Domain.csproj" />
+    <Project Path="src/Nac.Mediator/Nac.Mediator.csproj" />
+  </Folder>
+</Solution>

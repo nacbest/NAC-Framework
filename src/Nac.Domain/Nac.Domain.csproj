@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>NAC Framework — Entity, AggregateRoot, ValueObject, DomainEvent base classes for Domain-Driven Design.</Description>
+    <PackageTags>nac;framework;domain;ddd</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Nac.Abstractions\Nac.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

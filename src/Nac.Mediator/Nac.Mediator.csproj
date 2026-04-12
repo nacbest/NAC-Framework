@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>NAC Framework — Custom mediator with pipeline behaviors, handler resolution, and notification support.</Description>
+    <PackageTags>nac;framework;mediator;cqrs;pipeline</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Nac.Abstractions\Nac.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>
