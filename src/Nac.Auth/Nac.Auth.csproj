@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>NAC Framework — Permission-based authorization behavior for the mediator pipeline.</Description>
+    <PackageTags>nac;framework;auth;authorization;permissions</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Nac.Abstractions\Nac.Abstractions.csproj" />
+    <ProjectReference Include="..\Nac.Mediator\Nac.Mediator.csproj" />
+  </ItemGroup>
+
+</Project>

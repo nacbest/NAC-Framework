@@ -6,5 +6,7 @@
     <Project Path="src/Nac.Persistence/Nac.Persistence.csproj" />
     <Project Path="src/Nac.Persistence.PostgreSQL/Nac.Persistence.PostgreSQL.csproj" />
     <Project Path="src/Nac.Messaging/Nac.Messaging.csproj" />
+    <Project Path="src/Nac.WebApi/Nac.WebApi.csproj" />
+    <Project Path="src/Nac.Auth/Nac.Auth.csproj" />
   </Folder>
 </Solution>
