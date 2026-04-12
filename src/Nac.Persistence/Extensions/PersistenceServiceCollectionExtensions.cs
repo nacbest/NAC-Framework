@@ -33,6 +33,9 @@ public static class PersistenceServiceCollectionExtensions
         else
             services.AddDbContext<TContext>();
 
+        // Forward NacDbContext base type so messaging/inbox can resolve it generically
+        services.TryAddScoped<NacDbContext>(sp => sp.GetRequiredService<TContext>());
+
         // Scoped: one EfUnitOfWork per request, mapped to INacUnitOfWork
         services.AddScoped<EfUnitOfWork<TContext>>();
         services.AddScoped<INacUnitOfWork>(sp => sp.GetRequiredService<EfUnitOfWork<TContext>>());

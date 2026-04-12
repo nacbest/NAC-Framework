@@ -24,6 +24,9 @@ public abstract class NacDbContext : DbContext
     /// <summary>Integration events pending dispatch by the Outbox background worker.</summary>
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
+    /// <summary>Processed integration events for idempotency/deduplication on the consumer side.</summary>
+    public DbSet<InboxMessage> InboxMessages => Set<InboxMessage>();
+
     protected NacDbContext(DbContextOptions options, ICurrentUser? currentUser = null)
         : base(options)
     {
@@ -38,6 +41,7 @@ public abstract class NacDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration());
+        modelBuilder.ApplyConfiguration(new InboxMessageConfiguration());
         base.OnModelCreating(modelBuilder);
     }
 
