@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>NAC Framework — Multi-tenancy support with tenant resolution middleware, configurable resolvers, and tenant registry.</Description>
+    <PackageTags>nac;framework;multitenancy;tenant;saas</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Nac.Abstractions\Nac.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>
