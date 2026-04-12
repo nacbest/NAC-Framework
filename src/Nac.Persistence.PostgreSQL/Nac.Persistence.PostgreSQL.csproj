@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>NAC Framework — PostgreSQL provider for Nac.Persistence. Registers Npgsql as the EF Core database provider.</Description>
+    <PackageTags>nac;framework;persistence;postgresql;npgsql</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Nac.Persistence\Nac.Persistence.csproj" />
+  </ItemGroup>
+
+</Project>

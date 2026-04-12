@@ -3,5 +3,7 @@
     <Project Path="src/Nac.Abstractions/Nac.Abstractions.csproj" />
     <Project Path="src/Nac.Domain/Nac.Domain.csproj" />
     <Project Path="src/Nac.Mediator/Nac.Mediator.csproj" />
+    <Project Path="src/Nac.Persistence/Nac.Persistence.csproj" />
+    <Project Path="src/Nac.Persistence.PostgreSQL/Nac.Persistence.PostgreSQL.csproj" />
   </Folder>
 </Solution>

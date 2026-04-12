@@ -1,4 +1,4 @@
-using Nac.Messaging;
+using Nac.Abstractions.Messaging;
 
 namespace Nac.Domain;
 
@@ -7,7 +7,7 @@ namespace Nac.Domain;
 /// of the entity. Events are collected and dispatched by the UnitOfWork after SaveChanges.
 /// </summary>
 /// <typeparam name="TId">The type of the entity's identifier.</typeparam>
-public abstract class Entity<TId> : IEquatable<Entity<TId>> where TId : notnull
+public abstract class Entity<TId> : IHasDomainEvents, IEquatable<Entity<TId>> where TId : notnull
 {
     private readonly List<INotification> _domainEvents = [];
 
