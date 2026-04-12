@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>NAC Framework — Test helpers: FakeEventBus, FakeTenantContext, FakeCurrentUser for module integration testing.</Description>
+    <PackageTags>nac;framework;testing;fakes;helpers</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Nac.Abstractions\Nac.Abstractions.csproj" />
+    <ProjectReference Include="..\Nac.Mediator\Nac.Mediator.csproj" />
+  </ItemGroup>
+
+</Project>

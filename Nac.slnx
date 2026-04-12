@@ -10,5 +10,6 @@
     <Project Path="src/Nac.Auth/Nac.Auth.csproj" />
     <Project Path="src/Nac.Caching/Nac.Caching.csproj" />
     <Project Path="src/Nac.Observability/Nac.Observability.csproj" />
+    <Project Path="src/Nac.Testing/Nac.Testing.csproj" />
   </Folder>
 </Solution>
