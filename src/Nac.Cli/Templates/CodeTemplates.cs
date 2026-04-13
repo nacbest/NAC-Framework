@@ -325,8 +325,7 @@ internal static class CodeTemplates
         Use Fakes from `Nac.Testing`: `FakeEventBus`, `FakeTenantContext`, `FakeCurrentUser`
 
         ## Documentation
-        - [NAC Code Standards](https://github.com/nac-framework/docs/code-standards.md)
-        - [NAC System Architecture](https://github.com/nac-framework/docs/system-architecture.md)
+        See `llms.txt` for detailed NAC Framework patterns, CQRS examples, and module structure.
         """;
 
     public static string LlmsTxt(string name) => $$"""
