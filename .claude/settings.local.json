@@ -10,7 +10,8 @@
       "Bash(dotnet tool:*)",
       "Bash(dotnet pack:*)",
       "Read(//private/tmp/**)",
-      "Bash(dotnet run:*)"
+      "Bash(dotnet run:*)",
+      "Bash(git push:*)"
     ]
   }
 }
