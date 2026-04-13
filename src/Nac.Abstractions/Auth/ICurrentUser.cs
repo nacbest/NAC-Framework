@@ -1,4 +1,4 @@
-namespace Nac.Auth;
+namespace Nac.Abstractions.Auth;
 
 /// <summary>
 /// Provides information about the currently authenticated user within the request scope.

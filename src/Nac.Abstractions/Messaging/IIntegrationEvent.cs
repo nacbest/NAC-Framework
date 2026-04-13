@@ -1,4 +1,4 @@
-namespace Nac.Messaging;
+namespace Nac.Abstractions.Messaging;
 
 /// <summary>
 /// Marker interface for integration events that cross module boundaries.

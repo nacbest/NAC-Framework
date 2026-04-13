@@ -22,6 +22,7 @@ Thumbs.db
 ## NuGet
 *.nupkg
 packages/
+nupkgs/
 
 ## Build
 artifacts/

@@ -1,4 +1,6 @@
-namespace Nac.Mediator;
+using Nac.Mediator.Core;
+
+namespace Nac.Mediator.Abstractions;
 
 /// <summary>
 /// Pipeline behavior for commands. Wraps the handler — can execute logic before/after,

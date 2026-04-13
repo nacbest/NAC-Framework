@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>NAC Framework — Interfaces, markers, and base types. Foundation package with zero NAC dependencies.</Description>
+    <Description>[CORE] Interfaces, markers, and base types. Use in: Modules + Host.</Description>
     <PackageTags>nac;framework;abstractions</PackageTags>
   </PropertyGroup>
 

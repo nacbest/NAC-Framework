@@ -1,4 +1,4 @@
-namespace Nac.Messaging;
+namespace Nac.Abstractions.Messaging;
 
 /// <summary>
 /// Marker interface for in-process notifications (one-to-many).

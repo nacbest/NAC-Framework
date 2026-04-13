@@ -1,4 +1,4 @@
-namespace Nac.Persistence;
+namespace Nac.Abstractions.Persistence;
 
 /// <summary>
 /// Read-only repository. Returns completed result sets — never IQueryable.

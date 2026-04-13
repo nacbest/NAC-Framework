@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>NAC Framework — API response envelope, global exception handler, and Minimal API helpers.</Description>
+    <Description>[INFRA] Exception handler, endpoint helpers. Use in: Host only.</Description>
     <PackageTags>nac;framework;webapi;envelope;exception-handler</PackageTags>
   </PropertyGroup>
 

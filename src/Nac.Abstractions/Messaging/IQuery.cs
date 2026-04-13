@@ -1,4 +1,4 @@
-namespace Nac.Messaging;
+namespace Nac.Abstractions.Messaging;
 
 /// <summary>
 /// Marker interface for queries that return a result of type <typeparamref name="TResult"/>.

@@ -1,0 +1,968 @@
+# NAC Framework
+
+> A modular .NET 10 foundation framework for building scalable backend Web APIs with clean architecture principles, opt-in multi-tenancy, and a clear path from monolith to microservices.
+
+## Quick Start
+
+```bash
+# Install CLI tool globally
+dotnet tool install --global Nac.Cli --add-source /path/to/local/feed
+
+# Create new project
+nac new MyApp --modules Identity,Catalog,Orders --db postgresql
+
+# Add a feature
+cd MyApp
+nac add feature Catalog/CreateProduct
+```
+
+## Generated Project Structure
+
+```
+src/
+  MyApp.Host/              # Composition root (Program.cs)
+  MyApp.Shared/            # Shared contracts, DTOs
+  Modules/
+    MyApp.Modules.Catalog/
+      Domain/              # Entities, aggregates
+      Application/         # Commands, queries, handlers
+      Infrastructure/      # DbContext, repositories
+      Endpoints/          # Minimal API endpoints
+      CatalogModule.cs    # Module registration
+
+tests/
+  MyApp.Modules.Catalog.Tests/
+  MyApp.Architecture.Tests/
+
+nac.json                   # Framework configuration
+MyApp.slnx                 # Solution file
+```
+
+---
+
+## Core Concepts
+
+### CQRS with Separate Pipelines
+
+**Commands** (write) and **Queries** (read) have distinct pipelines:
+
+```csharp
+// Command: full pipeline (validation → authorization → transaction → handler)
+public sealed record CreateProductCommand(string Name, decimal Price)
+    : ICommand<Guid>;
+
+// Query: lightweight pipeline (validation → authorization → cache → handler)
+public sealed record GetProductByIdQuery(Guid Id)
+    : IQuery<ProductDto>,
+      ICacheable;  // Enable caching
+```
+
+### Module-First Architecture
+
+Each module is self-contained with its own DbContext, endpoints, and domain:
+
+```csharp
+public sealed class CatalogModule : INacModule
+{
+    public string Name => "Catalog";
+
+    public void ConfigureServices(IServiceCollection services, IConfiguration config)
+    {
+        services.AddNacPersistence<CatalogDbContext>(config);
+        services.AddNacMediator(x => x.AddHandlers(typeof(CatalogModule).Assembly));
+    }
+
+    public void ConfigureEndpoints(IEndpointRouteBuilder routes)
+    {
+        ProductEndpoints.MapProductEndpoints(routes);
+    }
+}
+```
+
+### Opt-in Multi-Tenancy
+
+Enable multi-tenancy only if needed—zero overhead when disabled:
+
+```csharp
+builder.AddNacFramework(nac =>
+{
+    nac.UseMultiTenancy(tenant =>
+    {
+        tenant.Strategy = TenantStrategy.PerSchema;
+        tenant.ResolutionChain = [TenantResolution.Header, TenantResolution.Claim];
+    });
+});
+```
+
+### Dual Event System
+
+**Domain Events** (in-process) + **Integration Events** (distributed):
+
+```csharp
+// Domain event: immediate, same transaction
+public sealed record OrderCreatedDomainEvent(Guid OrderId) : DomainEvent;
+
+// Integration event: async, eventual consistency
+public sealed record OrderCreatedIntegrationEvent(Guid OrderId, decimal Total)
+    : IIntegrationEvent;
+
+// Handler publishes integration event when domain event fires
+public sealed class OrderCreatedDomainEventHandler : INotificationHandler<OrderCreatedDomainEvent>
+{
+    public async Task Handle(OrderCreatedDomainEvent evt, CancellationToken ct)
+    {
+        await _eventBus.PublishAsync(new OrderCreatedIntegrationEvent(evt.OrderId, ...), ct);
+    }
+}
+```
+
+### Permission-Based Authorization
+
+Flexible permissions with wildcard support:
+
+```csharp
+public sealed record CreateProductCommand(...)
+    : ICommand<Guid>,
+      IRequirePermission
+{
+    public string Permission => "catalog.products.create";
+}
+
+// Check: user has "catalog.products.create", "catalog.*", or "*.create"
+if (!_currentUser.HasPermission("catalog.products.create"))
+    throw new ForbiddenException();
+```
+
+---
+
+## 15 Packages Overview
+
+| Package | Purpose |
+|---------|---------|
+| **Nac.Abstractions** | Zero-dependency interfaces (ICommand, IQuery, IRepository, etc.) |
+| **Nac.Domain** | Entity, AggregateRoot, ValueObject, DomainEvent |
+| **Nac.Mediator** | Custom CQRS mediator (no MediatR dependency) |
+| **Nac.Persistence** | EF Core integration, UnitOfWork, Repository, Outbox |
+| **Nac.Persistence.PostgreSQL** | PostgreSQL provider wrapper |
+| **Nac.Messaging** | IEventBus abstraction, InMemoryEventBus, Outbox pattern |
+| **Nac.Messaging.RabbitMQ** | RabbitMQ implementation with consumer worker |
+| **Nac.MultiTenancy** | Tenant resolution (Header, Claim, Subdomain, Query), 3 strategies |
+| **Nac.Auth** | Permission-based authorization behaviors |
+| **Nac.Caching** | Query-level caching with post-command invalidation |
+| **Nac.Observability** | Structured logging (entry/exit/duration/errors) |
+| **Nac.WebApi** | Response envelopes, global exception handler |
+| **Nac.Testing** | Fakes (EventBus, TenantContext, CurrentUser) |
+| **Nac.Cli** | `nac` CLI tool for scaffolding and management |
+| **Nac.Templates** | `dotnet new nac-solution` template |
+
+---
+
+## CQRS Pipeline Architecture
+
+### Command Pipeline
+
+```
+HTTP Request
+  ↓
+Endpoint Receives Command
+  ↓
+Mediator.Send(command)
+  ↓
+[Pipeline Behaviors (in order)]
+  ├─ 1. ExceptionHandling — catch + log + rethrow
+  ├─ 2. Logging — entry + parameters
+  ├─ 3. Validation — FluentValidation
+  ├─ 4. Authorization — IRequirePermission check
+  ├─ 5. TenantEnrichment — set tenant context (if multitenancy)
+  ├─ 6. UnitOfWork — open transaction
+  │   ├─ 7. Handler — business logic (no SaveChanges!)
+  │   ├─ 8. SaveChanges — EF Core commit
+  │   └─ 9. Domain Event Dispatch — publish in-process notifications
+  └─ 10. (response)
+  ↓
+HTTP Response (200, 4xx, 5xx)
+```
+
+**Key Points:**
+- Handler NEVER calls SaveChanges—UnitOfWork behavior does
+- Domain events dispatch AFTER transaction commits (post-commit pattern)
+- Behaviors are registered explicitly in order; no auto-discovery
+
+### Query Pipeline
+
+```
+HTTP Request
+  ↓
+Endpoint Receives Query
+  ↓
+Mediator.Send(query)
+  ↓
+[Pipeline Behaviors (in order)]
+  ├─ 1. ExceptionHandling
+  ├─ 2. Logging — entry + parameters
+  ├─ 3. Validation
+  ├─ 4. Authorization — IRequirePermission check
+  ├─ 5. Caching — check cache (if ICacheable)
+  │   ├─ Hit: return cached result
+  │   └─ Miss: continue to handler
+  ├─ 6. Handler — fetch data
+  └─ 7. CachingStoreResult — store result if ICacheable
+  ↓
+HTTP Response (200, 404, 5xx)
+```
+
+---
+
+## Dual Event System
+
+### Layer 1: Domain Events (In-Process)
+
+**Scope:** Within a single module, immediate consistency
+
+```csharp
+public sealed class CreateOrderCommandHandler : ICommandHandler<CreateOrderCommand, Guid>
+{
+    public async Task<Guid> Handle(CreateOrderCommand cmd, CancellationToken ct)
+    {
+        var order = Order.Create(cmd.CustomerId, cmd.Items);  // Raises OrderCreatedDomainEvent
+        _repository.Add(order);
+        await _unitOfWork.SaveChangesAsync(ct);  // Commits + dispatches event
+
+        // Domain event handled by OrderCreatedDomainEventHandler
+        return order.Id;
+    }
+}
+```
+
+### Layer 2: Integration Events (Distributed)
+
+**Scope:** Between modules, eventual consistency
+
+```csharp
+public sealed class OrderCreatedDomainEventHandler : INotificationHandler<OrderCreatedDomainEvent>
+{
+    public async Task Handle(OrderCreatedDomainEvent evt, CancellationToken ct)
+    {
+        await _eventBus.PublishAsync(new OrderCreatedIntegrationEvent(
+            evt.OrderId,
+            evt.CustomerId,
+            evt.TotalAmount
+        ), ct);
+    }
+}
+
+// Subscriber in different module (e.g., Inventory)
+public sealed class OrderCreatedIntegrationEventHandler
+    : IIntegrationEventHandler<OrderCreatedIntegrationEvent>
+{
+    public async Task Handle(OrderCreatedIntegrationEvent evt, CancellationToken ct)
+    {
+        // Consume and process (maybe deduct inventory)
+    }
+}
+```
+
+### Event Bus Abstraction
+
+```csharp
+public interface IEventBus
+{
+    Task PublishAsync<T>(T @event, CancellationToken cancellationToken = default)
+        where T : IIntegrationEvent;
+}
+
+// Development: InMemoryEventBus (fast, single-process)
+services.AddInMemoryEventBus();
+
+// Production: RabbitMQ (distributed, reliable)
+services.AddRabbitMqEventBus(opts =>
+{
+    opts.HostName = "rabbitmq";
+    opts.ExchangeName = "nac.events";
+});
+```
+
+---
+
+## Persistence Architecture
+
+### DbContext Per Module (Mandatory)
+
+```csharp
+public sealed class CatalogDbContext : NacDbContext
+{
+    public DbSet<Product> Products { get; set; }
+    public DbSet<Category> Categories { get; set; }
+
+    public CatalogDbContext(DbContextOptions<CatalogDbContext> options) : base(options) { }
+
+    protected override void OnModelCreating(ModelBuilder builder)
+    {
+        base.OnModelCreating(builder);
+        builder.ApplyConfigurationsFromAssembly(typeof(CatalogDbContext).Assembly);
+    }
+}
+```
+
+### Unit of Work Pattern
+
+```csharp
+// Handler never opens transaction
+public sealed class CreateProductCommandHandler : ICommandHandler<CreateProductCommand, Guid>
+{
+    public async Task<Guid> Handle(CreateProductCommand cmd, CancellationToken ct)
+    {
+        // UnitOfWorkBehavior already opened transaction
+        var product = new Product { Name = cmd.Name };
+        _repository.Add(product);
+        // Don't call SaveChanges! UnitOfWork will do it
+        return product.Id;
+    }
+}
+```
+
+### Repository Pattern (No IQueryable)
+
+```csharp
+// Specification encapsulates query logic
+public sealed class GetProductsByPriceRangeSpec : Specification<Product>
+{
+    public GetProductsByPriceRangeSpec(decimal minPrice, decimal maxPrice)
+    {
+        Query
+            .Where(p => p.Price >= minPrice && p.Price <= maxPrice)
+            .OrderBy(p => p.Price)
+            .Take(100);
+    }
+}
+
+// Repository returns complete result, never IQueryable
+public sealed class ProductRepository : EfRepository<Product>, IProductRepository
+{
+    public async Task<IEnumerable<Product>> GetByPriceRangeAsync(
+        decimal minPrice,
+        decimal maxPrice,
+        CancellationToken ct)
+    {
+        var spec = new GetProductsByPriceRangeSpec(minPrice, maxPrice);
+        return await GetAsync(spec, ct);  // Returns List<Product>
+    }
+}
+```
+
+---
+
+## Multi-Tenancy Architecture
+
+### Resolution Pipeline
+
+```
+1. Header ("X-Tenant-ID" or custom header)
+2. Claim (from JWT token: "tenant_id" claim)
+3. Subdomain (abc.myapp.com → "abc")
+4. Route Parameter (/api/tenants/{id}/products → id)
+5. Query String (?tenant_id=abc)
+```
+
+### Data Isolation Strategies
+
+**Strategy 1: Discriminator (Column)**
+```csharp
+public sealed class Product : AggregateRoot<Guid>
+{
+    public Guid TenantId { get; set; }  // Discriminator
+    public required string Name { get; init; }
+}
+
+// EF Configuration
+builder.Entity<Product>()
+    .HasQueryFilter(p => p.TenantId == _tenantContext.TenantId);
+```
+
+**Strategy 2: Schema-per-Tenant**
+```csharp
+public sealed class CatalogDbContext : NacDbContext
+{
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        var schema = _tenantContext.IsMultiTenant
+            ? $"tenant_{_tenantContext.TenantId}"
+            : "public";
+        optionsBuilder.UseNpgsql("...", opts => opts.UseLogicalNaming(schema));
+    }
+}
+```
+
+**Strategy 3: Database-per-Tenant**
+```csharp
+public sealed class TenantConnectionResolver : ITenantConnectionResolver
+{
+    public async Task<string> ResolveAsync(Guid tenantId)
+    {
+        var tenant = await _tenantStore.GetAsync(tenantId);
+        return tenant.ConnectionString;
+    }
+}
+```
+
+---
+
+## Authorization Architecture
+
+### Permission-Based (Not Role-Based)
+
+**Hierarchy:** `module.resource.action`
+
+```csharp
+// Examples:
+"catalog.products.create"
+"catalog.products.read"
+"catalog.categories.manage"  // Wildcard: all actions on categories
+"inventory.*"                 // Wildcard: all resources in inventory
+"*.approve"                   // Wildcard: approve action anywhere
+```
+
+### Authorization Behavior
+
+```csharp
+public sealed record CreateProductCommand(...)
+    : ICommand<Guid>,
+      IRequirePermission
+{
+    public string Permission => "catalog.products.create";
+}
+
+// AuthorizationCommandBehavior checks before handler
+if (request is IRequirePermission perms)
+{
+    if (!_currentUser.HasPermission(perms.Permission))
+        throw new ForbiddenException($"Missing: {perms.Permission}");
+}
+```
+
+---
+
+## Caching Architecture
+
+### Query-Level Caching
+
+```csharp
+public sealed record GetProductByIdQuery(Guid Id)
+    : IQuery<ProductDto>,
+      ICacheable
+{
+    public string CacheKey => $"product:{Id}";
+    public TimeSpan? Expiry => TimeSpan.FromMinutes(5);
+}
+```
+
+### Cache Invalidation
+
+```csharp
+public sealed record UpdateProductCommand(Guid Id, string Name)
+    : ICommand,
+      ICacheInvalidator
+{
+    public IEnumerable<string> GetInvalidationKeys()
+    {
+        yield return $"product:{Id}";
+        yield return "products:list";
+        yield return "products:search:*";  // Pattern
+    }
+}
+```
+
+---
+
+## API Layer (Minimal APIs)
+
+```csharp
+public static class ProductEndpoints
+{
+    public static void MapProductEndpoints(this WebApplication app)
+    {
+        var group = app.MapGroup("/api/catalog/products")
+            .WithName("Products")
+            .WithOpenApi();
+
+        group.MapPost("/", CreateProduct)
+            .WithName("CreateProduct")
+            .Produces<ApiResponse<Guid>>(StatusCodes.Status201Created)
+            .Produces(StatusCodes.Status400BadRequest);
+
+        group.MapGet("/{id}", GetProductById)
+            .WithName("GetProductById")
+            .Produces<ApiResponse<ProductDto>>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
+    }
+
+    private static async Task<IResult> CreateProduct(
+        CreateProductRequest request,
+        IMediator mediator,
+        CancellationToken ct)
+    {
+        var command = new CreateProductCommand(request.Name, request.Price);
+        var productId = await mediator.Send(command, ct);
+        return Results.Created($"/api/catalog/products/{productId}",
+            new ApiResponse<Guid>(productId));
+    }
+}
+```
+
+---
+
+## Exception → HTTP Status Mapping
+
+| Exception | Status |
+|-----------|--------|
+| ValidationException | 400 |
+| UnauthorizedException | 401 |
+| ForbiddenException | 403 |
+| NotFoundException | 404 |
+| ConflictException | 409 |
+| DomainException | 422 |
+| Unhandled | 500 |
+
+### Response Envelope
+
+```json
+// Success (200)
+{
+  "data": { "id": "abc123", "name": "Laptop" },
+  "meta": { "timestamp": "2026-04-12T14:30:00Z", "traceId": "xyz789" }
+}
+
+// Error (400+)
+{
+  "error": {
+    "code": "VALIDATION_FAILED",
+    "message": "Validation failed",
+    "details": [{ "field": "Name", "message": "Required" }]
+  },
+  "meta": { "timestamp": "2026-04-12T14:30:00Z", "traceId": "xyz789" }
+}
+```
+
+---
+
+## Code Standards
+
+### Naming Conventions
+
+**Namespaces:** `Nac.{Package}.{Logical.Category}`
+```csharp
+namespace Nac.Persistence.Repository;
+namespace EShop.Modules.Catalog.Application.Commands;
+```
+
+**Classes:** PascalCase, sealed by default
+```csharp
+public sealed record CreateProductCommand(string Name, decimal Price) : ICommand<Guid>;
+public sealed class CatalogModule : INacModule;
+```
+
+**Constants:** UPPER_SNAKE_CASE
+```csharp
+private const int MAX_RETRIES = 3;
+public const string ORDERS_PERMISSION = "orders.manage";
+```
+
+### Language Features (C# 13)
+
+**Records for DTOs, events, requests:**
+```csharp
+public sealed record CreateProductCommand(string Name, decimal Price, string Description)
+    : ICommand<Guid>;
+```
+
+**Primary Constructors:**
+```csharp
+public sealed class OrderService(
+    IRepository<Order> orderRepository,
+    IEventBus eventBus,
+    ILogger<OrderService> logger)
+{
+    public async Task PlaceOrderAsync(CreateOrderCommand command) { ... }
+}
+```
+
+**Init + Required Properties:**
+```csharp
+public class Product : AggregateRoot<Guid>
+{
+    public required string Name { get; init; }
+    public required decimal Price { get; init; }
+    public string Description { get; init; } = string.Empty;
+}
+```
+
+### Marker Interfaces Pattern
+
+```csharp
+public sealed record CreateProductCommand(string Name, decimal Price)
+    : ICommand<Guid>,
+      ITransactional,           // Enable transaction
+      IRequirePermission,        // Require auth
+      IAuditable                 // Log audit trail
+{
+    public string Permission => "products.create";
+}
+
+public sealed record GetProductsQuery(int Page = 1)
+    : IQuery<PaginatedResponse<ProductDto>>,
+      ICacheable  // Enable caching
+{
+    public string CacheKey => $"products:page:{Page}";
+    public TimeSpan? Expiry => TimeSpan.FromMinutes(5);
+}
+```
+
+### Entity & Aggregate Design
+
+```csharp
+public sealed class Product : AggregateRoot<Guid>
+{
+    public required string Name { get; init; }
+    public required decimal Price { get; init; }
+    public bool IsActive { get; private set; }
+
+    // Factory method
+    public static Product Create(string name, decimal price, string? description = null)
+    {
+        var product = new Product
+        {
+            Id = Guid.NewGuid(),
+            Name = name,
+            Price = price,
+            IsActive = true
+        };
+
+        product.RaiseDomainEvent(new ProductCreatedDomainEvent(product.Id, name));
+        return product;
+    }
+
+    public void Deactivate()
+    {
+        IsActive = false;
+        RaiseDomainEvent(new ProductDeactivatedDomainEvent(Id));
+    }
+}
+```
+
+### Value Objects
+
+```csharp
+public sealed class Money : ValueObject
+{
+    public decimal Amount { get; }
+    public string Currency { get; }
+
+    public Money(decimal amount, string currency)
+    {
+        if (amount < 0) throw new ArgumentException("Amount must be positive");
+        Amount = amount;
+        Currency = currency;
+    }
+
+    protected override IEnumerable<object?> GetEqualityComponents()
+    {
+        yield return Amount;
+        yield return Currency;
+    }
+}
+```
+
+### Exception Handling
+
+```csharp
+public async Task<Product> GetProductAsync(Guid id)
+{
+    var product = await _repository.GetByIdAsync(id);
+    if (product == null)
+        throw new NotFoundException($"Product {id} not found");
+
+    if (!product.IsActive)
+        throw new NacException("Product is inactive");
+
+    return product;
+}
+
+// Permission check
+if (!_currentUser.HasPermission("products.view"))
+    throw new ForbiddenException("You don't have permission to view products");
+```
+
+### Structured Logging
+
+```csharp
+_logger.LogInformation(
+    "Product created: ProductId={ProductId}, Name={ProductName}",
+    productId,
+    productName);
+
+_logger.LogError(
+    ex,
+    "Failed to process order: OrderId={OrderId}, UserId={UserId}",
+    orderId,
+    userId);
+```
+
+---
+
+## File Organization (per Module)
+
+```
+Modules/
+  Catalog/
+    Domain/
+      Entities/
+        Product.cs              # Aggregate root
+      Events/
+        ProductCreatedDomainEvent.cs
+      Specifications/
+        GetProductByIdSpec.cs
+    Application/
+      Commands/
+        CreateProductCommand.cs
+        CreateProductCommandHandler.cs
+        CreateProductCommandValidator.cs
+      Queries/
+        GetProductByIdQuery.cs
+        GetProductByIdQueryHandler.cs
+      EventHandlers/
+        ProductCreatedDomainEventHandler.cs
+    Infrastructure/
+      Persistence/
+        CatalogDbContext.cs
+        Configurations/
+          ProductConfiguration.cs
+      Repositories/
+        ProductRepository.cs
+    Endpoints/
+      ProductEndpoints.cs
+    CatalogModule.cs
+```
+
+---
+
+## Configuration
+
+### Program.cs (Minimal)
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddNacFramework(nac =>
+{
+    // Modules
+    nac.AddModule<IdentityModule>();
+    nac.AddModule<CatalogModule>();
+    nac.AddModule<OrdersModule>();
+
+    // Persistence
+    nac.UsePostgreSql();
+
+    // Multi-tenancy (optional)
+    nac.UseMultiTenancy(tenant =>
+    {
+        tenant.Strategy = TenantStrategy.PerSchema;
+        tenant.ResolutionChain = [TenantResolution.Header, TenantResolution.Claim];
+    });
+
+    // Messaging
+    nac.UseRabbitMqEventBus(opts =>
+    {
+        opts.HostName = "rabbitmq";
+        opts.ExchangeName = "nac.events";
+    });
+
+    // Observability
+    nac.UseObservability();
+    nac.UseAuthorization();
+});
+
+var app = builder.Build();
+app.UseNacFramework();
+app.Run();
+```
+
+### nac.json (Project Manifest)
+
+```json
+{
+  "framework": { "name": "nac", "version": "1.0.0" },
+  "solution": { "name": "MyApp", "namespace": "MyApp" },
+  "database": { "provider": "postgresql", "connectionStringKey": "DefaultConnection" },
+  "multiTenancy": {
+    "enabled": true,
+    "strategy": "per-schema",
+    "resolution": ["header", "claim"]
+  },
+  "modules": {
+    "Identity": { "version": "1.0.0", "dependencies": [] },
+    "Catalog": { "version": "1.0.0", "dependencies": ["Identity"] },
+    "Orders": { "version": "1.0.0", "dependencies": ["Identity", "Catalog"] }
+  }
+}
+```
+
+---
+
+## CLI Commands
+
+```bash
+# Create new solution
+nac new MyApp --modules Identity,Catalog,Orders --db postgresql
+
+# Add module
+nac add module Inventory
+
+# Add feature (scaffolds Command, Handler, Validator, Endpoint)
+nac add feature Catalog/CreateProduct
+
+# Add entity
+nac add entity Catalog/Product
+
+# Add domain event
+nac add event Catalog/ProductCreated
+
+# Manage migrations
+nac migration add Catalog "InitialCatalog"
+nac migration apply
+
+# Verify architecture (no cross-module dependencies)
+nac check architecture
+
+# Verify configurations
+nac check health
+```
+
+---
+
+## Package Details
+
+### Nac.Abstractions (Zero-dependency)
+
+**Key Types:**
+- `ICommand<T>`, `ICommand` — CQRS command markers
+- `IQuery<T>` — read-only query marker
+- `INotification` — in-process pub/sub marker
+- `IRepository<T>`, `IReadRepository<T>`, `IUnitOfWork` — persistence contracts
+- `IEventBus`, `IIntegrationEvent`, `IIntegrationEventHandler` — messaging contracts
+- `ITenantContext`, `ITenantResolver`, `TenantInfo` — multi-tenancy
+- `ICurrentUser`, `IRequirePermission` — auth markers
+- `ICacheable`, `ICacheInvalidator` — caching contracts
+- `IAuditable`, `ITransactional` — behavioral markers
+- `INacModule`, `NacFrameworkBuilder` — module registration
+- `Specification<T>` — query specification pattern
+- `NacException` — base framework exception
+
+### Nac.Domain
+
+**Key Types:**
+- `Entity<TId>` — base entity with `Id`, domain event collection
+- `AggregateRoot<TId>` — transactional boundary, optimistic concurrency
+- `ValueObject` — immutable, component-based equality
+- `DomainEvent` — record with `EventId`, `OccurredAt`
+- `IHasDomainEvents`, `IAuditableEntity`, `ISoftDeletable` — entity contracts
+
+### Nac.Mediator
+
+**Core API:**
+- `IMediator` — interface: `Send(ICommand)`, `Send<T>(ICommand<T>)`, `Send<T>(IQuery<T>)`, `PublishAsync(INotification)`
+- `ICommandHandler<T>`, `ICommandHandler<T, TResult>` — implement for commands
+- `IQueryHandler<T, TResult>` — implement for queries
+- `INotificationHandler<T>` — implement for domain events
+- `ICommandBehavior<T>`, `IQueryBehavior<T>` — pipeline middlewares
+
+**Pipeline Order:**
+- Command: ExceptionHandling → Logging → Validation → Authorization → TenantEnrichment → UnitOfWork → Handler
+- Query: ExceptionHandling → Logging → Validation → Authorization → Caching → Handler
+
+### Nac.Persistence
+
+**Key Types:**
+- `NacDbContext` — abstract base, audit trails, soft-delete, domain event dispatch
+- `EfRepository<TEntity>` — specification-based queries, no IQueryable exposure
+- `EfUnitOfWork<TContext>` — transaction management, SaveChanges, domain event dispatch
+- `OutboxMessage`, `InboxMessage` — reliable delivery entities
+- `UnitOfWorkBehavior` — wraps command handler in transaction
+
+### Nac.Messaging
+
+**Key Types:**
+- `IEventBus` — interface: `PublishAsync<T>(T @event)`
+- `InMemoryEventBus` — Channel-based, single process
+- `OutboxEventBus<TContext>` — writes to OutboxMessage table
+- `OutboxWorker<TContext>` — polls OutboxMessages, publishes to broker
+
+**OutboxWorker timing:** 5s poll interval, 50-message batch, 10 retries
+
+### Nac.Auth
+
+**Key Types:**
+- `AuthorizationCommandBehavior` — enforces `IRequirePermission` on commands
+- `AuthorizationQueryBehavior` — enforces `IRequirePermission` on queries
+- `NacUnauthorizedException` (401), `NacForbiddenException` (403)
+
+### Nac.Caching
+
+**Key Types:**
+- `CachingQueryBehavior` — checks cache before handler, stores after
+- `CacheInvalidationBehavior` — post-command invalidation
+- Uses `IDistributedCache` (ASP.NET Core)
+- Default TTL: 5 minutes (configurable per query)
+
+### Nac.Testing
+
+**Key Types:**
+- `FakeEventBus` — in-memory event bus capture
+- `FakeTenantContext` — configurable tenant
+- `FakeCurrentUser` — wildcard permission matching
+
+```csharp
+var fakeEventBus = new FakeEventBus();
+serviceCollection.AddSingleton<IEventBus>(fakeEventBus);
+
+// Later in test
+var publishedEvents = fakeEventBus.PublishedOf<OrderPlacedIntegrationEvent>();
+Assert.NotEmpty(publishedEvents);
+```
+
+---
+
+## Dependency Graph
+
+```
+Nac.Abstractions [ZERO DEPS]
+    ↑
+    ├─ Nac.Domain
+    ├─ Nac.Mediator
+    └─ (all others depend directly or transitively)
+            ↑
+            ├─ Nac.Persistence ← Domain, Mediator
+            │   ├─ Nac.Persistence.PostgreSQL
+            │   └─ Nac.Messaging ← Persistence
+            │       └─ Nac.Messaging.RabbitMQ
+            │
+            ├─ Nac.MultiTenancy
+            ├─ Nac.Auth ← Mediator
+            ├─ Nac.Caching ← Mediator
+            ├─ Nac.Observability ← Mediator
+            ├─ Nac.WebApi
+            └─ Nac.Testing ← Mediator
+
+    [Distribution]
+    ├─ Nac.Cli [System.CommandLine]
+    └─ Nac.Templates [none]
+```
+
+---
+
+## Requirements
+
+- **.NET 10+**
+- **PostgreSQL 12+** (recommended)
+- **C# 13**
+- **EF Core 10.0.5**
+- **RabbitMQ.Client 7.2.1** (for distributed messaging)

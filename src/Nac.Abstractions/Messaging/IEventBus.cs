@@ -1,4 +1,4 @@
-namespace Nac.Messaging;
+namespace Nac.Abstractions.Messaging;
 
 /// <summary>
 /// Abstraction for publishing integration events across module or service boundaries.

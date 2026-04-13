@@ -16,18 +16,23 @@ internal static class NewCommand
             Description = "Database provider",
             DefaultValueFactory = _ => "postgresql",
         };
+        var localOption = new Option<string?>("--local")
+        {
+            Description = "Path to local NAC framework source (uses ProjectReference instead of PackageReference)",
+        };
 
-        var cmd = new Command("new", "Scaffold a new NAC solution") { nameArg, dbOption };
+        var cmd = new Command("new", "Scaffold a new NAC solution") { nameArg, dbOption, localOption };
         cmd.SetAction(async (parseResult, ct) =>
         {
             var name = parseResult.GetValue(nameArg)!;
             var db = parseResult.GetValue(dbOption)!;
-            await ExecuteAsync(name, db);
+            var local = parseResult.GetValue(localOption);
+            await ExecuteAsync(name, db, local);
         });
         return cmd;
     }
 
-    private static async Task ExecuteAsync(string name, string db)
+    private static async Task ExecuteAsync(string name, string db, string? localNacPath)
     {
         var root = Path.Combine(Directory.GetCurrentDirectory(), name);
 
@@ -46,8 +51,10 @@ internal static class NewCommand
         Directory.CreateDirectory(testsDir);
 
         await File.WriteAllTextAsync(Path.Combine(root, $"{name}.slnx"), CodeTemplates.SlnxFile(name));
-        await File.WriteAllTextAsync(Path.Combine(root, "nac.json"), CodeTemplates.NacJson(name, db));
-        await File.WriteAllTextAsync(Path.Combine(hostDir, $"{name}.Host.csproj"), CodeTemplates.HostCsproj(name));
+        await File.WriteAllTextAsync(Path.Combine(root, "nac.json"), CodeTemplates.NacJson(name, db, localNacPath));
+        await File.WriteAllTextAsync(Path.Combine(root, "CLAUDE.md"), CodeTemplates.ClaudeMd(name));
+        await File.WriteAllTextAsync(Path.Combine(root, "llms.txt"), CodeTemplates.LlmsTxt(name));
+        await File.WriteAllTextAsync(Path.Combine(hostDir, $"{name}.Host.csproj"), CodeTemplates.HostCsproj(name, localNacPath));
         await File.WriteAllTextAsync(Path.Combine(hostDir, "Program.cs"), CodeTemplates.ProgramCs(name));
         await File.WriteAllTextAsync(Path.Combine(hostDir, "appsettings.json"), CodeTemplates.AppSettings(name));
 
@@ -55,6 +62,10 @@ internal static class NewCommand
         Console.WriteLine($"  src/{name}.Host/  — composition root");
         Console.WriteLine($"  src/Modules/     — add modules here");
         Console.WriteLine($"  nac.json         — framework manifest");
+        Console.WriteLine($"  CLAUDE.md        — AI assistant instructions");
+        Console.WriteLine($"  llms.txt         — LLM documentation index");
+        if (localNacPath != null)
+            Console.WriteLine($"  Using local NAC: {localNacPath}");
         Console.WriteLine();
         Console.WriteLine("Next: nac add module <ModuleName>");
     }

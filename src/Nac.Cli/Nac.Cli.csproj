@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <Description>NAC Framework CLI — scaffold solutions, modules, features, and entities.</Description>
+    <Description>[TOOLING] CLI to scaffold solutions, modules, features, entities.</Description>
     <PackageTags>nac;framework;cli;scaffold;codegen</PackageTags>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>nac</ToolCommandName>

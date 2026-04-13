@@ -1,9 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>NAC Framework — Event bus implementations (InMemory, Outbox), integration event handler dispatch, and handler scanning.</Description>
+    <Description>[INFRA] Event bus implementations (InMemory, Outbox). Use in: Host only.</Description>
     <PackageTags>nac;framework;messaging;eventbus;outbox;inbox</PackageTags>
   </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Nac.Messaging.RabbitMQ" />
+  </ItemGroup>
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />

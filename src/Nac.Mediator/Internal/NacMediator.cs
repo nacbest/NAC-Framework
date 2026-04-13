@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
+using Nac.Abstractions.Messaging;
+using Nac.Mediator.Core;
 using Nac.Mediator.Registration;
-using Nac.Messaging;
 
 namespace Nac.Mediator.Internal;
 

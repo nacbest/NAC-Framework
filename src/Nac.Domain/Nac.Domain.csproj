@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>NAC Framework — Entity, AggregateRoot, ValueObject, DomainEvent base classes for Domain-Driven Design.</Description>
+    <Description>[CORE] Entity, AggregateRoot, ValueObject, DomainEvent base classes. Use in: Modules + Host.</Description>
     <PackageTags>nac;framework;domain;ddd</PackageTags>
   </PropertyGroup>
 

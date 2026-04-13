@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>NAC Framework — Multi-tenancy support with tenant resolution middleware, configurable resolvers, and tenant registry.</Description>
+    <Description>[INFRA] Tenant resolution middleware and registry. Use in: Host only.</Description>
     <PackageTags>nac;framework;multitenancy;tenant;saas</PackageTags>
   </PropertyGroup>
 

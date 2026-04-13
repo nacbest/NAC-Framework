@@ -1,0 +1,23 @@
+# NAC Framework
+
+> Modular .NET 10 foundation framework for building scalable backend Web APIs with clean architecture, CQRS, opt-in multi-tenancy, and a clear path from monolith to microservices. 15 NuGet packages, custom mediator (no MediatR), permission-based auth, distributed caching, RabbitMQ messaging.
+
+## Getting Started
+
+- [README](README.md): Quick start, CLI commands, project structure, configuration examples
+- [Documentation Index](docs/index.md): Navigation guide for all docs, key concepts overview
+
+## Core Concepts
+
+- [Code Standards](docs/code-standards.md): C# 13 conventions, naming patterns, CQRS separation, entity design, marker interfaces (ITransactional, ICacheable, IRequirePermission)
+- [System Architecture](docs/system-architecture.md): CQRS pipelines, dual event system (Domain + Integration), multi-tenancy strategies, caching architecture, authorization flow
+
+## Reference
+
+- [Codebase Summary](docs/codebase-summary.md): Package-by-package breakdown with key types, dependencies, LOC counts for all 15 packages
+- [Testing & Performance](docs/testing-and-performance.md): Unit testing with Fakes, integration testing, N+1 prevention, caching rules, async patterns
+
+## Optional
+
+- [Project Overview & PDR](docs/project-overview-pdr.md): Vision, goals, architectural decisions, success criteria
+- [Project Roadmap](docs/project-roadmap.md): v1.0 status, post-1.0 features (Kafka, Saga, GraphQL), adoption targets

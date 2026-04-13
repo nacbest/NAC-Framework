@@ -1,6 +1,6 @@
-using Nac.Messaging;
+using Nac.Abstractions.Messaging;
 
-namespace Nac.Mediator;
+namespace Nac.Mediator.Abstractions;
 
 /// <summary>
 /// Handler for queries. Exactly one handler per query type.

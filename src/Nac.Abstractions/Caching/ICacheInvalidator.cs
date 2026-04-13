@@ -1,4 +1,4 @@
-namespace Nac.Caching;
+namespace Nac.Abstractions.Caching;
 
 /// <summary>
 /// Marker interface for commands that invalidate cache entries.

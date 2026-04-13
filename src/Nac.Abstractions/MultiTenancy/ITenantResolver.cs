@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Http;
 
-namespace Nac.MultiTenancy;
+namespace Nac.Abstractions.MultiTenancy;
 
 /// <summary>
 /// Resolves the current tenant from the HTTP request.

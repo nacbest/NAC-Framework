@@ -1,4 +1,5 @@
 using System.Reflection;
+using Nac.Mediator.Abstractions;
 
 namespace Nac.Mediator.Registration;
 

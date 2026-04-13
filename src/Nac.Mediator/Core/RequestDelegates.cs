@@ -1,4 +1,4 @@
-namespace Nac.Mediator;
+namespace Nac.Mediator.Core;
 
 /// <summary>
 /// Delegate representing the next step in the command pipeline.

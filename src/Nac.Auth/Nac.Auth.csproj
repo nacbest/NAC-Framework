@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>NAC Framework — Permission-based authorization behavior for the mediator pipeline.</Description>
+    <Description>[INFRA] Authorization behavior for mediator pipeline. Use in: Host only.</Description>
     <PackageTags>nac;framework;auth;authorization;permissions</PackageTags>
   </PropertyGroup>
 

@@ -1,18 +1,32 @@
 <Solution>
-  <Folder Name="/src/">
+  <!-- Core: Modules CAN reference these -->
+  <Folder Name="/src/Core/">
     <Project Path="src/Nac.Abstractions/Nac.Abstractions.csproj" />
     <Project Path="src/Nac.Domain/Nac.Domain.csproj" />
     <Project Path="src/Nac.Mediator/Nac.Mediator.csproj" />
-    <Project Path="src/Nac.Persistence/Nac.Persistence.csproj" />
-    <Project Path="src/Nac.Persistence.PostgreSQL/Nac.Persistence.PostgreSQL.csproj" />
-    <Project Path="src/Nac.Messaging/Nac.Messaging.csproj" />
+  </Folder>
+
+  <!-- Infrastructure: Host ONLY -->
+  <Folder Name="/src/Infrastructure/">
     <Project Path="src/Nac.WebApi/Nac.WebApi.csproj" />
     <Project Path="src/Nac.Auth/Nac.Auth.csproj" />
     <Project Path="src/Nac.Caching/Nac.Caching.csproj" />
     <Project Path="src/Nac.Observability/Nac.Observability.csproj" />
-    <Project Path="src/Nac.Testing/Nac.Testing.csproj" />
     <Project Path="src/Nac.MultiTenancy/Nac.MultiTenancy.csproj" />
+    <Project Path="src/Nac.Persistence/Nac.Persistence.csproj" />
+    <Project Path="src/Nac.Messaging/Nac.Messaging.csproj" />
+  </Folder>
+
+  <!-- Providers: Specific implementations -->
+  <Folder Name="/src/Providers/">
+    <Project Path="src/Nac.Persistence.PostgreSQL/Nac.Persistence.PostgreSQL.csproj" />
+    <Project Path="src/Nac.Messaging.RabbitMQ/Nac.Messaging.RabbitMQ.csproj" />
+  </Folder>
+
+  <!-- Tooling: CLI, templates, testing -->
+  <Folder Name="/src/Tooling/">
     <Project Path="src/Nac.Cli/Nac.Cli.csproj" />
     <Project Path="src/Nac.Templates/Nac.Templates.csproj" />
+    <Project Path="src/Nac.Testing/Nac.Testing.csproj" />
   </Folder>
 </Solution>

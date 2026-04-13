@@ -1,4 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
+using Nac.Mediator.Abstractions;
+using Nac.Mediator.Core;
 
 namespace Nac.Mediator.Registration;
 

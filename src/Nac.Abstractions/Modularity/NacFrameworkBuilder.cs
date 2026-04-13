@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Nac.Modularity;
+namespace Nac.Abstractions.Modularity;
 
 /// <summary>
 /// Builder used in composition root to register NAC modules and framework features.

@@ -1,4 +1,4 @@
-namespace Nac.Persistence;
+namespace Nac.Abstractions.Persistence;
 
 /// <summary>
 /// Unit of Work abstraction. Manages transaction lifecycle for a single DbContext.

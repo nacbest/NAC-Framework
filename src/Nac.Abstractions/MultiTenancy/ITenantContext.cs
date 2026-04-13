@@ -1,4 +1,4 @@
-namespace Nac.MultiTenancy;
+namespace Nac.Abstractions.MultiTenancy;
 
 /// <summary>
 /// Provides the tenant context for the current request scope.

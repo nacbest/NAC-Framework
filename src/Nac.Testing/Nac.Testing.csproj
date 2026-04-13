@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>NAC Framework — Test helpers: FakeEventBus, FakeTenantContext, FakeCurrentUser for module integration testing.</Description>
+    <Description>[TOOLING] Test fakes: FakeEventBus, FakeTenantContext, FakeCurrentUser. Use in: Test projects.</Description>
     <PackageTags>nac;framework;testing;fakes;helpers</PackageTags>
   </PropertyGroup>
 

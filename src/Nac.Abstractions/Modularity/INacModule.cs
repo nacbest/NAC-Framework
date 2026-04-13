@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Nac.Modularity;
+namespace Nac.Abstractions.Modularity;
 
 /// <summary>
 /// Represents a self-contained module in the NAC framework.

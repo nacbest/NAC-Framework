@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>NAC Framework — EF Core base context, UnitOfWork behavior, Repository, Specification evaluator, Outbox table, audit and soft-delete support.</Description>
+    <Description>[INFRA] EF Core DbContext, UnitOfWork, Repository. Use in: Host only.</Description>
     <PackageTags>nac;framework;persistence;efcore;repository;unitofwork</PackageTags>
   </PropertyGroup>
 

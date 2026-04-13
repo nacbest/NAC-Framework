@@ -1,4 +1,4 @@
-namespace Nac.Mediator;
+namespace Nac.Mediator.Core;
 
 /// <summary>
 /// Represents a void return type for the mediator pipeline.

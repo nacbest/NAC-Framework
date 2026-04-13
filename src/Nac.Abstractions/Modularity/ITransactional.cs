@@ -1,4 +1,4 @@
-namespace Nac.Modularity;
+namespace Nac.Abstractions.Modularity;
 
 /// <summary>
 /// Marker interface for commands that require an explicit database transaction.

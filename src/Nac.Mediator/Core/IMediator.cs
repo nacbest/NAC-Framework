@@ -1,6 +1,6 @@
-using Nac.Messaging;
+using Nac.Abstractions.Messaging;
 
-namespace Nac.Mediator;
+namespace Nac.Mediator.Core;
 
 /// <summary>
 /// Central mediator for dispatching commands, queries, and notifications through the pipeline.

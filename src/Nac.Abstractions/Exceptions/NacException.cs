@@ -1,4 +1,4 @@
-namespace Nac.Exceptions;
+namespace Nac.Abstractions.Exceptions;
 
 /// <summary>Base exception for all NAC framework exceptions.</summary>
 public abstract class NacException(string message, Exception? innerException = null)

@@ -1,4 +1,4 @@
-namespace Nac.Auth;
+namespace Nac.Abstractions.Auth;
 
 /// <summary>
 /// Marker interface for commands/queries that require a specific permission.

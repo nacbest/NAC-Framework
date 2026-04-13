@@ -1,4 +1,4 @@
-namespace Nac.MultiTenancy;
+namespace Nac.Abstractions.MultiTenancy;
 
 /// <summary>
 /// Immutable tenant metadata resolved for the current request.

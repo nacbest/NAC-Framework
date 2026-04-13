@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>NAC Framework — Query caching behavior and command cache invalidation for the mediator pipeline.</Description>
+    <Description>[INFRA] Query caching and cache invalidation behaviors. Use in: Host only.</Description>
     <PackageTags>nac;framework;caching;pipeline;behavior</PackageTags>
   </PropertyGroup>
 

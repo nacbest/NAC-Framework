@@ -1,4 +1,4 @@
-namespace Nac.Mediator;
+namespace Nac.Mediator.Abstractions;
 
 /// <summary>
 /// Pre-processor that runs after all behaviors have entered, just before the handler.

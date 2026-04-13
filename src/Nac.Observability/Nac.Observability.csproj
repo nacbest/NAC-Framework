@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>NAC Framework — Structured logging behaviors for the mediator pipeline with duration and correlation tracking.</Description>
+    <Description>[INFRA] Logging behaviors with correlation tracking. Use in: Host only.</Description>
     <PackageTags>nac;framework;observability;logging;telemetry</PackageTags>
   </PropertyGroup>
 

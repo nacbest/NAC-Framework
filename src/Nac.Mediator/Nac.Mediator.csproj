@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>NAC Framework — Custom mediator with pipeline behaviors, handler resolution, and notification support.</Description>
+    <Description>[CORE] Mediator with pipeline behaviors and handler resolution. Use in: Modules + Host.</Description>
     <PackageTags>nac;framework;mediator;cqrs;pipeline</PackageTags>
   </PropertyGroup>
 

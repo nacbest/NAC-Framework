@@ -1,4 +1,4 @@
-namespace Nac.Persistence;
+namespace Nac.Abstractions.Persistence;
 
 /// <summary>
 /// Write repository for entities. Does not expose IQueryable.

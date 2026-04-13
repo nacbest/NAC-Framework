@@ -7,7 +7,7 @@
     <ContentTargetFolders>content</ContentTargetFolders>
     <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
-    <Description>NAC Framework — dotnet new templates for solutions and modules.</Description>
+    <Description>[TOOLING] dotnet new templates for solutions and modules.</Description>
     <PackageTags>nac;framework;templates;dotnet-new</PackageTags>
     <!-- Template packages do not compile code -->
     <NoDefaultExcludes>true</NoDefaultExcludes>

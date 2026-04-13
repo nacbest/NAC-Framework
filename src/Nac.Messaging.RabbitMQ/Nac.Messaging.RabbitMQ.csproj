@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>[PROVIDER] RabbitMQ provider for Nac.Messaging. Use in: Host only.</Description>
+    <PackageTags>nac;framework;messaging;rabbitmq;eventbus</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="RabbitMQ.Client" Version="7.2.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Nac.Messaging\Nac.Messaging.csproj" />
+  </ItemGroup>
+
+</Project>

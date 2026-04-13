@@ -1,10 +1,8 @@
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Nac.Modularity;
+using Nac.Abstractions.Modularity;
 
-namespace Nac;
+namespace Nac.Abstractions.Extensions;
 
 /// <summary>
 /// Extension methods for composing the NAC framework at the application entry point.

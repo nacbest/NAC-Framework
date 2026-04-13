@@ -1,6 +1,6 @@
 using System.Linq.Expressions;
 
-namespace Nac.Persistence;
+namespace Nac.Abstractions.Persistence;
 
 /// <summary>
 /// Specification interface for encapsulating query logic.
