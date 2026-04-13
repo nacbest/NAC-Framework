@@ -431,9 +431,9 @@ All future packages must meet:
 
 ## Questions & Contact
 
-**For roadmap feedback:** Open GitHub Discussion or reach out to NAC team.
+**For roadmap feedback:** Open GitHub Discussion or email info@nac.best
 
 **For feature requests:** File GitHub Issue with "enhancement" label.
 
-**For security concerns:** Email security@nac-framework.dev (responsible disclosure).
+**For security concerns:** Email info@nac.best (responsible disclosure).
 

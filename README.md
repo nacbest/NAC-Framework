@@ -489,7 +489,7 @@ app.Run();
 NAC Framework is actively developed. For:
 - **Bug reports:** GitHub Issues
 - **Feature requests:** GitHub Discussions
-- **Security concerns:** Email security@nac-framework.dev
+- **Contact:** info@nac.best
 
 ---
 
@@ -498,6 +498,8 @@ NAC Framework is actively developed. For:
 MIT License — See LICENSE file for details.
 
 ---
+
+**© 2026 NAC INFORMATION TECHNOLOGY COMPANY LIMITED**
 
 **Built with ❤️ for clean, scalable .NET architecture.**
 

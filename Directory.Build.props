@@ -10,8 +10,8 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <Authors>NAC Team</Authors>
-    <Company>NAC</Company>
+    <Authors>NAC INFORMATION TECHNOLOGY COMPANY LIMITED</Authors>
+    <Company>NAC INFORMATION TECHNOLOGY COMPANY LIMITED</Company>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/nacbest/NAC-Framework</RepositoryUrl>
