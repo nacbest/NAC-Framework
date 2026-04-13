@@ -66,10 +66,21 @@ internal static class AddCommand
             return;
         }
 
-        Directory.CreateDirectory(Path.Combine(moduleDir, "Domain"));
+        // Domain layer
+        Directory.CreateDirectory(Path.Combine(moduleDir, "Domain", "Entities"));
+        Directory.CreateDirectory(Path.Combine(moduleDir, "Domain", "Events"));
+        Directory.CreateDirectory(Path.Combine(moduleDir, "Domain", "Specifications"));
+
+        // Application layer
         Directory.CreateDirectory(Path.Combine(moduleDir, "Application", "Commands"));
         Directory.CreateDirectory(Path.Combine(moduleDir, "Application", "Queries"));
-        Directory.CreateDirectory(Path.Combine(moduleDir, "Infrastructure"));
+        Directory.CreateDirectory(Path.Combine(moduleDir, "Application", "EventHandlers"));
+
+        // Infrastructure layer
+        Directory.CreateDirectory(Path.Combine(moduleDir, "Infrastructure", "Persistence"));
+        Directory.CreateDirectory(Path.Combine(moduleDir, "Infrastructure", "Repositories"));
+
+        // API layer
         Directory.CreateDirectory(Path.Combine(moduleDir, "Endpoints"));
 
         await File.WriteAllTextAsync(
@@ -109,10 +120,15 @@ internal static class AddCommand
 
         Console.WriteLine();
         Console.WriteLine($"Created module '{name}' at {moduleDir}");
-        Console.WriteLine($"  Domain/           — entities, value objects");
-        Console.WriteLine($"  Application/      — commands, queries, handlers");
-        Console.WriteLine($"  Infrastructure/   — persistence, external services");
-        Console.WriteLine($"  Endpoints/        — minimal API endpoints");
+        Console.WriteLine($"  Domain/Entities/           — entities, aggregates, value objects");
+        Console.WriteLine($"  Domain/Events/             — domain events");
+        Console.WriteLine($"  Domain/Specifications/     — query specifications");
+        Console.WriteLine($"  Application/Commands/      — command handlers");
+        Console.WriteLine($"  Application/Queries/       — query handlers");
+        Console.WriteLine($"  Application/EventHandlers/ — domain event handlers");
+        Console.WriteLine($"  Infrastructure/Persistence/    — DbContext, configurations");
+        Console.WriteLine($"  Infrastructure/Repositories/   — repository implementations");
+        Console.WriteLine($"  Endpoints/                 — minimal API endpoints");
 
         if (buildSuccess)
             Console.WriteLine($"  ✓ Build verified");
@@ -245,15 +261,15 @@ internal static class AddCommand
         var (ns, _, _) = ReadManifest();
         var moduleDir = FindModuleDir(ns, module);
 
-        var domainDir = Path.Combine(moduleDir, "Domain");
-        Directory.CreateDirectory(domainDir);
+        var entitiesDir = Path.Combine(moduleDir, "Domain", "Entities");
+        Directory.CreateDirectory(entitiesDir);
 
         await File.WriteAllTextAsync(
-            Path.Combine(domainDir, $"{entity}.cs"),
+            Path.Combine(entitiesDir, $"{entity}.cs"),
             CodeTemplates.EntityFile(ns, module, entity));
 
         Console.WriteLine($"Created entity '{entity}' in module '{module}':");
-        Console.WriteLine($"  Domain/{entity}.cs");
+        Console.WriteLine($"  Domain/Entities/{entity}.cs");
     }
 
     private static (string Module, string Name) ParseModulePath(string path)

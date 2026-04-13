@@ -203,7 +203,7 @@ internal static class CodeTemplates
     public static string EntityFile(string ns, string module, string entity) => $$"""
         using Nac.Domain;
 
-        namespace {{ns}}.Modules.{{module}}.Domain;
+        namespace {{ns}}.Modules.{{module}}.Domain.Entities;
 
         public sealed class {{entity}} : AggregateRoot<Guid>
         {
@@ -234,13 +234,59 @@ internal static class CodeTemplates
 
         Built on **NAC Framework v1.0** — modular .NET 10 foundation with CQRS, multi-tenancy, and clean architecture.
 
+        ## Architecture Rules
+
+        ### Layer Boundaries (CRITICAL)
+
+        ```
+        Domain (innermost)
+          ↑ NO external dependencies except Nac.Domain
+          │
+        Application
+          ↑ Depends on: Domain, Nac.Abstractions, Nac.Mediator
+          │
+        Infrastructure
+          ↑ Implements interfaces from Application
+          ↑ Depends on: Application, Domain, EF Core, external libs
+          │
+        Endpoints (outermost)
+          ↑ Only calls Application via IMediator
+          ↑ NO direct Domain/Infrastructure access
+        ```
+
+        ### Forbidden Patterns
+
+        - **Cross-module DbContext access** — modules are isolated
+        - **Direct project references between modules** — use Integration Events
+        - **IQueryable exposure from repositories** — return concrete types only
+        - **Handlers calling SaveChanges** — UnitOfWork behavior handles it
+        - **Domain depending on Infrastructure** — inverts dependency direction
+
+        ### File Placement Rules
+
+        | Type | Location | Example |
+        |------|----------|---------|
+        | Entity/Aggregate | `Domain/Entities/` | `Product.cs` |
+        | Value Object | `Domain/Entities/` | `Money.cs` |
+        | Domain Event | `Domain/Events/` | `ProductCreatedDomainEvent.cs` |
+        | Specification | `Domain/Specifications/` | `ActiveProductsSpec.cs` |
+        | Command | `Application/Commands/` | `CreateProductCommand.cs` |
+        | Command Handler | `Application/Commands/` | `CreateProductHandler.cs` |
+        | Query | `Application/Queries/` | `GetProductQuery.cs` |
+        | Query Handler | `Application/Queries/` | `GetProductHandler.cs` |
+        | Domain Event Handler | `Application/EventHandlers/` | `ProductCreatedHandler.cs` |
+        | DbContext | `Infrastructure/Persistence/` | `CatalogDbContext.cs` |
+        | EF Configuration | `Infrastructure/Persistence/` | `ProductConfiguration.cs` |
+        | Repository | `Infrastructure/Repositories/` | `ProductRepository.cs` |
+        | Endpoint | `Endpoints/` | `ProductEndpoints.cs` |
+
         ## Quick Reference
 
         ### Code Generation
         ```bash
         nac add module <Name>              # New module
         nac add feature <Module>/<Name>    # Command + Handler + Endpoint
-        nac add entity <Module>/<Name>     # Entity + Repository
+        nac add entity <Module>/<Name>     # Entity in Domain/Entities/
         nac migration add <Module> "Desc"  # EF migration
         ```
 
@@ -256,58 +302,23 @@ internal static class CodeTemplates
         - `ICacheInvalidator` — invalidate cache keys post-command
         - `IAuditable` — log audit trail
 
-        ## Code Patterns
-
-        ### Command with Behaviors
-        ```csharp
-        public sealed record Create{{name}}Command(string Name)
-            : ICommand<Guid>,
-              ITransactional,
-              IRequirePermission
-        {
-            public string Permission => "{{name.ToLowerInvariant()}}.create";
-        }
-        ```
-
-        ### Cacheable Query
-        ```csharp
-        public sealed record Get{{name}}Query(Guid Id)
-            : IQuery<{{name}}Dto>,
-              ICacheable
-        {
-            public string CacheKey => $"{{name.ToLowerInvariant()}}:{Id}";
-            public TimeSpan? Expiry => TimeSpan.FromMinutes(5);
-        }
-        ```
-
-        ### Entity with Domain Event
-        ```csharp
-        public sealed class {{name}} : AggregateRoot<Guid>
-        {
-            public static {{name}} Create(string name)
-            {
-                var entity = new {{name}} { Id = Guid.NewGuid(), Name = name };
-                entity.RaiseDomainEvent(new {{name}}CreatedDomainEvent(entity.Id));
-                return entity;
-            }
-        }
-        ```
-
-        ## Conventions
-
-        - **Commands:** `{Name}Command.cs` + `{Name}CommandHandler.cs`
-        - **Queries:** `{Name}Query.cs` + `{Name}QueryHandler.cs`
-        - **Permissions:** `module.resource.action` (e.g., `catalog.products.create`)
-        - **Cache keys:** `entity:id` or `entity:list`
-
         ## Module Structure
+
         ```
-        Modules/{Module}/
-        ├── Domain/Entities/, Events/, Specifications/
-        ├── Application/Commands/, Queries/, EventHandlers/
-        ├── Infrastructure/Persistence/, Repositories/
-        ├── Endpoints/
-        └── {Module}Module.cs
+        Modules/{{name}}.Modules.{Module}/
+        ├── Domain/
+        │   ├── Entities/           — entities, aggregates, value objects
+        │   ├── Events/             — domain events
+        │   └── Specifications/     — query specifications
+        ├── Application/
+        │   ├── Commands/           — commands + handlers
+        │   ├── Queries/            — queries + handlers
+        │   └── EventHandlers/      — domain event handlers
+        ├── Infrastructure/
+        │   ├── Persistence/        — DbContext, EF configurations
+        │   └── Repositories/       — repository implementations
+        ├── Endpoints/              — minimal API endpoints
+        └── {Module}Module.cs       — module registration
         ```
 
         ## Testing
