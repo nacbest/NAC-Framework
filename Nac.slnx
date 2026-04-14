@@ -15,6 +15,7 @@
     <Project Path="src/Nac.MultiTenancy/Nac.MultiTenancy.csproj" />
     <Project Path="src/Nac.Persistence/Nac.Persistence.csproj" />
     <Project Path="src/Nac.Messaging/Nac.Messaging.csproj" />
+    <Project Path="src/Nac.Identity/Nac.Identity.csproj" />
   </Folder>
 
   <!-- Providers: Specific implementations -->
@@ -23,10 +24,14 @@
     <Project Path="src/Nac.Messaging.RabbitMQ/Nac.Messaging.RabbitMQ.csproj" />
   </Folder>
 
-  <!-- Tooling: CLI, templates, testing -->
+  <!-- Tooling: templates, testing -->
   <Folder Name="/src/Tooling/">
-    <Project Path="src/Nac.Cli/Nac.Cli.csproj" />
     <Project Path="src/Nac.Templates/Nac.Templates.csproj" />
     <Project Path="src/Nac.Testing/Nac.Testing.csproj" />
+  </Folder>
+
+  <!-- Tests -->
+  <Folder Name="/tests/">
+    <Project Path="tests/Nac.Identity.Tests/Nac.Identity.Tests.csproj" />
   </Folder>
 </Solution>

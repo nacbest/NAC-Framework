@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>[INFRA] ASP.NET Core Identity + JWT + Multi-tenant permissions. Use in: Host only.</Description>
+    <PackageTags>nac;framework;identity;auth;jwt;multi-tenant</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.5" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.5" />
+    <PackageReference Include="StackExchange.Redis" Version="2.8.16" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Nac.Abstractions\Nac.Abstractions.csproj" />
+    <ProjectReference Include="..\Nac.Persistence\Nac.Persistence.csproj" />
+    <ProjectReference Include="..\Nac.MultiTenancy\Nac.MultiTenancy.csproj" />
+  </ItemGroup>
+
+</Project>
