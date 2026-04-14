@@ -78,6 +78,27 @@ public sealed class {Entity} : ValueObject
 }
 ```
 
+## {Entity}Configuration.cs (in .Infrastructure)
+
+Generated in the module's `.Infrastructure` project under `Configurations/`.
+
+```csharp
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using {Namespace}.Modules.{Module}.Domain.Entities;
+
+namespace {Namespace}.Modules.{Module}.Infrastructure.Configurations;
+
+public sealed class {Entity}Configuration : IEntityTypeConfiguration<{Entity}>
+{
+    public void Configure(EntityTypeBuilder<{Entity}> builder)
+    {
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.Id).ValueGeneratedNever();
+    }
+}
+```
+
 ## nac.json Update
 
 Add entity name to module's entities array:
@@ -87,6 +108,7 @@ Add entity name to module's entities array:
   "modules": {
     "{Module}": {
       "path": "src/Modules/{Namespace}.Modules.{Module}",
+      "infrastructurePath": "src/Modules/{Namespace}.Modules.{Module}.Infrastructure",
       "entities": ["{Entity}"],
       "features": []
     }
@@ -94,13 +116,21 @@ Add entity name to module's entities array:
 }
 ```
 
-## File Location
+## File Locations
 
+**Entity** (module core):
 ```
 src/Modules/{Namespace}.Modules.{Module}/
 └── Domain/
     └── Entities/
         └── {Entity}.cs
+```
+
+**Configuration** (module infrastructure):
+```
+src/Modules/{Namespace}.Modules.{Module}.Infrastructure/
+└── Configurations/
+    └── {Entity}Configuration.cs
 ```
 
 ## Guidelines
@@ -119,3 +149,8 @@ src/Modules/{Namespace}.Modules.{Module}/
    - Have no identity
    - Are immutable
    - Equality based on properties
+
+4. **Configuration** - always generated alongside entity:
+   - Lives in `.Infrastructure` project (has EF Core dependency)
+   - Entity file has NO EF Core references
+   - Configuration references entity from core project

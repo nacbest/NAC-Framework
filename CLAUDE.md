@@ -29,21 +29,22 @@ skills/                   — AI-native scaffolding skills (nac-new, nac-add-mod
 ```
 ┌───────────────────────────────────────────────────────────────┐
 │                         Host Layer                             │
-│   References ALL packages, wires DI, runs app                  │
-│   Can reference: Nac.Identity, Nac.Persistence.PostgreSQL, etc │
+│   Composition root: wires DI, runs app                         │
+│   Refs: Module.Infrastructure, Module (core), Nac.Identity     │
 └─────────────────────────────┬─────────────────────────────────┘
                               │
 ┌─────────────────────────────┴─────────────────────────────────┐
-│                    Infrastructure Packages                     │
-│   Nac.Identity, Nac.Persistence.PostgreSQL, Nac.Caching        │
-│   Marked with [INFRA] in .csproj Description                   │
-│   (NEVER referenced by Business Modules)                       │
+│               Module Infrastructure Layer                      │
+│   {Ns}.Modules.{M}.Infrastructure                              │
+│   Refs: Nac.Persistence, Module (core)                         │
+│   Owns: DbContext, Configurations, Repositories, DI extension  │
 └─────────────────────────────┬─────────────────────────────────┘
                               │
 ┌─────────────────────────────┴─────────────────────────────────┐
-│                    Business Modules Layer                      │
-│   App.Modules.Staff, App.Modules.Customer, App.Modules.Orders  │
-│   Can ONLY reference: Nac.Abstractions, Nac.Domain, Nac.Mediator│
+│                 Module Core Layer (CLEAN)                       │
+│   {Ns}.Modules.{M}                                             │
+│   Refs: Nac.Abstractions, Nac.Domain, Nac.Mediator ONLY       │
+│   Owns: Domain, Application, Contracts, Endpoints              │
 └─────────────────────────────┬─────────────────────────────────┘
                               │
 ┌─────────────────────────────┴─────────────────────────────────┐
@@ -51,6 +52,16 @@ skills/                   — AI-native scaffolding skills (nac-new, nac-add-mod
 │   ICurrentUser, IRepository, ICommand, ITenantContext          │
 │   (Contracts only - NO implementation)                         │
 └───────────────────────────────────────────────────────────────┘
+```
+
+**Dependency Rules:**
+```
+Host → Module.Infrastructure → Nac.Persistence
+Host → Module.Infrastructure → Module (core)
+Host → Module (core)
+Module (core) → Nac.Abstractions, Nac.Domain, Nac.Mediator ONLY
+Module (core) ✗ Nac.Persistence (FORBIDDEN)
+Module (core) ✗ Module.Infrastructure (FORBIDDEN)
 ```
 
 ## Identity Linking Pattern
@@ -109,9 +120,78 @@ public class GetCurrentStaffQueryHandler : IQueryHandler<GetCurrentStaffQuery, S
 | `IJwtTokenService` | Generate/validate JWT tokens |
 | `ITenantRoleService` | Manage tenant roles and memberships |
 
+## Module Architecture (2-Project Pattern)
+
+Each module splits into **core** (clean, persistence-ignorant) and **infrastructure** (EF Core, repositories):
+
+**Module core** (`{Ns}.Modules.{M}`) — refs: `Nac.Abstractions`, `Nac.Domain`, `Nac.Mediator`:
+```
+{Ns}.Modules.Catalog/
+├── Domain/Entities/Product.cs            — Entity inherits AggregateRoot<Guid>
+├── Application/Commands/CreateProduct/   — Handler injects IRepository<Product>
+├── Contracts/IProductRepository.cs       — Custom repo interface (optional)
+└── Endpoints/ProductEndpoints.cs
+```
+
+**Module infrastructure** (`{Ns}.Modules.{M}.Infrastructure`) — refs: `Nac.Persistence`, Module core:
+```
+{Ns}.Modules.Catalog.Infrastructure/
+├── CatalogDbContext.cs
+├── CatalogInfrastructureExtensions.cs    — DI registration (1 line in Host)
+├── Configurations/ProductConfiguration.cs
+└── Repositories/ProductRepository.cs
+```
+
+**DbContext** (in `.Infrastructure`):
+```csharp
+public sealed class CatalogDbContext : NacDbContext
+{
+    public CatalogDbContext(
+        DbContextOptions<CatalogDbContext> options,
+        ICurrentUser? currentUser = null) : base(options, currentUser) { }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(CatalogDbContext).Assembly);
+    }
+}
+```
+
+**DI extension** (in `.Infrastructure`):
+```csharp
+public static class CatalogInfrastructureExtensions
+{
+    public static IServiceCollection AddCatalogInfrastructure(
+        this IServiceCollection services,
+        string connectionString)
+    {
+        services.AddNacPostgreSQL<CatalogDbContext>(connectionString);
+        services.AddNacRepositoriesFromAssembly<CatalogDbContext>(
+            typeof(CatalogModule).Assembly);
+        return services;
+    }
+}
+```
+
+**Host wiring** (1 line per module):
+```csharp
+// Program.cs
+services.AddCatalogInfrastructure(connectionString);
+```
+
+**Rules:**
+- Module core handlers inject `IRepository<T>` / `IReadRepository<T>` — never DbContext directly
+- Module core never calls `SaveChangesAsync` — UnitOfWork behavior handles it
+- Custom queries beyond `IRepository`: define interface in module core `Contracts/`, implement in `.Infrastructure`
+- `AddNacRepositoriesFromAssembly` auto-scans `Entity<TId>` subtypes and registers repositories
+- Each module owns its own DbContext and migrations
+
 ## Forbidden Patterns
 
-- **Business modules referencing Nac.Identity** — use `ICurrentUser` from Nac.Abstractions
+- **Module core referencing Nac.Persistence** — only `.Infrastructure` can reference it
+- **Module core referencing Nac.Identity** — use `ICurrentUser` from Nac.Abstractions
+- **Module core referencing its own .Infrastructure** — dependency flows one way only
 - **Navigation properties to NacUser** — use `Guid UserId` only
 - **Cross-module DbContext access** — modules are isolated
 - **Direct project references between modules** — use Integration Events

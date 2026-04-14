@@ -48,13 +48,15 @@ Extract: `namespace`, `modules`, `localNacPath` (if present)
 ### 3. HARD-GATE: Confirm
 ```
 AskUserQuestion: "Add module '{Module}'?
-- src/Modules/{Namespace}.Modules.{Module}/
-- Domain/, Application/, Infrastructure/, Endpoints/
-- Update Program.cs to register module
+- src/Modules/{Namespace}.Modules.{Module}/          (core: Domain, Application, Contracts, Endpoints)
+- src/Modules/{Namespace}.Modules.{Module}.Infrastructure/  (DbContext, Configurations, Repositories)
+- Update Program.cs to register module + infrastructure
 Proceed?"
 ```
 
 ### 4. Create Structure
+
+**Module core:**
 ```
 src/Modules/{Namespace}.Modules.{Module}/
 ├── {Namespace}.Modules.{Module}.csproj
@@ -67,22 +69,34 @@ src/Modules/{Namespace}.Modules.{Module}/
 │   ├── Commands/
 │   ├── Queries/
 │   └── EventHandlers/
-├── Infrastructure/
-│   ├── Persistence/
-│   └── Repositories/
+├── Contracts/
 └── Endpoints/
+```
+
+**Module infrastructure:**
+```
+src/Modules/{Namespace}.Modules.{Module}.Infrastructure/
+├── {Namespace}.Modules.{Module}.Infrastructure.csproj
+├── {Module}DbContext.cs
+├── {Module}InfrastructureExtensions.cs
+├── Configurations/
+└── Repositories/
 ```
 
 ### 5. Generate Files
 - Load `references/module-templates.md`
-- Create .csproj (Package or Project reference based on `localNacPath`)
+- Create core .csproj (Package or Project reference based on `localNacPath`)
+- Create .Infrastructure .csproj (refs Nac.Persistence + module core)
 - Create {Module}Module.cs
+- Create {Module}DbContext.cs
+- Create {Module}InfrastructureExtensions.cs
 
 ### 6. Update Solution
-1. Add project to .slnx under `/src/Modules/`
-2. Add module to nac.json `modules`
-3. Add reference to Host.csproj
+1. Add BOTH projects to .slnx under `/src/Modules/`
+2. Add module to nac.json `modules` (with `infrastructurePath`)
+3. Add references to Host.csproj (both core + infrastructure)
 4. Add `.AddModule<{Module}Module>()` to Program.cs
+5. Add `services.Add{Module}Infrastructure(connectionString);` to Program.cs
 
 ### 7. Verify
 ```bash

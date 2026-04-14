@@ -501,8 +501,11 @@ public interface IProductRepository : IRepository<Product>
     Task<int> CountActiveAsync(CancellationToken ct = default);
 }
 
+// In {Ns}.Modules.Catalog.Infrastructure/Repositories/ProductRepository.cs
 public sealed class ProductRepository : EfRepository<Product>, IProductRepository
 {
+    public ProductRepository(CatalogDbContext context) : base(context) { }
+
     public async Task<Product?> GetByIdAsync(Guid id, CancellationToken ct)
     {
         var spec = new GetProductByIdSpec(id);
@@ -554,29 +557,26 @@ var products = _dbContext.Products
 
 ### Service Registration
 
-**Use extension methods. Register in modules, not host.**
+**Each module `.Infrastructure` provides a single DI extension. Host calls it with 1 line.**
 
 ```csharp
-// ✓ Correct
-public static class CatalogServiceCollectionExtensions
+// ✓ Correct — In {Ns}.Modules.Catalog.Infrastructure/CatalogInfrastructureExtensions.cs
+public static class CatalogInfrastructureExtensions
 {
-    public static IServiceCollection AddCatalogServices(
+    public static IServiceCollection AddCatalogInfrastructure(
         this IServiceCollection services,
-        IConfiguration configuration)
+        string connectionString)
     {
-        services
-            .AddScoped<IProductRepository, ProductRepository>()
-            .AddScoped<CatalogService>()
-            .AddNacMediator(x => x.AddCommandHandlers(typeof(CatalogModule).Assembly))
-            .AddNacPersistence<CatalogDbContext>(configuration);
-        
+        services.AddNacPostgreSQL<CatalogDbContext>(connectionString);
+        services.AddNacRepositoriesFromAssembly<CatalogDbContext>(
+            typeof(CatalogModule).Assembly);
+        services.AddScoped<IProductRepository, ProductRepository>();
         return services;
     }
 }
 
-// Host (Program.cs)
-var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddCatalogServices(builder.Configuration);
+// Host (Program.cs) — 1 line per module
+services.AddCatalogInfrastructure(connectionString);
 
 // ✗ Incorrect
 services.AddScoped<IProductRepository, ProductRepository>();  // In Program.cs directly
@@ -682,11 +682,13 @@ var dbContext = new TestDbContext();  // Real database
 
 ## File Organization
 
-### Folder Structure (per Module)
+### Folder Structure (per Module — 2-Project Pattern)
+
+Each module splits into **core** (clean, persistence-ignorant) and **infrastructure** (EF Core).
 
 ```
 Modules/
-  Catalog/
+  {Ns}.Modules.Catalog/                    ← Core (clean)
     Domain/
       Entities/
         Product.cs              # Aggregate root
@@ -705,16 +707,19 @@ Modules/
         GetProductByIdQueryHandler.cs
       EventHandlers/
         ProductCreatedDomainEventHandler.cs
-    Infrastructure/
-      Persistence/
-        CatalogDbContext.cs
-        Configurations/
-          ProductConfiguration.cs
-      Repositories/
-        ProductRepository.cs
+    Contracts/
+      IProductRepository.cs     # Custom repo interface (optional)
     Endpoints/
       ProductEndpoints.cs
     CatalogModule.cs
+
+  {Ns}.Modules.Catalog.Infrastructure/     ← Infrastructure (EF Core)
+    CatalogDbContext.cs
+    CatalogInfrastructureExtensions.cs
+    Configurations/
+      ProductConfiguration.cs
+    Repositories/
+      ProductRepository.cs
 ```
 
 ### File Naming
@@ -724,8 +729,11 @@ Modules/
 - **Entities:** `{EntityName}.cs`
 - **Specifications:** `{SpecName}Spec.cs` or `Get{EntityName}Spec.cs`
 - **Events:** `{EventName}DomainEvent.cs` or `{EventName}IntegrationEvent.cs`
-- **DbContext:** `{ModuleName}DbContext.cs`
-- **Repositories:** `{EntityName}Repository.cs`
+- **DbContext:** `{ModuleName}DbContext.cs` (in `.Infrastructure`)
+- **Configurations:** `{EntityName}Configuration.cs` (in `.Infrastructure/Configurations/`)
+- **Repositories:** `{EntityName}Repository.cs` (in `.Infrastructure/Repositories/`)
+- **DI Extension:** `{ModuleName}InfrastructureExtensions.cs` (in `.Infrastructure`)
+- **Contracts:** `I{EntityName}Repository.cs` (in core `Contracts/`)
 - **Endpoints:** `{FeatureName}Endpoints.cs` (group by feature, not HTTP verb)
 
 ---

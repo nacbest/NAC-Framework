@@ -50,19 +50,23 @@ flowchart TD
 
 ### 3. Validate
 - Module path: `src/Modules/{Namespace}.Modules.{Module}/`
+- Infrastructure path: from nac.json `infrastructurePath` or derive as `{modulePath}.Infrastructure`
 - Entity not exists: `Domain/Entities/{Entity}.cs`
 
 ### 4. HARD-GATE: Confirm
 ```
 AskUserQuestion: "Create entity '{Entity}' in '{Module}'?
-- Domain/Entities/{Entity}.cs
+- Domain/Entities/{Entity}.cs (module core)
+- Configurations/{Entity}Configuration.cs (module infrastructure)
 - Inherits AggregateRoot<Guid>
 Proceed?"
 ```
 
 ### 5. Generate Entity
 - Load `references/entity-templates.md`
-- Create `Domain/Entities/{Entity}.cs`
+- Create `Domain/Entities/{Entity}.cs` in module core project
+- Create `Configurations/{Entity}Configuration.cs` in module `.Infrastructure` project
+- If `.Infrastructure` project doesn't exist, warn user to run `/nac-add-module` first
 
 ### 6. Update nac.json
 - Add entity to module's `entities` array

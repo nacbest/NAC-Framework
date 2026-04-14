@@ -224,35 +224,68 @@ services.AddRabbitMqEventBus(opts =>
 
 ### DbContext Per Module (Mandatory)
 
-**Each module owns its DbContext:**
+Each module has 2 projects: **core** (persistence-ignorant) and **infrastructure** (EF Core).
+The DbContext lives in the `.Infrastructure` project, not in module core.
+
+```
+{Ns}.Modules.Catalog/                          ← Core (clean)
+  Domain/Entities/Product.cs
+  Application/Commands/...
+  Contracts/IProductRepository.cs
+  Endpoints/...
+
+{Ns}.Modules.Catalog.Infrastructure/           ← Infrastructure (EF Core)
+  CatalogDbContext.cs
+  CatalogInfrastructureExtensions.cs
+  Configurations/ProductConfiguration.cs
+  Repositories/ProductRepository.cs
+```
+
+**DbContext** (in `.Infrastructure`):
 
 ```csharp
+// In {Ns}.Modules.Catalog.Infrastructure/CatalogDbContext.cs
 public sealed class CatalogDbContext : NacDbContext
 {
-    public DbSet<Product> Products { get; set; }
-    public DbSet<Category> Categories { get; set; }
-    
-    public CatalogDbContext(DbContextOptions<CatalogDbContext> options) : base(options) { }
-    
-    protected override void OnModelCreating(ModelBuilder builder)
-    {
-        base.OnModelCreating(builder);
-        builder.ApplyConfigurationsFromAssembly(typeof(CatalogDbContext).Assembly);
-    }
-}
+    public CatalogDbContext(
+        DbContextOptions<CatalogDbContext> options,
+        ICurrentUser? currentUser = null) : base(options, currentUser) { }
 
-public sealed class OrdersDbContext : NacDbContext
-{
-    public DbSet<Order> Orders { get; set; }
-    
-    // Completely independent
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(CatalogDbContext).Assembly);
+    }
 }
 ```
 
+**DI extension** (in `.Infrastructure`):
+
+```csharp
+// In {Ns}.Modules.Catalog.Infrastructure/CatalogInfrastructureExtensions.cs
+public static class CatalogInfrastructureExtensions
+{
+    public static IServiceCollection AddCatalogInfrastructure(
+        this IServiceCollection services,
+        string connectionString)
+    {
+        services.AddNacPostgreSQL<CatalogDbContext>(connectionString);
+        services.AddNacRepositoriesFromAssembly<CatalogDbContext>(
+            typeof(CatalogModule).Assembly);
+        return services;
+    }
+}
+
+// Host Program.cs — 1 line per module
+services.AddCatalogInfrastructure(connectionString);
+```
+
 **Benefits:**
-- Clear module boundaries
-- Independent migrations
+- Module core stays persistence-ignorant (no EF Core references)
+- Clear module boundaries with separate projects
+- Independent migrations per module
 - Multi-tenancy isolation at DbContext level
+- Module team owns both projects independently
 - Ready for microservice extraction
 
 ### Unit of Work Pattern
@@ -549,6 +582,8 @@ _currentUser.HasPermission("orders.create");  // false (alice has no permission 
 ---
 
 ## Module Communication
+
+Module core defines contracts (interfaces in `Contracts/`), Module `.Infrastructure` implements them.
 
 ### 3 Patterns (by preference)
 
