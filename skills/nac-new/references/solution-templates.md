@@ -1,6 +1,6 @@
 # Solution Templates
 
-Replace `{Name}` with solution name. Replace `{localNacPath}` if `--local-nac` provided.
+Replace `{Name}` with solution name. Replace `{localNacPath}` if `--local-nac` provided. Replace `{NacVersion}` with resolved NAC framework version (see SKILL.md version resolution step).
 
 ## {Name}.slnx
 
@@ -14,6 +14,56 @@ Replace `{Name}` with solution name. Replace `{localNacPath}` if `--local-nac` p
 </Solution>
 ```
 
+## Directory.Build.props
+
+```xml
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+</Project>
+```
+
+## Directory.Packages.props
+
+### PackageReference Mode (Default)
+
+```xml
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- NAC Framework -->
+    <PackageVersion Include="Nac.Abstractions" Version="{NacVersion}" />
+    <PackageVersion Include="Nac.Domain" Version="{NacVersion}" />
+    <PackageVersion Include="Nac.Mediator" Version="{NacVersion}" />
+    <PackageVersion Include="Nac.WebApi" Version="{NacVersion}" />
+    <PackageVersion Include="Nac.Observability" Version="{NacVersion}" />
+    <PackageVersion Include="Nac.Persistence" Version="{NacVersion}" />
+    <PackageVersion Include="Nac.Persistence.PostgreSQL" Version="{NacVersion}" />
+    <!-- 3rd-party -->
+    <PackageVersion Include="Swashbuckle.AspNetCore" Version="7.2.0" />
+  </ItemGroup>
+</Project>
+```
+
+### ProjectReference Mode (--local-nac)
+
+```xml
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- 3rd-party only (NAC packages use ProjectReference) -->
+    <PackageVersion Include="Swashbuckle.AspNetCore" Version="7.2.0" />
+  </ItemGroup>
+</Project>
+```
+
 ## {Name}.Host.csproj
 
 ### PackageReference Mode (Default)
@@ -21,18 +71,12 @@ Replace `{Name}` with solution name. Replace `{localNacPath}` if `--local-nac` p
 ```xml
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-  </PropertyGroup>
-
   <ItemGroup>
-    <PackageReference Include="Nac.Abstractions" Version="1.0.0" />
-    <PackageReference Include="Nac.Mediator" Version="1.0.0" />
-    <PackageReference Include="Nac.WebApi" Version="1.0.0" />
-    <PackageReference Include="Nac.Observability" Version="1.0.0" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="7.2.0" />
+    <PackageReference Include="Nac.Abstractions" />
+    <PackageReference Include="Nac.Mediator" />
+    <PackageReference Include="Nac.WebApi" />
+    <PackageReference Include="Nac.Observability" />
+    <PackageReference Include="Swashbuckle.AspNetCore" />
   </ItemGroup>
 
 </Project>
@@ -43,12 +87,6 @@ Replace `{Name}` with solution name. Replace `{localNacPath}` if `--local-nac` p
 ```xml
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-  </PropertyGroup>
-
   <ItemGroup>
     <ProjectReference Include="{localNacPath}/src/Nac.Abstractions/Nac.Abstractions.csproj" />
     <ProjectReference Include="{localNacPath}/src/Nac.Mediator/Nac.Mediator.csproj" />
@@ -57,7 +95,7 @@ Replace `{Name}` with solution name. Replace `{localNacPath}` if `--local-nac` p
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="7.2.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" />
   </ItemGroup>
 
 </Project>
@@ -196,7 +234,7 @@ app.Run();
 
 ```json
 {
-  "framework": { "name": "nac", "version": "1.0.0" },
+  "framework": { "name": "nac", "version": "{NacVersion}" },
   "solution": { "name": "{Name}", "namespace": "{Name}" },
   "database": {
     "provider": "postgresql",
@@ -210,7 +248,7 @@ app.Run();
 
 ```json
 {
-  "framework": { "name": "nac", "version": "1.0.0" },
+  "framework": { "name": "nac", "version": "{NacVersion}" },
   "solution": { "name": "{Name}", "namespace": "{Name}" },
   "database": {
     "provider": "postgresql",

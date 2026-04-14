@@ -122,11 +122,23 @@ Add `NacIdentity` section:
 }
 ```
 
-### Add Package Reference (if missing)
+### Update Directory.Packages.props (if new packages)
+
+1. Read `Directory.Packages.props` from solution root
+2. Add `<PackageVersion>` entries if not already present:
 
 ```xml
-<PackageReference Include="Nac.Identity" Version="*" />
-<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="*" />
+<PackageVersion Include="Nac.Identity" Version="{NacVersion}" />
+<PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.2" />
+```
+
+3. If `localNacPath` in `nac.json`: skip `Nac.Identity` PackageVersion (uses ProjectReference instead), still add `Npgsql` entry
+
+### Add Package Reference to Host.csproj (if missing)
+
+```xml
+<PackageReference Include="Nac.Identity" />
+<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
 ```
 
 ---

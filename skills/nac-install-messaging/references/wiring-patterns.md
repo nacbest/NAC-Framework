@@ -50,15 +50,35 @@ builder.Services.AddNacRabbitMQ(
 }
 ```
 
-## Host.csproj — ProjectReferences
+## Host.csproj — PackageReference Mode (Default)
 
 ```xml
 <!-- InMemory or Outbox -->
-<ProjectReference Include="..\..\src\Nac.Messaging\Nac.Messaging.csproj" />
+<PackageReference Include="Nac.Messaging" />
 
 <!-- RabbitMQ (add both) -->
-<ProjectReference Include="..\..\src\Nac.Messaging\Nac.Messaging.csproj" />
-<ProjectReference Include="..\..\src\Nac.Messaging.RabbitMQ\Nac.Messaging.RabbitMQ.csproj" />
+<PackageReference Include="Nac.Messaging" />
+<PackageReference Include="Nac.Messaging.RabbitMQ" />
+```
+
+## Host.csproj — ProjectReference Mode (localNacPath in nac.json)
+
+```xml
+<!-- InMemory or Outbox -->
+<ProjectReference Include="../../src/Nac.Messaging/Nac.Messaging.csproj" />
+
+<!-- RabbitMQ (add both) -->
+<ProjectReference Include="../../src/Nac.Messaging/Nac.Messaging.csproj" />
+<ProjectReference Include="../../src/Nac.Messaging.RabbitMQ/Nac.Messaging.RabbitMQ.csproj" />
+```
+
+## Directory.Packages.props — Add entries for new packages
+
+```xml
+<!-- Add if not already present (PackageReference mode only) -->
+<PackageVersion Include="Nac.Messaging" Version="{NacVersion}" />
+<!-- RabbitMQ only -->
+<PackageVersion Include="Nac.Messaging.RabbitMQ" Version="{NacVersion}" />
 ```
 
 ## Usage Examples

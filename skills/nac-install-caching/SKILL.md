@@ -56,9 +56,10 @@ Options: "Yes, apply changes" / "No, cancel"
 
 Follow exact templates from `references/wiring-patterns.md`.
 
-1. **Host.csproj** — add `ProjectReference` to `Nac.Caching.csproj`; add Redis NuGet if chosen
-2. **Program.cs** — add `using Nac.Caching.Extensions;`; if Redis add `AddStackExchangeRedisCache()` before; add `AddNacCaching()`
-3. **appsettings.json** (Redis only) — add `"Redis": "localhost:6379"` under `ConnectionStrings`
+1. **Directory.Packages.props** — add `<PackageVersion>` for `Nac.Caching` (if PackageReference mode); add `Microsoft.Extensions.Caching.StackExchangeRedis` if Redis chosen. Skip Nac entries if `localNacPath` in `nac.json`
+2. **Host.csproj** — add `PackageReference` (or `ProjectReference` if `localNacPath`); add Redis ref if chosen. No `Version=` attribute
+3. **Program.cs** — add `using Nac.Caching.Extensions;`; if Redis add `AddStackExchangeRedisCache()` before; add `AddNacCaching()`
+4. **appsettings.json** (Redis only) — add `"Redis": "localhost:6379"` under `ConnectionStrings`
 
 ## Step 5: Build & Summary
 

@@ -343,14 +343,8 @@ public static class AuthEndpoints
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
-  
   <ItemGroup>
-    <PackageReference Include="Nac.Identity" Version="*" />
+    <PackageReference Include="Nac.Identity" />
   </ItemGroup>
 </Project>
 ```

@@ -1,6 +1,6 @@
 # Module Templates
 
-Replace `{Namespace}` from nac.json, `{Module}` from argument.
+Replace `{Namespace}` from nac.json, `{Module}` from argument. Common properties (`TargetFramework`, `Nullable`, `ImplicitUsings`) are inherited from `Directory.Build.props`. Package versions are managed centrally via `Directory.Packages.props`.
 
 ## Module Core: {Namespace}.Modules.{Module}.csproj
 
@@ -10,9 +10,6 @@ Replace `{Namespace}` from nac.json, `{Module}` from argument.
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>{Namespace}.Modules.{Module}</RootNamespace>
   </PropertyGroup>
 
@@ -21,9 +18,9 @@ Replace `{Namespace}` from nac.json, `{Module}` from argument.
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Nac.Abstractions" Version="1.0.0" />
-    <PackageReference Include="Nac.Domain" Version="1.0.0" />
-    <PackageReference Include="Nac.Mediator" Version="1.0.0" />
+    <PackageReference Include="Nac.Abstractions" />
+    <PackageReference Include="Nac.Domain" />
+    <PackageReference Include="Nac.Mediator" />
   </ItemGroup>
 
 </Project>
@@ -35,9 +32,6 @@ Replace `{Namespace}` from nac.json, `{Module}` from argument.
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>{Namespace}.Modules.{Module}</RootNamespace>
   </PropertyGroup>
 
@@ -62,15 +56,12 @@ Replace `{Namespace}` from nac.json, `{Module}` from argument.
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>{Namespace}.Modules.{Module}.Infrastructure</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Nac.Persistence" Version="1.0.0" />
-    <PackageReference Include="Nac.Persistence.PostgreSQL" Version="1.0.0" />
+    <PackageReference Include="Nac.Persistence" />
+    <PackageReference Include="Nac.Persistence.PostgreSQL" />
   </ItemGroup>
 
   <ItemGroup>
@@ -86,9 +77,6 @@ Replace `{Namespace}` from nac.json, `{Module}` from argument.
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>{Namespace}.Modules.{Module}.Infrastructure</RootNamespace>
   </PropertyGroup>
 

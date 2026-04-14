@@ -69,10 +69,12 @@ NEVER skip confirmation.
 
 ## Step 4: Wire Host
 
-Add `ProjectReference`(s) to `Host.csproj`, `using` + DI call to `Program.cs`:
+1. **Directory.Packages.props** — add `<PackageVersion>` entries for `Nac.Messaging` (and `Nac.Messaging.RabbitMQ` if RabbitMQ chosen). Skip if `localNacPath` in `nac.json` (uses ProjectReference instead)
+2. **Host.csproj** — add references (PackageReference or ProjectReference based on mode). No `Version=` attribute
+3. **Program.cs** — add `using` + DI call:
 
-| Provider | ProjectRef(s) | Namespace(s) | DI Call |
-|----------|---------------|--------------|---------|
+| Provider | Ref(s) | Namespace(s) | DI Call |
+|----------|--------|--------------|---------|
 | InMemory | `Nac.Messaging` | `Nac.Messaging.Extensions` | `AddNacInMemoryMessaging(assemblies)` |
 | Outbox | `Nac.Messaging` | `Nac.Messaging.Extensions` | `AddNacOutboxMessaging<{Module}DbContext>(assemblies)` |
 | RabbitMQ | `Nac.Messaging` + `Nac.Messaging.RabbitMQ` | both Extensions namespaces | `AddNacRabbitMQ(options, assemblies)` |

@@ -41,6 +41,7 @@ flowchart TD
 ```
 AskUserQuestion: "Create solution '{Name}'?
 - {Name}.slnx
+- Directory.Build.props, Directory.Packages.props
 - src/{Name}.Host/
 - nac.json, CLAUDE.md, llms.txt
 Proceed?"
@@ -49,6 +50,8 @@ Proceed?"
 ### 3. Create Structure
 ```
 {Name}/
+├── Directory.Build.props
+├── Directory.Packages.props
 ├── {Name}.slnx
 ├── nac.json
 ├── CLAUDE.md
@@ -61,18 +64,24 @@ Proceed?"
         └── launchSettings.json
 ```
 
-### 4. Generate Files
+### 4. Resolve `{NacVersion}`
+- If `--local-nac <path>` provided: parse `<path>/Directory.Build.props` XML → extract `<Version>` value
+- Else: query latest NuGet version via `curl -s "https://api.nuget.org/v3-flatcontainer/nac.abstractions/index.json" | jq -r '.versions[-1]'`. If query fails (package not published, network error), ask user for version via AskUserQuestion
+
+### 5. Generate Files
 - Load `references/solution-templates.md`
 - Load `references/project-docs.md`
-- Replace `{Name}` placeholder
+- Replace `{Name}`, `{NacVersion}`, `{localNacPath}` placeholders
+- Generate `Directory.Build.props` from template
+- Generate `Directory.Packages.props` (PackageReference or ProjectReference mode based on `--local-nac`)
 - If `--local-nac`: use ProjectReference, else PackageReference
 
-### 5. Verify
+### 6. Verify
 ```bash
 cd {Name} && dotnet build
 ```
 
-### 6. Report
+### 7. Report
 - Files created
 - Next: `cd {Name}` then `/nac-add-module`
 

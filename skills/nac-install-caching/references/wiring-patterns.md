@@ -33,14 +33,33 @@ builder.Services.AddNacCaching();
 }
 ```
 
-## Host.csproj — ProjectReference
+## Host.csproj — PackageReference Mode (Default)
 
 ```xml
 <!-- Always required -->
-<ProjectReference Include="..\..\src\Nac.Caching\Nac.Caching.csproj" />
+<PackageReference Include="Nac.Caching" />
 
 <!-- Redis provider (add only if Redis chosen) -->
-<PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.*" />
+<PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" />
+```
+
+## Host.csproj — ProjectReference Mode (localNacPath in nac.json)
+
+```xml
+<!-- Always required -->
+<ProjectReference Include="../../src/Nac.Caching/Nac.Caching.csproj" />
+
+<!-- Redis provider (add only if Redis chosen) -->
+<PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" />
+```
+
+## Directory.Packages.props — Add entries for new packages
+
+```xml
+<!-- Add if not already present -->
+<PackageVersion Include="Nac.Caching" Version="{NacVersion}" />
+<!-- Redis only -->
+<PackageVersion Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.0" />
 ```
 
 ## Usage Examples

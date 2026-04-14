@@ -39,7 +39,7 @@ flowchart TD
 ## Steps
 
 ### 1. Read nac.json
-Extract: `namespace`, `modules`, `localNacPath` (if present)
+Extract: `namespace`, `modules`, `localNacPath` (if present), `framework.version` → use as `{NacVersion}`
 
 ### 2. Validate
 - Module name: PascalCase, alphanumeric
@@ -85,7 +85,7 @@ src/Modules/{Namespace}.Modules.{Module}.Infrastructure/
 
 ### 5. Generate Files
 - Load `references/module-templates.md`
-- Create core .csproj (Package or Project reference based on `localNacPath`)
+- Create core .csproj (Package or Project reference based on `localNacPath`). All NAC package versions are already declared in `Directory.Packages.props` by `nac-new` — do not add duplicate `<PackageVersion>` entries
 - Create .Infrastructure .csproj (refs Nac.Persistence + module core)
 - Create {Module}Module.cs
 - Create {Module}DbContext.cs

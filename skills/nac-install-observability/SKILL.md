@@ -50,8 +50,7 @@ Show what will change: `.csproj` + `Program.cs`.
 
 **Load:** `references/wiring-patterns.md` for exact patterns.
 
-1. Add to `{Namespace}.Host.csproj`:
-   `<ProjectReference Include="..\..\src\Nac.Observability\Nac.Observability.csproj" />`
+1. **Host.csproj** — `Nac.Observability` is already in `Directory.Packages.props` and `Host.csproj` from `nac-new`. Verify it's present; if not, add `<PackageReference Include="Nac.Observability" />` (PackageReference mode) or `<ProjectReference>` (ProjectReference mode). No `Version=` attribute. If `Directory.Packages.props` is missing the entry, also add `<PackageVersion Include="Nac.Observability" Version="{NacVersion}" />`
 
 2. Add `using Nac.Observability.Extensions;` to top of `Program.cs`
 

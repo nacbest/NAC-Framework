@@ -9,10 +9,18 @@ using Nac.Observability.Extensions;
 builder.Services.AddNacObservability();
 ```
 
-## Host.csproj
+## Host.csproj — PackageReference Mode (Default)
+
+`Nac.Observability` is already included in `Directory.Packages.props` and `Host.csproj` by `nac-new`. If already present, no changes needed.
 
 ```xml
-<ProjectReference Include="..\..\src\Nac.Observability\Nac.Observability.csproj" />
+<PackageReference Include="Nac.Observability" />
+```
+
+## Host.csproj — ProjectReference Mode (localNacPath in nac.json)
+
+```xml
+<ProjectReference Include="../../src/Nac.Observability/Nac.Observability.csproj" />
 ```
 
 ## What Gets Logged
