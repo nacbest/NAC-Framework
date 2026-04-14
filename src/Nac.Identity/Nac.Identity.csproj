@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>[INFRA] ASP.NET Core Identity + JWT + Multi-tenant permissions. Use in: Host only.</Description>
-    <PackageTags>nac;framework;identity;auth;jwt;multi-tenant</PackageTags>
+    <Description>[INFRA] ASP.NET Core Identity + JWT + Authorization + Multi-tenant permissions. Use in: Host only.</Description>
+    <PackageTags>nac;framework;identity;auth;authorization;jwt;multi-tenant</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Nac.Abstractions\Nac.Abstractions.csproj" />
+    <ProjectReference Include="..\Nac.Mediator\Nac.Mediator.csproj" />
     <ProjectReference Include="..\Nac.Persistence\Nac.Persistence.csproj" />
     <ProjectReference Include="..\Nac.MultiTenancy\Nac.MultiTenancy.csproj" />
   </ItemGroup>

@@ -29,7 +29,6 @@ dotnet add package Nac.Persistence.PostgreSQL
 dotnet add package Nac.Messaging
 dotnet add package Nac.Messaging.RabbitMQ
 dotnet add package Nac.Caching
-dotnet add package Nac.Auth
 dotnet add package Nac.MultiTenancy
 dotnet add package Nac.Observability
 dotnet add package Nac.Testing
@@ -182,7 +181,6 @@ if (!_currentUser.HasPermission("catalog.products.create"))
 | **Nac.Messaging** | IEventBus abstraction, InMemoryEventBus, Outbox pattern |
 | **Nac.Messaging.RabbitMQ** | RabbitMQ implementation with consumer worker |
 | **Nac.MultiTenancy** | Tenant resolution (Header, Claim, Subdomain, Query), 3 strategies |
-| **Nac.Auth** | Permission-based authorization behaviors |
 | **Nac.Caching** | Query-level caching with post-command invalidation |
 | **Nac.Observability** | Structured logging (entry/exit/duration/errors) |
 | **Nac.WebApi** | Response envelopes, global exception handler |
@@ -367,7 +365,6 @@ Nac.Abstractions (zero deps)
   ├─ Nac.Persistence
   ├─ Nac.Messaging
   ├─ Nac.MultiTenancy
-  ├─ Nac.Auth
   ├─ Nac.Caching
   ├─ Nac.Observability
   └─ Nac.WebApi

@@ -228,30 +228,7 @@ Query: ExceptionHandling → Logging → Validation → Authorization → Cachin
 
 ---
 
-## 9. Nac.Auth
-
-**Purpose:** Permission-based authorization behaviors.
-
-**Files:** 2 (behaviors, extensions)
-
-**Key Types:**
-- `AuthorizationCommandBehavior` — enforces `IRequirePermission` on commands
-- `AuthorizationQueryBehavior` — enforces `IRequirePermission` on queries
-- `AuthServiceCollectionExtensions` — DI registration
-
-**Exceptions:**
-- `NacUnauthorizedException` (401)
-- `NacForbiddenException` (403)
-
-**Dependencies:** Nac.Abstractions, Nac.Mediator
-
-**LOC:** ~75
-
-**Notes:** Marker interface pattern: command declares `IRequirePermission`, behavior checks via `ICurrentUser.HasPermission(permission)`. Wildcard support: `orders.*`, `*.create`, etc.
-
----
-
-## 10. Nac.Caching
+## 9. Nac.Caching
 
 **Purpose:** Query-level distributed caching with invalidation.
 
@@ -450,7 +427,6 @@ Nac.Abstractions [ZERO DEPS]
             │       └─ (Outbox worker)
             │
             ├─ Nac.MultiTenancy
-            ├─ Nac.Auth ← Mediator
             ├─ Nac.Caching ← Mediator
             ├─ Nac.Observability ← Mediator
             ├─ Nac.WebApi

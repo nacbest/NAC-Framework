@@ -147,7 +147,6 @@ if (!_currentUser.HasPermission("catalog.products.create"))
 | **Nac.Messaging** | IEventBus abstraction, InMemoryEventBus, Outbox pattern |
 | **Nac.Messaging.RabbitMQ** | RabbitMQ implementation with consumer worker |
 | **Nac.MultiTenancy** | Tenant resolution (Header, Claim, Subdomain, Query), 3 strategies |
-| **Nac.Auth** | Permission-based authorization behaviors |
 | **Nac.Caching** | Query-level caching with post-command invalidation |
 | **Nac.Observability** | Structured logging (entry/exit/duration/errors) |
 | **Nac.WebApi** | Response envelopes, global exception handler |
@@ -898,13 +897,6 @@ nac check health
 
 **OutboxWorker timing:** 5s poll interval, 50-message batch, 10 retries
 
-### Nac.Auth
-
-**Key Types:**
-- `AuthorizationCommandBehavior` — enforces `IRequirePermission` on commands
-- `AuthorizationQueryBehavior` — enforces `IRequirePermission` on queries
-- `NacUnauthorizedException` (401), `NacForbiddenException` (403)
-
 ### Nac.Caching
 
 **Key Types:**
@@ -946,7 +938,6 @@ Nac.Abstractions [ZERO DEPS]
             │       └─ Nac.Messaging.RabbitMQ
             │
             ├─ Nac.MultiTenancy
-            ├─ Nac.Auth ← Mediator
             ├─ Nac.Caching ← Mediator
             ├─ Nac.Observability ← Mediator
             ├─ Nac.WebApi

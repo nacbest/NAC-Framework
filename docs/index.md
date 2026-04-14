@@ -125,7 +125,6 @@ Welcome to the NAC Framework documentation. Start here to navigate the entire do
 | **Messaging** | Nac.Messaging | EventBus abstraction, InMemory, Outbox |
 |  | Nac.Messaging.RabbitMQ | RabbitMQ implementation |
 | **Cross-cutting** | Nac.MultiTenancy | Tenant resolution, 3 strategies |
-|  | Nac.Auth | Permission-based authorization |
 |  | Nac.Caching | Query caching + invalidation |
 |  | Nac.Observability | Structured logging |
 | **API** | Nac.WebApi | Response envelopes, exception handler |

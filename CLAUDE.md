@@ -18,7 +18,6 @@ src/
 ├── Nac.Messaging.RabbitMQ/ — RabbitMQ implementation
 ├── Nac.Observability/    — Logging, tracing, health checks
 ├── Nac.WebApi/           — Minimal API helpers, exception handling
-├── Nac.Auth/             — Authorization behaviors
 ├── Nac.Testing/          — Test fakes: FakeEventBus, FakeCurrentUser
 └── Nac.Templates/        — dotnet new templates
 skills/                   — AI-native scaffolding skills (nac-new, nac-add-module, etc.)

@@ -57,7 +57,6 @@ Create a reusable foundation that eliminates boilerplate, enforces architectural
 | Package | Purpose | Dependencies |
 |---------|---------|--------------|
 | **Nac.MultiTenancy** | Tenant resolution (Header/Claim/Subdomain/Query), 3 strategies | Abstractions |
-| **Nac.Auth** | Permission-based authorization behaviors | Abstractions, Mediator |
 | **Nac.Caching** | Query cache + invalidation behaviors | Abstractions, Mediator |
 | **Nac.Observability** | Logging behaviors (command/query entry/exit/duration) | Abstractions, Mediator |
 
@@ -82,7 +81,6 @@ Nac.Persistence ← Abstractions, Domain, Mediator
   ↑
 Nac.Messaging ← Abstractions, Persistence
 Nac.MultiTenancy ← Abstractions
-Nac.Auth ← Abstractions, Mediator
 Nac.Caching ← Abstractions, Mediator
 Nac.Observability ← Abstractions, Mediator
 Nac.WebApi ← Abstractions

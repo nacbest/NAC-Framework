@@ -3,7 +3,7 @@ using Nac.Abstractions.Exceptions;
 using Nac.Mediator.Abstractions;
 using Nac.Mediator.Core;
 
-namespace Nac.Auth;
+namespace Nac.Identity;
 
 /// <summary>
 /// Command pipeline behavior that enforces permission-based authorization.

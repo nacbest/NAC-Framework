@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Nac.Abstractions.Auth;
 using Nac.Identity.CurrentUser;
 using Nac.Identity.Data;
@@ -12,6 +13,7 @@ using Nac.Identity.Entities;
 using Nac.Identity.Options;
 using Nac.Identity.Seeding;
 using Nac.Identity.Services;
+using Nac.Mediator.Abstractions;
 using StackExchange.Redis;
 
 namespace Nac.Identity.Extensions;
@@ -138,6 +140,28 @@ public static class IdentityServiceCollectionExtensions
         // Register seeder
         services.AddSingleton<IdentitySeeder>();
 
+        // Register authorization behaviors for mediator pipeline
+        services.AddNacAuthorization();
+
         return identityBuilder;
+    }
+
+    /// <summary>
+    /// Registers authorization behaviors for both command and query pipelines.
+    /// Commands/queries implementing <see cref="IRequirePermission"/>
+    /// will be checked against the current user's permissions.
+    /// Called automatically by <see cref="AddNacIdentity"/>; can also be used standalone.
+    /// </summary>
+    public static IServiceCollection AddNacAuthorization(this IServiceCollection services)
+    {
+        services.TryAddEnumerable(ServiceDescriptor.Transient(
+            typeof(ICommandBehavior<,>),
+            typeof(AuthorizationCommandBehavior<,>)));
+
+        services.TryAddEnumerable(ServiceDescriptor.Transient(
+            typeof(IQueryBehavior<,>),
+            typeof(AuthorizationQueryBehavior<,>)));
+
+        return services;
     }
 }

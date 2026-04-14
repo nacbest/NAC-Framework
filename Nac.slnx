@@ -9,8 +9,7 @@
   <!-- Infrastructure: Host ONLY -->
   <Folder Name="/src/Infrastructure/">
     <Project Path="src/Nac.WebApi/Nac.WebApi.csproj" />
-    <Project Path="src/Nac.Auth/Nac.Auth.csproj" />
-    <Project Path="src/Nac.Caching/Nac.Caching.csproj" />
+<Project Path="src/Nac.Caching/Nac.Caching.csproj" />
     <Project Path="src/Nac.Observability/Nac.Observability.csproj" />
     <Project Path="src/Nac.MultiTenancy/Nac.MultiTenancy.csproj" />
     <Project Path="src/Nac.Persistence/Nac.Persistence.csproj" />

@@ -24,7 +24,6 @@ Current status, milestones, and future development priorities.
 | Nac.Messaging | ✅ Complete | 1.0.0 | IEventBus, InMemory, Outbox |
 | Nac.Messaging.RabbitMQ | ✅ Complete | 1.0.0 | RabbitMQ integration |
 | Nac.MultiTenancy | ✅ Complete | 1.0.0 | 3 strategies, 5 resolvers |
-| Nac.Auth | ✅ Complete | 1.0.0 | Permission-based authorization |
 | Nac.Caching | ✅ Complete | 1.0.0 | Query-level caching + invalidation |
 | Nac.Observability | ✅ Complete | 1.0.0 | Structured logging |
 | Nac.WebApi | ✅ Complete | 1.0.0 | Response envelopes, exception handler |
