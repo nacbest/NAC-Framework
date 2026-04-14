@@ -128,6 +128,9 @@ NAC provides AI-native skills for Claude Code. Copy `skills/` to `~/.claude/skil
 /nac-add-feature <Module>/<Name>   # Command + Handler + Endpoint
 /nac-add-entity <Module>/<Name>    # Entity in Domain/Entities/
 /nac-install-identity              # Add Nac.Identity to Host project
+/nac-install-caching               # Add Nac.Caching to Host project
+/nac-install-messaging             # Add Nac.Messaging to Host project
+/nac-install-observability         # Add Nac.Observability to Host project
 ```
 
 Each skill:

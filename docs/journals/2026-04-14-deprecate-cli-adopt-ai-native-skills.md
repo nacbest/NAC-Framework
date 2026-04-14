@@ -1,9 +1,9 @@
 # Deprecate NAC CLI in Favor of AI-Native Skills
 
-**Date**: 2026-04-14 09:00
+**Date**: 2026-04-14 12:30
 **Severity**: High
 **Component**: Nac.Cli, NAC Framework Architecture
-**Status**: Approved (Plan Created)
+**Status**: COMPLETED
 
 ## What Happened
 
@@ -70,11 +70,26 @@ This is what the framework should have been from the start.
 
 3. **Context-aware scaffolding matters**: A skill can read `nac.json`, understand tenant strategy, and generate code that fits. A CLI prompt is static.
 
-## Next Steps
+## Implementation Results
 
-- **Lead**: Review plan at `/Users/nhan/Documents/code/NAC/plans/260414-1155-nac-skills-strategy/plan.md`
-- **Sprint**: 8h implementation (6 phases, track in task list)
-- **Timeline**: Target completion by end of sprint
-- **Validation**: Every skill must build + pass `nac check architecture`
+**Completed**: 2026-04-14 12:30 (same day as decision)
 
-This is a cleanup play—removing a tool that never fit the philosophy. The sooner we ship it, the sooner the framework feels cohesive again.
+**Deliverables**:
+- `skills/nac-new/` — SKILL.md + 2 reference files (solution-templates, project-docs)
+- `skills/nac-add-module/` — SKILL.md + 1 reference file (module-templates)
+- `skills/nac-add-entity/` — SKILL.md + 1 reference file (entity-templates)
+- `skills/nac-add-feature/` — SKILL.md + 1 reference file (cqrs-templates)
+- `skills/nac-install-identity/` — SKILL.md + 3 reference files (auth-endpoints, migration-safety, tenant-flows)
+
+**Cleanup**:
+- Deleted `src/Nac.Cli/` (8 files)
+- Updated `Nac.slnx` (removed Nac.Cli project)
+- Updated `CLAUDE.md` (skills commands instead of CLI)
+
+**Verification**:
+- `dotnet build Nac.slnx` — passes with 0 errors
+- Code review — minor concerns addressed (placeholder documentation)
+
+**Commit**: `74fb98b` — `refactor: deprecate CLI, adopt AI-native skills`
+
+The cleanup is done. NAC now feels coherent with its AI-first philosophy.

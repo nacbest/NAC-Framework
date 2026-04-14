@@ -56,7 +56,9 @@ Proceed?"
 └── src/{Name}.Host/
     ├── {Name}.Host.csproj
     ├── Program.cs
-    └── appsettings.json
+    ├── appsettings.json
+    └── Properties/
+        └── launchSettings.json
 ```
 
 ### 4. Generate Files

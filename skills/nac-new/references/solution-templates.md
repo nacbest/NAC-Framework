@@ -156,6 +156,24 @@ app.MapGet("/", (IHostEnvironment env) =>
 app.Run();
 ```
 
+## Properties/launchSettings.json
+
+```json
+{
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:5000",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
+```
+
 ## appsettings.json
 
 ```json
