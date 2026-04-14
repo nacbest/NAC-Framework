@@ -6,7 +6,7 @@
 
 A modular .NET 10 foundation framework for building scalable backend Web APIs with clean architecture principles, opt-in multi-tenancy, and a clear path from monolith to microservices.
 
-**Status:** v1.0 Complete (15/15 packages) | **License:** MIT
+**Status:** v1.0 Complete (14 packages) | **License:** MIT
 
 ---
 
@@ -32,44 +32,54 @@ dotnet add package Nac.Caching
 dotnet add package Nac.MultiTenancy
 dotnet add package Nac.Observability
 dotnet add package Nac.Testing
-
-# CLI Tool (for scaffolding)
-dotnet tool install -g Nac.Cli
 ```
 
 ### Create New Project
 
-```bash
-# Create new project with CLI
-nac new MyApp --modules Identity,Catalog,Orders --db postgresql
+Use AI-native skills in [Claude Code](https://claude.ai/code):
 
-# Add a feature
-cd MyApp
-nac add feature Catalog/CreateProduct
+```bash
+# Create new solution
+/nac-new MyApp
+
+# Add a module (generates core + infrastructure projects)
+/nac-add-module Catalog
+
+# Add a feature (Command + Handler + Endpoint)
+/nac-add-feature Catalog/CreateProduct
 ```
 
 ### Project Structure (Generated)
 
+Each module follows the **2-project pattern** — core (clean, persistence-ignorant) and infrastructure (EF Core, repositories):
+
 ```
 src/
-  MyApp.Host/              # Composition root (Program.cs)
-  MyApp.Shared/            # Shared contracts, DTOs
+  MyApp.Host/                                # Composition root (Program.cs)
+  MyApp.Shared/                              # Shared contracts, DTOs
   Modules/
-    MyApp.Modules.Catalog/
-      Domain/              # Entities, aggregates
-      Application/         # Commands, queries, handlers
-      Infrastructure/      # DbContext, repositories
-      Endpoints/          # Minimal API endpoints
-      CatalogModule.cs    # Module registration
+    MyApp.Modules.Catalog/                   # Module core (clean)
+      Domain/Entities/                       # Entities, aggregates
+      Application/Commands/                  # Command handlers
+      Application/Queries/                   # Query handlers
+      Contracts/                             # Custom repo interfaces
+      Endpoints/                             # Minimal API endpoints
+    MyApp.Modules.Catalog.Infrastructure/    # Module infrastructure
+      CatalogDbContext.cs                    # Module-owned DbContext
+      Configurations/                        # EF Core configurations
+      Repositories/                          # Repository implementations
+      CatalogInfrastructureExtensions.cs     # DI registration
     MyApp.Modules.Orders/
+      ...
+    MyApp.Modules.Orders.Infrastructure/
       ...
 
 tests/
   MyApp.Modules.Catalog.Tests/
   MyApp.Architecture.Tests/
 
-nac.json                   # Framework configuration
-MyApp.slnx                 # Solution file
+nac.json                                     # Framework configuration
+MyApp.slnx                                   # Solution file
 ```
 
 ---
@@ -169,7 +179,7 @@ if (!_currentUser.HasPermission("catalog.products.create"))
 
 ---
 
-## 15 Packages
+## 14 Packages
 
 | Package | Purpose |
 |---------|---------|
@@ -178,6 +188,7 @@ if (!_currentUser.HasPermission("catalog.products.create"))
 | **Nac.Mediator** | Custom CQRS mediator (no MediatR dependency) |
 | **Nac.Persistence** | EF Core integration, UnitOfWork, Repository, Outbox |
 | **Nac.Persistence.PostgreSQL** | PostgreSQL provider wrapper |
+| **Nac.Identity** | ASP.NET Identity + JWT + tenant roles/permissions |
 | **Nac.Messaging** | IEventBus abstraction, InMemoryEventBus, Outbox pattern |
 | **Nac.Messaging.RabbitMQ** | RabbitMQ implementation with consumer worker |
 | **Nac.MultiTenancy** | Tenant resolution (Header, Claim, Subdomain, Query), 3 strategies |
@@ -185,7 +196,6 @@ if (!_currentUser.HasPermission("catalog.products.create"))
 | **Nac.Observability** | Structured logging (entry/exit/duration/errors) |
 | **Nac.WebApi** | Response envelopes, global exception handler |
 | **Nac.Testing** | Fakes (EventBus, TenantContext, CurrentUser) |
-| **Nac.Cli** | `nac` CLI tool for scaffolding and management |
 | **Nac.Templates** | `dotnet new nac-solution` template |
 
 ---
@@ -210,41 +220,26 @@ if (!_currentUser.HasPermission("catalog.products.create"))
 
 ✅ **Testing Utilities** — Fakes for isolated unit testing
 
-✅ **CLI-First Workflow** — Scaffold solutions, modules, features with one command
+✅ **AI-Native Skills** — Scaffold solutions, modules, features via Claude Code skills
 
 ---
 
-## CLI Commands
+## AI-Native Skills
+
+NAC replaces traditional CLI with AI-native skills for [Claude Code](https://claude.ai/code). Copy `skills/` to `~/.claude/skills/` to use.
 
 ```bash
-# Create new solution
-nac new MyApp --modules Identity,Catalog,Orders --db postgresql
-
-# Add module
-nac add module Inventory
-
-# Add feature (scaffolds Command, Handler, Validator, Endpoint)
-nac add feature Catalog/CreateProduct
-
-# Add entity
-nac add entity Catalog/Product
-
-# Add domain event
-nac add event Catalog/ProductCreated
-
-# Manage migrations
-nac migration add Catalog "InitialCatalog"
-nac migration apply
-
-# Verify architecture (no cross-module dependencies)
-nac check architecture
-
-# Verify configurations
-nac check health
-
-# Update framework packages
-nac update
+/nac-new <Name>                    # New solution
+/nac-add-module <Name>             # New module (core + infrastructure)
+/nac-add-feature <Module>/<Name>   # Command + Handler + Endpoint
+/nac-add-entity <Module>/<Name>    # Entity in Domain/Entities/
+/nac-install-identity              # Add Nac.Identity to Host project
+/nac-install-caching               # Add Nac.Caching to Host project
+/nac-install-messaging             # Add Nac.Messaging to Host project
+/nac-install-observability         # Add Nac.Observability to Host project
 ```
+
+Each skill reads context from `nac.json`, confirms operations via hard-gate, and runs `dotnet build` to verify.
 
 ---
 
@@ -253,13 +248,13 @@ nac update
 ### 1. Scaffold
 
 ```bash
-nac add feature Catalog/CreateProduct
+/nac-add-feature Catalog/CreateProduct
 ```
 
-**Generated:**
-- `Application/Commands/CreateProductCommand.cs`
-- `Application/Commands/CreateProductCommandHandler.cs`
-- `Application/Commands/CreateProductCommandValidator.cs`
+**Generated in module core (`MyApp.Modules.Catalog`):**
+- `Application/Commands/CreateProduct/CreateProductCommand.cs`
+- `Application/Commands/CreateProduct/CreateProductCommandHandler.cs`
+- `Application/Commands/CreateProduct/CreateProductCommandValidator.cs`
 - `Endpoints/CreateProductEndpoint.cs`
 
 ### 2. Implement
@@ -322,8 +317,8 @@ private static async Task<IResult> CreateProduct(
 ### 3. Database Migration
 
 ```bash
-nac migration add Catalog "AddProducts"
-nac migration apply
+dotnet ef migrations add AddProducts -p src/MyApp.Modules.Catalog.Infrastructure -s src/MyApp.Host
+dotnet ef database update -p src/MyApp.Modules.Catalog.Infrastructure -s src/MyApp.Host
 ```
 
 ### 4. Done
