@@ -760,7 +760,7 @@ public sealed class Product : AggregateRoot<Guid>
 - Module A calls internal service in Module B
 - Circular dependencies between modules
 
-**Enforced by:** `nac check architecture` (analyzer)
+**Enforced by:** Code review and package dependency rules (see CLAUDE.md). `nac check architecture` is planned but not yet implemented.
 
 ---
 

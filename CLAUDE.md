@@ -20,7 +20,8 @@ src/
 ├── Nac.Observability/          — Structured logging behaviors
 ├── Nac.WebApi/                 — Response envelopes, exception handler, module framework
 ├── Nac.Testing/                — Test fakes
-└── Nac.Templates/              — dotnet new templates
+├── Nac.Templates/              — dotnet new templates
+└── Nac.Cli/                    — dotnet global tool (`nac` command), under /src/Tooling/
 ```
 
 ## Package Dependency Rules (CRITICAL)

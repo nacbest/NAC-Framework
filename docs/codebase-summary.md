@@ -391,38 +391,28 @@ Assert.NotEmpty(publishedEvents);
 
 ## 14. Nac.Cli
 
-**Purpose:** dotnet CLI tool (`nac` command) for scaffolding and management.
+**Purpose:** dotnet global tool (`nac` command) for scaffolding full NAC Framework projects.
 
-**Files:** 4 (commands, templates, DI, main)
+**Files:** 3 (Program.cs, Commands/NewCommand.cs, Services/ScaffoldService.cs) + embedded templates
 
 **Commands:**
-- `nac new <Name>` — scaffold solution
-- `nac add module <Name>` — add module to existing solution
-- `nac add feature <Module>/<Feature>` — generate Command, Handler, Validator, Endpoint
-- `nac add entity <Module>/<Entity>` — generate Entity + Repository interface
-- `nac add event <Module>/<Event>` — generate Domain Event + handler skeleton
-- `nac add integration-event <Name>` — generate Integration Event in Shared Contracts
-- `nac migration add <Module> "<Desc>"` — create EF migration
-- `nac migration apply [Module]` — apply migrations
-- `nac check architecture` — verify module boundaries
-- `nac check health` — verify configurations
+- `nac new <name> [--module <name>] [--output <dir>]` — scaffold a new NAC solution with host, shared contracts, module core, module infrastructure, and tests projects
 
 **Implementation:**
-- `NewCommand`, `AddCommand` — main scaffolding logic
-- `CodeTemplates` — embedded Scriban templates
-- System.CommandLine for CLI parsing
+- `NewCommand` — CLI parsing, input validation (C# identifier regex), delegates to `ScaffoldService`
+- `ScaffoldService` — loads embedded Scriban templates, renders with `{project_name}`, `{module_name}`, `{nac_version}` model, writes 22 output files, runs `dotnet restore`
 
-**Templates Generated:**
-- Module folder structure
-- DbContext skeleton
-- Feature (Command + Handler + Validator + Endpoint)
-- Entity + Repository interface
+**Templates Generated (22 files):**
+- Solution: `{Name}.slnx`, `nac.json`, `Directory.Build.props`, `Directory.Packages.props`
+- Host: `{Name}.Host.csproj`, `Program.cs`, `appsettings.json`, `appsettings.Development.json`
+- Shared: `{Name}.Shared.csproj`
+- Module core: csproj, module class, entity, command + handler, query + handler, endpoints
+- Module infrastructure: csproj, DbContext, entity configuration, infrastructure extensions
+- Tests: test project csproj
 
-**Dependencies:** System.CommandLine 2.0.5
+**Dependencies:** System.CommandLine, Scriban
 
-**LOC:** ~408
-
-**Notes:** Embedded templates as C# raw strings. placeholders: `{ModuleName}`, `{EntityName}`, `{Namespace}`. nac.json tracks module versions and dependencies.
+**Notes:** `PackAsTool=true`, `ToolCommandName=nac`. Templates embedded as resources (`.sbn` = Scriban, `.cstemplate` = verbatim C#). Template model keys use snake_case (`project_name`, `module_name`, `nac_version`). Placed under `/src/Tooling/` in solution.
 
 ---
 
