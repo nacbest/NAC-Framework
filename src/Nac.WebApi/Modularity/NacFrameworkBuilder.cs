@@ -1,3 +1,4 @@
+using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -10,12 +11,16 @@ namespace Nac.WebApi.Modularity;
 public sealed class NacFrameworkBuilder
 {
     private readonly List<INacModule> _modules = [];
+    private readonly List<Assembly> _moduleAssemblies = [];
 
     public IServiceCollection Services { get; }
     public IConfiguration Configuration { get; }
 
     /// <summary>Registered modules in dependency order.</summary>
     internal IReadOnlyList<INacModule> Modules => _modules;
+
+    /// <summary>Assemblies from registered modules, used for IEndpointMapper auto-discovery.</summary>
+    internal IReadOnlyList<Assembly> ModuleAssemblies => _moduleAssemblies.AsReadOnly();
 
     internal NacFrameworkBuilder(IServiceCollection services, IConfiguration configuration)
     {
@@ -32,6 +37,7 @@ public sealed class NacFrameworkBuilder
             throw new InvalidOperationException($"Module '{module.Name}' is already registered.");
 
         _modules.Add(module);
+        TrackAssembly(typeof(TModule).Assembly);
         return this;
     }
 
@@ -44,6 +50,13 @@ public sealed class NacFrameworkBuilder
             throw new InvalidOperationException($"Module '{module.Name}' is already registered.");
 
         _modules.Add(module);
+        TrackAssembly(module.GetType().Assembly);
         return this;
+    }
+
+    private void TrackAssembly(Assembly assembly)
+    {
+        if (!_moduleAssemblies.Contains(assembly))
+            _moduleAssemblies.Add(assembly);
     }
 }

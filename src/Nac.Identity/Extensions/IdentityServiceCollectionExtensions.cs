@@ -89,7 +89,8 @@ public static class IdentityServiceCollectionExtensions
         // Replace default UserManager with TenantAwareUserManager
         services.AddScoped<UserManager<TUser>, TenantAwareUserManager<TUser>>();
 
-        // Add JWT Authentication
+        // Add JWT Authentication + ASP.NET Core Authorization
+        services.AddAuthorization();
         services.AddAuthentication(authOpts =>
         {
             authOpts.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -176,6 +177,11 @@ public static class IdentityServiceCollectionExtensions
         Action<DbContextOptionsBuilder> configureDbContext,
         Action<NacIdentityOptions>? configure = null)
     {
+        // Register the non-generic NacIdentityDbContext so services that inject it
+        // (JwtCurrentUser, TenantRoleService, EfRefreshTokenStore) can be resolved.
+        // The generic overload only registers NacIdentityDbContext<TUser>.
+        services.AddDbContext<NacIdentityDbContext>(configureDbContext);
+
         var builder = services.AddNacIdentity<NacIdentityUser>(
             configuration, configureDbContext, configure);
 

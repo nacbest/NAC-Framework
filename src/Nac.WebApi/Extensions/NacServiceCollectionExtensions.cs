@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Nac.Core.Modularity;
 using Nac.WebApi.Modularity;
 
 namespace Nac.WebApi.Extensions;
@@ -36,26 +38,41 @@ public static class NacServiceCollectionExtensions
         }
 
         builder.Services.AddSingleton(nacBuilder.Modules);
+        builder.Services.AddSingleton(new NacModuleAssemblyRegistry(nacBuilder.ModuleAssemblies));
 
         return builder;
     }
 
     /// <summary>
-    /// Applies NAC framework middleware and maps module endpoints.
+    /// Applies NAC framework middleware and auto-discovers IEndpointMapper implementations from module assemblies.
     /// Call after <c>builder.Build()</c>.
     /// </summary>
     public static WebApplication UseNacFramework(this WebApplication app)
     {
-        var modules = app.Services.GetRequiredService<IReadOnlyList<INacModule>>();
+        var registry = app.Services.GetRequiredService<NacModuleAssemblyRegistry>();
+        var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Nac.WebApi.EndpointDiscovery");
 
-        foreach (var module in modules)
+        foreach (var assembly in registry.Assemblies)
         {
-            module.ConfigurePipeline(app);
-        }
+            var mapperTypes = assembly.GetTypes()
+                .Where(t => t is { IsAbstract: false, IsInterface: false }
+                    && typeof(IEndpointMapper).IsAssignableFrom(t));
 
-        foreach (var module in modules)
-        {
-            module.ConfigureEndpoints(app);
+            foreach (var mapperType in mapperTypes)
+            {
+                try
+                {
+                    var mapper = (IEndpointMapper)ActivatorUtilities.CreateInstance(app.Services, mapperType);
+                    mapper.MapEndpoints(app);
+                    logger.LogInformation("Discovered endpoint mapper: {MapperType}", mapperType.FullName);
+                }
+                catch (Exception ex)
+                {
+                    throw new InvalidOperationException(
+                        $"Failed to instantiate IEndpointMapper '{mapperType.FullName}'. " +
+                        "Ensure it is a non-static class with a valid constructor.", ex);
+                }
+            }
         }
 
         return app;
@@ -67,13 +84,20 @@ public static class NacServiceCollectionExtensions
 
         foreach (var module in modules)
         {
-            foreach (var dep in module.Dependencies)
+            var dependsOnAttrs = module.GetType()
+                .GetCustomAttributes(typeof(DependsOnAttribute), inherit: false)
+                .Cast<DependsOnAttribute>();
+
+            foreach (var attr in dependsOnAttrs)
             {
-                if (!registeredTypes.Contains(dep))
+                foreach (var dep in attr.ModuleTypes)
                 {
-                    throw new InvalidOperationException(
-                        $"Module '{module.Name}' depends on '{dep.Name}' which is not registered. " +
-                        $"Register it via AddModule<{dep.Name}>() before or after '{module.Name}'.");
+                    if (!registeredTypes.Contains(dep))
+                    {
+                        throw new InvalidOperationException(
+                            $"Module '{module.Name}' depends on '{dep.Name}' which is not registered. " +
+                            $"Register it via AddModule<{dep.Name}>() before or after '{module.Name}'.");
+                    }
                 }
             }
         }
@@ -83,7 +107,14 @@ public static class NacServiceCollectionExtensions
 
     private static void DetectCircularDependencies(IReadOnlyList<INacModule> modules)
     {
-        var graph = modules.ToDictionary(m => m.GetType(), m => m.Dependencies);
+        var graph = modules.ToDictionary(
+            m => m.GetType(),
+            m => m.GetType()
+                .GetCustomAttributes(typeof(DependsOnAttribute), inherit: false)
+                .Cast<DependsOnAttribute>()
+                .SelectMany(a => a.ModuleTypes)
+                .ToList() as IReadOnlyList<Type>);
+
         var visited = new HashSet<Type>();
         var visiting = new HashSet<Type>();
 
