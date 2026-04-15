@@ -516,6 +516,82 @@ public interface ITenantContext
 
 ---
 
+## Identity Architecture
+
+### Multi-Layer Identity System
+
+NAC Identity (`Nac.Identity`) provides **ASP.NET Identity + JWT + tenant-scoped roles**.
+
+**Components:**
+- **NacUser:** Global user account (email, username, password)
+- **TenantMembership:** Links user to tenant with role assignment
+- **TenantRole:** Role + permissions scoped to tenant
+- **JwtCurrentUser:** JWT-based `ICurrentUser` implementation with async permission loading
+- **IdentityEventPublisher:** Publishes identity lifecycle events
+- **IIdentityService:** Query interface for business modules to fetch user info
+
+**Key Pattern: Async Permission Loading**
+
+Permissions are loaded asynchronously via middleware to avoid sync-over-async penalties:
+
+```csharp
+// In IdentityApplicationBuilderExtensions.cs
+app.UseNacIdentity();  // Preloads permissions before handlers run
+
+// In JwtCurrentUser.cs
+internal async Task LoadPermissionsAsync(CancellationToken ct = default)
+{
+    // Loads membership → role → permissions from DB
+    // Called from middleware before request reaches handlers
+}
+
+// In handlers, ICurrentUser.Permissions is already cached synchronously
+public async Task<Guid> Handle(CreateProductCommand cmd, CancellationToken ct)
+{
+    if (!_currentUser.HasPermission("products.create"))
+        throw new ForbiddenException(...);
+    // ...
+}
+```
+
+**Identity Events (Integration)**
+
+When `Nac.Messaging` is configured, `IdentityEventPublisher` publishes events:
+
+```csharp
+// In identity workflows (registration, confirmation, reset)
+public sealed class UserRegisteredEvent(Guid UserId, string Email, string? TenantId) 
+    : IIntegrationEvent;
+
+public sealed class UserEmailConfirmedEvent(Guid UserId, string? TenantId) 
+    : IIntegrationEvent;
+
+public sealed class PasswordResetEvent(Guid UserId, string? TenantId) 
+    : IIntegrationEvent;
+
+// Usage in handlers
+var publisher = new IdentityEventPublisher(_eventBus);
+await publisher.PublishUserRegisteredAsync(newUser, tenantId, ct);
+```
+
+**RefreshToken Persistence**
+
+Refresh tokens store `TenantId` at issuance time and preserve it on token rotation:
+
+```csharp
+public sealed class RefreshToken
+{
+    public Guid Id { get; set; }
+    public Guid UserId { get; set; }
+    public required string TokenHash { get; set; }
+    public DateTimeOffset ExpiresAt { get; set; }
+    public string? TenantId { get; set; }  // Preserved on refresh
+    public bool IsActive => RevokedAt == null && ExpiresAt > DateTimeOffset.UtcNow;
+}
+```
+
+---
+
 ## Authorization Architecture
 
 ### Permission-Based (Not Role-Based)

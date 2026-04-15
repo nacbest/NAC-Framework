@@ -768,6 +768,113 @@ public static Product Create(string name, decimal price) { }  // No documentatio
 
 ---
 
+## Identity Integration
+
+### Using IIdentityService (Business Modules)
+
+Query user info from Nac.Identity without tight coupling:
+
+```csharp
+// In handler (module core)
+public sealed class GetStaffByUserIdQueryHandler : IQueryHandler<GetStaffByUserIdQuery, StaffDto?>
+{
+    private readonly IIdentityService _identityService;
+    private readonly IStaffRepository _staffRepository;
+
+    public async Task<StaffDto?> Handle(GetStaffByUserIdQuery query, CancellationToken ct)
+    {
+        // Get user info from identity service
+        var userInfo = await _identityService.GetUserInfoAsync(query.UserId, ct);
+        if (userInfo is null)
+            return null;
+
+        // Fetch staff by user ID
+        var staff = await _staffRepository.GetByUserIdAsync(query.UserId, ct);
+        if (staff is null)
+            return null;
+
+        return new StaffDto(staff.Id, staff.EmployeeCode, userInfo.DisplayName ?? userInfo.Email);
+    }
+}
+```
+
+### Publishing Identity Events
+
+When `Nac.Messaging` is configured, publish events via `IdentityEventPublisher`:
+
+```csharp
+// In identity registration endpoint or command handler
+public sealed class RegisterUserCommandHandler : ICommandHandler<RegisterUserCommand, Guid>
+{
+    private readonly UserManager<NacUser> _userManager;
+    private readonly IdentityEventPublisher _eventPublisher;
+
+    public async Task<Guid> Handle(RegisterUserCommand cmd, CancellationToken ct)
+    {
+        var user = new NacUser { Email = cmd.Email, UserName = cmd.Email };
+        var result = await _userManager.CreateAsync(user, cmd.Password);
+        
+        if (result.Succeeded)
+        {
+            // Publish event (safe even if IEventBus not configured)
+            await _eventPublisher.PublishUserRegisteredAsync(user, tenantId: null, ct);
+            return user.Id;
+        }
+
+        throw new InvalidOperationException("Registration failed");
+    }
+}
+
+// Subscribers listen for events in other modules
+public sealed class UserRegisteredIntegrationEventHandler 
+    : IIntegrationEventHandler<UserRegisteredEvent>
+{
+    private readonly IStaffRepository _staffRepository;
+    private readonly IUnitOfWork _unitOfWork;
+
+    public async Task Handle(UserRegisteredEvent evt, CancellationToken ct)
+    {
+        // Example: auto-create staff record for new user
+        var staff = new Staff { UserId = evt.UserId, ... };
+        _staffRepository.Add(staff);
+        await _unitOfWork.SaveChangesAsync(ct);
+    }
+}
+```
+
+### Linking Business Entities to Users
+
+Use **Guid FK only** (no navigation to NacUser) to keep modules decoupled from Infrastructure:
+
+```csharp
+// ✓ CORRECT — In module core
+public sealed class Staff : AggregateRoot<Guid>
+{
+    public Guid UserId { get; set; }  // FK to NacUser, no navigation property
+    public required string EmployeeCode { get; init; }
+    public required string Department { get; set; }
+}
+
+// ✓ Query user info via IIdentityService
+public async Task<StaffWithUserInfoDto?> GetStaffWithUserAsync(Guid staffId, CancellationToken ct)
+{
+    var staff = await _repository.GetByIdAsync(staffId, ct);
+    if (staff is null)
+        return null;
+
+    var userInfo = await _identityService.GetUserInfoAsync(staff.UserId, ct);
+    return new StaffWithUserInfoDto(staff.Id, staff.EmployeeCode, userInfo?.Email);
+}
+
+// ❌ WRONG — Navigation property couples to Infrastructure
+public sealed class Staff : AggregateRoot<Guid>
+{
+    public NacUser User { get; set; }  // FORBIDDEN! Couples to Nac.Identity
+}
+```
+
+---
+
 ## Testing & Performance
 
 Comprehensive testing and performance optimization guidelines are covered in **[Testing & Performance](./testing-and-performance.md)** (separate document).
