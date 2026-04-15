@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using Nac.Abstractions.MultiTenancy;
+using Nac.Core.MultiTenancy;
 using Nac.Identity.Data;
 using Nac.Identity.Entities;
 using NacIdentityOptions = Nac.Identity.Options.NacIdentityOptions;
