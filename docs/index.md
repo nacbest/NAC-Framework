@@ -40,9 +40,10 @@ Welcome to the NAC Framework documentation. Start here to navigate the entire do
 | **[testing-and-performance.md](./testing-and-performance.md)** | 268 | Unit/integration testing, performance optimization, caching, async patterns |
 | **[system-architecture.md](./system-architecture.md)** | 945 | CQRS pipelines, dual events, persistence, multi-tenancy, caching, authorization |
 | **[project-roadmap.md](./project-roadmap.md)** | 439 | v1.0 status, post-1.0 features, adoption targets, risk register |
+| **[project-changelog.md](./project-changelog.md)** | 94 | Version history, breaking changes, migration notes |
 | **index.md** | This file | Documentation navigation and overview |
 
-**Total:** 3,679 LOC across 7 files. All under 800 LOC except system-architecture.md (see exception note below).
+**Total:** 3,773 LOC across 8 files. All under 800 LOC except system-architecture.md (see exception note below).
 
 ---
 

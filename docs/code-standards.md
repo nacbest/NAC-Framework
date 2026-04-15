@@ -501,7 +501,7 @@ public interface IProductRepository : IRepository<Product>
     Task<int> CountActiveAsync(CancellationToken ct = default);
 }
 
-// In {Ns}.Modules.Catalog.Infrastructure/Repositories/ProductRepository.cs
+// In {Ns}.Modules.Catalog/Infrastructure/Repositories/ProductRepository.cs
 public sealed class ProductRepository : EfRepository<Product>, IProductRepository
 {
     public ProductRepository(CatalogDbContext context) : base(context) { }
@@ -557,13 +557,13 @@ var products = _dbContext.Products
 
 ### Service Registration
 
-**Each module `.Infrastructure` provides a single DI extension. Host calls it with 1 line.**
+**Each module provides a DI extension in `Infrastructure/`. Module class calls it from `ConfigureServices`.**
 
 ```csharp
-// ✓ Correct — In {Ns}.Modules.Catalog.Infrastructure/CatalogInfrastructureExtensions.cs
-public static class CatalogInfrastructureExtensions
+// ✓ Correct — In {Ns}.Modules.Catalog/Infrastructure/CatalogServiceCollectionExtensions.cs
+public static class CatalogServiceCollectionExtensions
 {
-    public static IServiceCollection AddCatalogInfrastructure(
+    public static IServiceCollection AddCatalogModule(
         this IServiceCollection services,
         string connectionString)
     {
@@ -575,8 +575,23 @@ public static class CatalogInfrastructureExtensions
     }
 }
 
-// Host (Program.cs) — 1 line per module
-services.AddCatalogInfrastructure(connectionString);
+// Module class wires its own infrastructure
+public sealed class CatalogModule : INacModule
+{
+    public string Name => "Catalog";
+
+    public void ConfigureServices(IServiceCollection services, IConfiguration configuration)
+    {
+        var connStr = configuration.GetConnectionString("DefaultConnection")!;
+        services.AddCatalogModule(connStr);
+    }
+}
+
+// Host (Program.cs) — registers modules via framework builder
+builder.AddNacFramework(nac =>
+{
+    nac.AddModule<CatalogModule>();
+});
 
 // ✗ Incorrect
 services.AddScoped<IProductRepository, ProductRepository>();  // In Program.cs directly
@@ -682,13 +697,13 @@ var dbContext = new TestDbContext();  // Real database
 
 ## File Organization
 
-### Folder Structure (per Module — 2-Project Pattern)
+### Folder Structure (per Module — 1-Project Pattern)
 
-Each module splits into **core** (clean, persistence-ignorant) and **infrastructure** (EF Core).
+Each module is a single project with clean architecture enforced by folders.
 
 ```
 Modules/
-  {Ns}.Modules.Catalog/                    ← Core (clean)
+  {Ns}.Modules.Catalog/
     Domain/
       Entities/
         Product.cs              # Aggregate root
@@ -699,27 +714,28 @@ Modules/
         GetProductByIdSpec.cs
     Application/
       Commands/
-        CreateProductCommand.cs
-        CreateProductCommandHandler.cs
-        CreateProductCommandValidator.cs
+        CreateProduct/
+          CreateProductCommand.cs
+          CreateProductCommandHandler.cs
+          CreateProductCommandValidator.cs
       Queries/
-        GetProductByIdQuery.cs
-        GetProductByIdQueryHandler.cs
+        GetProductById/
+          GetProductByIdQuery.cs
+          GetProductByIdQueryHandler.cs
       EventHandlers/
         ProductCreatedDomainEventHandler.cs
     Contracts/
       IProductRepository.cs     # Custom repo interface (optional)
+    Infrastructure/
+      CatalogDbContext.cs
+      CatalogServiceCollectionExtensions.cs
+      Configurations/
+        ProductConfiguration.cs
+      Repositories/
+        ProductRepository.cs
     Endpoints/
-      ProductEndpoints.cs
-    CatalogModule.cs
-
-  {Ns}.Modules.Catalog.Infrastructure/     ← Infrastructure (EF Core)
-    CatalogDbContext.cs
-    CatalogInfrastructureExtensions.cs
-    Configurations/
-      ProductConfiguration.cs
-    Repositories/
-      ProductRepository.cs
+      ProductEndpoints.cs         # implements IEndpointMapper
+    CatalogModule.cs              # : INacModule
 ```
 
 ### File Naming
@@ -729,12 +745,13 @@ Modules/
 - **Entities:** `{EntityName}.cs`
 - **Specifications:** `{SpecName}Spec.cs` or `Get{EntityName}Spec.cs`
 - **Events:** `{EventName}DomainEvent.cs` or `{EventName}IntegrationEvent.cs`
-- **DbContext:** `{ModuleName}DbContext.cs` (in `.Infrastructure`)
-- **Configurations:** `{EntityName}Configuration.cs` (in `.Infrastructure/Configurations/`)
-- **Repositories:** `{EntityName}Repository.cs` (in `.Infrastructure/Repositories/`)
-- **DI Extension:** `{ModuleName}InfrastructureExtensions.cs` (in `.Infrastructure`)
-- **Contracts:** `I{EntityName}Repository.cs` (in core `Contracts/`)
-- **Endpoints:** `{FeatureName}Endpoints.cs` (group by feature, not HTTP verb)
+- **Module class:** `{ModuleName}Module.cs` (implements `INacModule`)
+- **Endpoint mapper:** `{FeatureName}Endpoints.cs` (implements `IEndpointMapper`, group by feature)
+- **Service extensions:** `{ModuleName}ServiceCollectionExtensions.cs` (in `Infrastructure/`)
+- **DbContext:** `{ModuleName}DbContext.cs` (in `Infrastructure/`)
+- **Configurations:** `{EntityName}Configuration.cs` (in `Infrastructure/Configurations/`)
+- **Repositories:** `{EntityName}Repository.cs` (in `Infrastructure/Repositories/`)
+- **Contracts:** `I{EntityName}Repository.cs` (in `Contracts/`)
 
 ---
 

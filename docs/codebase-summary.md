@@ -396,7 +396,7 @@ Assert.NotEmpty(publishedEvents);
 **Files:** 3 (Program.cs, Commands/NewCommand.cs, Services/ScaffoldService.cs) + embedded templates
 
 **Commands:**
-- `nac new <name> [--module <name>] [--output <dir>]` — scaffold a new NAC solution with host, shared contracts, module core, module infrastructure, and tests projects
+- `nac new <name> [--module <name>] [--output <dir>]` — scaffold a new NAC solution with host, shared contracts, a single-project module (Domain/Application/Infrastructure/Endpoints folders), and a tests project
 
 **Implementation:**
 - `NewCommand` — CLI parsing, input validation (C# identifier regex), delegates to `ScaffoldService`
@@ -406,8 +406,7 @@ Assert.NotEmpty(publishedEvents);
 - Solution: `{Name}.slnx`, `nac.json`, `Directory.Build.props`, `Directory.Packages.props`
 - Host: `{Name}.Host.csproj`, `Program.cs`, `appsettings.json`, `appsettings.Development.json`
 - Shared: `{Name}.Shared.csproj`
-- Module core: csproj, module class, entity, command + handler, query + handler, endpoints
-- Module infrastructure: csproj, DbContext, entity configuration, infrastructure extensions
+- Module (single project): `{Name}.Modules.{Mod}.csproj`, module class, entity, command + handler, query + handler, endpoints, DbContext, entity configuration, infrastructure extensions
 - Tests: test project csproj
 
 **Dependencies:** System.CommandLine, Scriban

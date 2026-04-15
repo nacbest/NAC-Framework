@@ -2,7 +2,7 @@
 
 > Modular .NET 10 foundation framework for scalable backend Web APIs.
 > CQRS, multi-tenancy, clean architecture. No MediatR dependency.
-> Version: 1.0 | License: MIT | .NET 10 | C# 13
+> Version: 2.0.0 | License: MIT | .NET 10 | C# 13
 
 ---
 
@@ -53,27 +53,22 @@ dotnet add package Nac.Testing             # test projects only
 
 ## 2. Quick Start
 
-### Program.cs (minimal)
+### Program.cs (minimal — single module)
 
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")!;
 
-// Register mediator with handler assemblies
-builder.Services.AddNacMediator(opts => opts
-    .RegisterHandlersFromAssemblyContaining<CatalogModule>()
-    .AddCommandBehavior(typeof(UnitOfWorkBehavior<,>)));
-
-// Register modules
-builder.Services.AddCatalogInfrastructure(connectionString);
+builder.AddNacFramework(nac =>
+{
+    nac.AddModule<CatalogModule>();
+});
 
 var app = builder.Build();
-app.UseNacWebApi(); // Global exception handler
-CatalogEndpoints.Map(app);
+app.UseNacFramework(); // auto-discovers IEndpointMapper implementations
 app.Run();
 ```
 
-### Program.cs (module framework)
+### Program.cs (multi-module)
 
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
@@ -85,7 +80,7 @@ builder.AddNacFramework(nac =>
 });
 
 var app = builder.Build();
-app.UseNacFramework(); // Pipeline + endpoints for all modules
+app.UseNacFramework(); // auto-discovers IEndpointMapper implementations
 app.Run();
 ```
 
@@ -613,14 +608,14 @@ public sealed class GetProductByIdQueryHandler : IQueryHandler<GetProductByIdQue
 
 ---
 
-## 6. Module Architecture — 2-Project Pattern
+## 6. Module Architecture — 1-Project Pattern
 
 Each module splits into **core** (clean) and **infrastructure** (EF Core):
 
 ```
 src/
   Modules/
-    MyApp.Modules.Catalog/                     # Module core (CLEAN)
+    MyApp.Modules.Catalog/                     # Single module project
       Domain/Entities/Product.cs
       Application/Commands/CreateProduct/
         CreateProductCommand.cs
@@ -629,40 +624,58 @@ src/
         GetProductsQuery.cs
         GetProductsQueryHandler.cs
       Contracts/IProductRepository.cs          # Custom repo interface (optional)
-      Endpoints/ProductEndpoints.cs
-      CatalogModule.cs                         # INacModule implementation
-    MyApp.Modules.Catalog.Infrastructure/      # Module infrastructure
-      CatalogDbContext.cs
-      Configurations/ProductConfiguration.cs
-      Repositories/ProductRepository.cs        # Custom repo implementation
-      CatalogInfrastructureExtensions.cs       # DI registration
+      Infrastructure/
+        CatalogDbContext.cs
+        Configurations/ProductConfiguration.cs
+        Repositories/ProductRepository.cs      # Custom repo implementation
+      Endpoints/
+        ProductEndpoints.cs                    # implements IEndpointMapper
+      CatalogModule.cs                         # INacModule (services only)
+      CatalogServiceCollectionExtensions.cs    # DI registration
 ```
 
-### Module Core — allowed refs: Nac.Core, Nac.Domain, Nac.CQRS ONLY
+### Module — allowed refs: Nac.Core, Nac.Domain, Nac.CQRS, Nac.Persistence, Nac.WebApi
 
 ```csharp
-// CatalogModule.cs
+// CatalogModule.cs — only Name + ConfigureServices
 public sealed class CatalogModule : INacModule
 {
     public string Name => "Catalog";
 
-    public void ConfigureServices(IServiceCollection services, IConfiguration config)
+    public void ConfigureServices(IServiceCollection services, IConfiguration configuration)
     {
-        // Handlers registered via AddNacMediator in Host
-    }
-
-    public void ConfigureEndpoints(IEndpointRouteBuilder routes)
-    {
-        var group = routes.MapGroup("/api/catalog").WithTags("Catalog");
-        ProductEndpoints.Map(group);
+        var connStr = configuration.GetConnectionString("DefaultConnection")!;
+        services.AddCatalogModule(connStr);
     }
 }
-```
 
-### Module Infrastructure — refs: Nac.Persistence, Module core
+// OrdersModule.cs — declare dependency via [DependsOn] attribute
+[DependsOn(typeof(CatalogModule))]
+public sealed class OrdersModule : INacModule
+{
+    public string Name => "Orders";
 
-```csharp
-// CatalogDbContext.cs
+    public void ConfigureServices(IServiceCollection services, IConfiguration configuration)
+    {
+        var connStr = configuration.GetConnectionString("DefaultConnection")!;
+        services.AddOrdersModule(connStr);
+    }
+}
+
+// CatalogServiceCollectionExtensions.cs — module wires its own infrastructure
+public static class CatalogServiceCollectionExtensions
+{
+    public static IServiceCollection AddCatalogModule(
+        this IServiceCollection services, string connectionString)
+    {
+        services.AddNacPostgreSQL<CatalogDbContext>(connectionString);
+        services.AddNacRepositoriesFromAssembly<CatalogDbContext>(
+            typeof(CatalogModule).Assembly);
+        return services;
+    }
+}
+
+// Infrastructure/CatalogDbContext.cs
 public sealed class CatalogDbContext : NacDbContext
 {
     public CatalogDbContext(DbContextOptions<CatalogDbContext> options, ICurrentUser? currentUser = null)
@@ -675,26 +688,30 @@ public sealed class CatalogDbContext : NacDbContext
     }
 }
 
-// CatalogInfrastructureExtensions.cs
-public static class CatalogInfrastructureExtensions
+// Endpoints/ProductEndpoints.cs — auto-discovered by UseNacFramework()
+public sealed class ProductEndpoints : IEndpointMapper
 {
-    public static IServiceCollection AddCatalogInfrastructure(
-        this IServiceCollection services, string connectionString)
+    public void MapEndpoints(IEndpointRouteBuilder routes)
     {
-        services.AddNacPostgreSQL<CatalogDbContext>(connectionString);
-        services.AddNacRepositoriesFromAssembly<CatalogDbContext>(
-            typeof(CatalogModule).Assembly);
-        return services;
+        var group = routes.MapGroup("/api/catalog/products").WithTags("Catalog");
+        group.MapGet("/", GetProducts);
+        group.MapPost("/", CreateProduct);
     }
 }
 ```
 
-### Host Wiring (1 line per module)
+### Host Wiring
 
 ```csharp
 // Program.cs
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")!;
-services.AddCatalogInfrastructure(connectionString);
+builder.AddNacFramework(nac =>
+{
+    nac.AddModule<CatalogModule>();
+    nac.AddModule<OrdersModule>();
+});
+
+var app = builder.Build();
+app.UseNacFramework();  // auto-discovers IEndpointMapper implementations
 ```
 
 ### INacModule Interface
@@ -704,10 +721,20 @@ services.AddCatalogInfrastructure(connectionString);
 public interface INacModule
 {
     string Name { get; }
-    IReadOnlyList<Type> Dependencies => [];                                  // Optional
     void ConfigureServices(IServiceCollection services, IConfiguration configuration);
-    void ConfigureEndpoints(IEndpointRouteBuilder routes);
-    void ConfigurePipeline(IApplicationBuilder app) { }                      // Optional, default no-op
+}
+
+// Dependency declaration via attribute (namespace Nac.Core.Modularity)
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
+public sealed class DependsOnAttribute(params Type[] moduleTypes) : Attribute
+{
+    public Type[] ModuleTypes { get; } = moduleTypes;
+}
+
+// Endpoint auto-discovery (namespace Nac.WebApi.Modularity)
+public interface IEndpointMapper
+{
+    void MapEndpoints(IEndpointRouteBuilder routes);
 }
 ```
 
@@ -720,7 +747,8 @@ public sealed class NacFrameworkBuilder
     public IConfiguration Configuration { get; }
     public NacFrameworkBuilder AddModule<TModule>() where TModule : INacModule, new();
     public NacFrameworkBuilder AddModule(INacModule module);
-    // Validates dependencies, detects circular deps at startup
+    // Validates [DependsOn] dependencies, detects circular deps at startup
+    // Tracks module assemblies for IEndpointMapper auto-discovery
 }
 ```
 
@@ -730,7 +758,7 @@ public sealed class NacFrameworkBuilder
 - `IRepository<TEntity>` → `EfRepository<TEntity>` (scoped, bound to TContext)
 - `IReadRepository<TEntity>` → `EfRepository<TEntity>` (scoped, bound to TContext)
 
-For custom repositories, define interface in module core `Contracts/`, implement in `.Infrastructure`, register manually:
+For custom repositories, define interface in `Contracts/`, implement in `Infrastructure/`, register manually:
 ```csharp
 services.AddScoped<IProductRepository, ProductRepository>();
 ```
@@ -862,12 +890,12 @@ public static class PostgreSqlPersistenceExtensions
 ```bash
 # Add migration
 dotnet ef migrations add AddProducts \
-  -p src/MyApp.Modules.Catalog.Infrastructure \
+  -p src/Modules/MyApp.Modules.Catalog \
   -s src/MyApp.Host
 
 # Apply migration
 dotnet ef database update \
-  -p src/MyApp.Modules.Catalog.Infrastructure \
+  -p src/Modules/MyApp.Modules.Catalog \
   -s src/MyApp.Host
 ```
 
@@ -1460,7 +1488,7 @@ app.UseNacWebApi();  // Adds GlobalExceptionHandler middleware
 public static WebApplicationBuilder AddNacFramework(
     this WebApplicationBuilder builder, Action<NacFrameworkBuilder> configure);
 
-// Call ConfigurePipeline + ConfigureEndpoints for all registered modules
+// Auto-discovers IEndpointMapper implementations from module assemblies
 public static WebApplication UseNacFramework(this WebApplication app);
 
 // Standalone: just add exception handler
@@ -1470,10 +1498,11 @@ public static IApplicationBuilder UseNacWebApi(this IApplicationBuilder app);
 ### Example: Endpoint with Paginated Response
 
 ```csharp
-public static class ProductEndpoints
+public sealed class ProductEndpoints : IEndpointMapper
 {
-    public static void Map(RouteGroupBuilder group)
+    public void MapEndpoints(IEndpointRouteBuilder routes)
     {
+        var group = routes.MapGroup("/api/catalog/products").WithTags("Catalog");
         group.MapGet("/", GetProducts);
         group.MapGet("/{id:guid}", GetProductById);
         group.MapPost("/", CreateProduct);
@@ -1590,9 +1619,7 @@ These rules are non-negotiable. Violating them breaks the clean architecture bou
 
 | Rule | Why |
 |------|-----|
-| **Module core → Nac.Persistence** ✗ | Only `.Infrastructure` can reference persistence. Module core is persistence-ignorant. |
-| **Module core → Nac.Identity** ✗ | Use `ICurrentUser` from Nac.Core instead. Identity is infrastructure. |
-| **Module core → own .Infrastructure** ✗ | Dependency flows one way: Infrastructure → Core, never reverse. |
+| **Module → Nac.Identity** ✗ | Use `IIdentityService` from Nac.Core. Identity is host-level infrastructure. |
 | **Navigation property to NacIdentityUser** ✗ | Use `Guid UserId` primitive. FK enforced at DB level only. |
 | **Cross-module DbContext access** ✗ | Modules are isolated. Use Integration Events for cross-module communication. |
 | **Direct project references between modules** ✗ | Use Integration Events or shared contracts. |
@@ -1603,9 +1630,9 @@ These rules are non-negotiable. Violating them breaks the clean architecture bou
 ### Dependency Rules Summary
 
 ```
-Module core → Nac.Core, Nac.Domain, Nac.CQRS ONLY
-Module.Infrastructure → Nac.Persistence + Module core
-Host → Module.Infrastructure + Module core + Nac.Identity
+Module → Nac.Core, Nac.Domain, Nac.CQRS, Nac.Persistence, Nac.WebApi
+Host → Module + Nac.Identity + Nac.Persistence.PostgreSQL + Nac.Messaging.RabbitMQ
+       + Nac.Caching + Nac.MultiTenancy + Nac.Observability
 ```
 
 ---
@@ -1692,8 +1719,7 @@ app.UseAuthentication();       // ASP.NET Core auth
 app.UseAuthorization();        // ASP.NET Core authz
 app.UseNacIdentity();         // Preload permissions from DB
 
-app.UseNacFramework();        // Module pipelines + endpoints
-// OR manually: CatalogEndpoints.Map(app);
+app.UseNacFramework();        // Auto-discovers IEndpointMapper implementations
 
 app.Run();
 ```
@@ -1738,9 +1764,12 @@ builder.Services.AddNacMultiTenancy(mt =>
     mt.UseStore<DbTenantStore>();
 });
 
-// Modules
-builder.Services.AddCatalogInfrastructure(connectionString);
-builder.Services.AddOrdersInfrastructure(connectionString);
+// Modules — registered via framework builder
+builder.AddNacFramework(nac =>
+{
+    nac.AddModule<CatalogModule>();
+    nac.AddModule<OrdersModule>();
+});
 
 // Messaging
 builder.Services.AddNacOutboxMessaging<CatalogDbContext>(typeof(CatalogModule).Assembly);
@@ -1755,10 +1784,7 @@ app.UseNacMultiTenancy();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseNacIdentity();
-
-var api = app.MapGroup("/api");
-CatalogEndpoints.Map(api.MapGroup("/catalog").WithTags("Catalog"));
-OrderEndpoints.Map(api.MapGroup("/orders").WithTags("Orders"));
+app.UseNacFramework();  // auto-discovers IEndpointMapper implementations
 
 app.Run();
 ```

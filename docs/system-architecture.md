@@ -224,27 +224,28 @@ services.AddRabbitMqEventBus(opts =>
 
 ### DbContext Per Module (Mandatory)
 
-Each module has 2 projects: **core** (persistence-ignorant) and **infrastructure** (EF Core).
-The DbContext lives in the `.Infrastructure` project, not in module core.
+Each module is a **single project** with clean architecture enforced by folders.
+The DbContext lives in the `Infrastructure/` folder within the module.
 
 ```
-{Ns}.Modules.Catalog/                          ← Core (clean)
+{Ns}.Modules.Catalog/
   Domain/Entities/Product.cs
   Application/Commands/...
   Contracts/IProductRepository.cs
-  Endpoints/...
-
-{Ns}.Modules.Catalog.Infrastructure/           ← Infrastructure (EF Core)
-  CatalogDbContext.cs
-  CatalogInfrastructureExtensions.cs
-  Configurations/ProductConfiguration.cs
-  Repositories/ProductRepository.cs
+  Infrastructure/
+    CatalogDbContext.cs
+    Configurations/ProductConfiguration.cs
+    Repositories/ProductRepository.cs
+  Endpoints/
+    ProductEndpoints.cs              ← implements IEndpointMapper
+  CatalogModule.cs                   ← : INacModule (services only)
+  CatalogServiceCollectionExtensions.cs
 ```
 
-**DbContext** (in `.Infrastructure`):
+**DbContext** (in `Infrastructure/`):
 
 ```csharp
-// In {Ns}.Modules.Catalog.Infrastructure/CatalogDbContext.cs
+// In {Ns}.Modules.Catalog/Infrastructure/CatalogDbContext.cs
 public sealed class CatalogDbContext : NacDbContext
 {
     public CatalogDbContext(
@@ -259,13 +260,13 @@ public sealed class CatalogDbContext : NacDbContext
 }
 ```
 
-**DI extension** (in `.Infrastructure`):
+**DI extension** (module wires its own infrastructure in `ConfigureServices`):
 
 ```csharp
-// In {Ns}.Modules.Catalog.Infrastructure/CatalogInfrastructureExtensions.cs
-public static class CatalogInfrastructureExtensions
+// In {Ns}.Modules.Catalog/CatalogServiceCollectionExtensions.cs
+public static class CatalogServiceCollectionExtensions
 {
-    public static IServiceCollection AddCatalogInfrastructure(
+    public static IServiceCollection AddCatalogModule(
         this IServiceCollection services,
         string connectionString)
     {
@@ -275,17 +276,55 @@ public static class CatalogInfrastructureExtensions
         return services;
     }
 }
+```
 
-// Host Program.cs — 1 line per module
-services.AddCatalogInfrastructure(connectionString);
+**Module class** (only `Name` + `ConfigureServices`):
+
+```csharp
+public sealed class CatalogModule : INacModule
+{
+    public string Name => "Catalog";
+
+    public void ConfigureServices(IServiceCollection services, IConfiguration configuration)
+    {
+        var connStr = configuration.GetConnectionString("DefaultConnection")!;
+        services.AddCatalogModule(connStr);
+    }
+}
+```
+
+**Endpoint mapper** (auto-discovered by `UseNacFramework()`):
+
+```csharp
+public sealed class ProductEndpoints : IEndpointMapper
+{
+    public void MapEndpoints(IEndpointRouteBuilder routes)
+    {
+        var group = routes.MapGroup("/api/catalog/products").WithTags("Catalog");
+        group.MapGet("/", GetProducts);
+        group.MapPost("/", CreateProduct);
+    }
+}
+```
+
+**Host Program.cs** — simplified:
+
+```csharp
+builder.AddNacFramework(nac =>
+{
+    nac.AddModule<CatalogModule>();
+    nac.AddModule<OrdersModule>();
+});
+
+var app = builder.Build();
+app.UseNacFramework();  // auto-discovers IEndpointMapper implementations
 ```
 
 **Benefits:**
-- Module core stays persistence-ignorant (no EF Core references)
-- Clear module boundaries with separate projects
+- Single project per module — KISS
+- Clean architecture via folders, not project boundaries
 - Independent migrations per module
 - Multi-tenancy isolation at DbContext level
-- Module team owns both projects independently
 - Ready for microservice extraction
 
 ### Unit of Work Pattern
@@ -660,7 +699,7 @@ _currentUser.HasPermission("orders.create");  // false (alice has no permission 
 
 ## Module Communication
 
-Module core defines contracts (interfaces in `Contracts/`), Module `.Infrastructure` implements them.
+Module defines contracts (interfaces in `Contracts/`), `Infrastructure/` folder implements them.
 
 ### 3 Patterns (by preference)
 
@@ -797,12 +836,12 @@ public sealed record UpdateProductCommand(Guid Id, string Name)
     : ICommand,
       ICacheInvalidator
 {
-    public IEnumerable<string> GetInvalidationKeys()
-    {
-        yield return $"product:{Id}";
-        yield return "products:list";
-        yield return "products:search:*";  // Pattern
-    }
+    public IEnumerable<string> CacheKeysToInvalidate =>
+    [
+        $"product:{Id}",
+        "products:list",
+        "products:search:*"  // Pattern
+    ];
 }
 
 // CacheInvalidationBehavior runs post-command
@@ -903,15 +942,15 @@ Each module's boundary is already clear—extraction is **mechanical, not archit
 
 ### Minimal APIs (Not Controllers)
 
-**Endpoints grouped by feature/module:**
+**Endpoints implement `IEndpointMapper`, auto-discovered by `UseNacFramework()`:**
 
 ```csharp
-public static class ProductEndpoints
+public sealed class ProductEndpoints : IEndpointMapper
 {
-    public static void MapProductEndpoints(this WebApplication app)
+    public void MapEndpoints(IEndpointRouteBuilder routes)
     {
-        var group = app.MapGroup("/api/catalog/products")
-            .WithName("Products")
+        var group = routes.MapGroup("/api/catalog/products")
+            .WithTags("Catalog")
             .WithOpenApi();
         
         group.MapPost("/", CreateProduct)
@@ -939,7 +978,7 @@ public static class ProductEndpoints
 ```
 
 **Benefits:**
-- Explicit routing
+- Auto-discovered — no manual registration needed
 - Grouped by concern
 - No controller bloat
 - Clear handler → endpoint mapping

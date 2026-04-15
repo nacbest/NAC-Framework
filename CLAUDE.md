@@ -37,16 +37,14 @@ L2+: Nac.Persistence → Nac.Persistence.PostgreSQL
 ```
 
 ```
-Module (core) → Nac.Core, Nac.Domain, Nac.CQRS ONLY
-Module.Infrastructure → Nac.Persistence + Module (core)
-Host → Module.Infrastructure + Module (core) + Nac.Identity
+Module → Nac.Core, Nac.Domain, Nac.CQRS, Nac.Persistence, Nac.WebApi
+Host → Module + Nac.Identity + Nac.Persistence.PostgreSQL + Nac.Messaging.RabbitMQ
+       + Nac.Caching + Nac.MultiTenancy + Nac.Observability
 ```
 
 ## Forbidden Patterns
 
-- Module core → Nac.Persistence ✗
-- Module core → Nac.Identity ✗
-- Module core → own .Infrastructure ✗
+- Module → Nac.Identity ✗ (use IIdentityService from Nac.Core)
 - Navigation property to NacIdentityUser ✗ (use `Guid UserId`)
 - Cross-module DbContext access ✗
 - Direct project references between modules ✗
@@ -56,10 +54,13 @@ Host → Module.Infrastructure + Module (core) + Nac.Identity
 ## Key Conventions
 
 - **Identity linking**: Business entities use `Guid UserId` — no navigation property. FK at DB level only.
-- **Module pattern**: 2-project split — core (clean) + infrastructure (EF Core).
+- **Module pattern**: 1-project with clean architecture folders (Domain/, Application/, Infrastructure/, Endpoints/).
+- **INacModule**: Only `Name` + `ConfigureServices`. No web concerns.
+- **Endpoints**: Implement `IEndpointMapper`, auto-discovered by framework.
+- **Dependencies**: Use `[DependsOn]` attribute on module class.
 - **CQRS handlers**: Never call SaveChanges — UnitOfWorkBehavior handles it.
-- **Repositories**: Inject `IRepository<T>` / `IReadRepository<T>`, never DbContext in module core.
-- **Custom queries**: Interface in module core `Contracts/`, implementation in `.Infrastructure`.
+- **Repositories**: Inject `IRepository<T>` / `IReadRepository<T>`, never DbContext in handlers.
+- **Custom queries**: Interface in `Contracts/`, implementation in `Infrastructure/`.
 - **Permissions**: Format `module.resource.action` with wildcard support.
 - **Pipeline order (Command)**: Observability → Authorization → CacheInvalidation → UnitOfWork → Handler
 - **Pipeline order (Query)**: Observability → Authorization → Caching → Handler
