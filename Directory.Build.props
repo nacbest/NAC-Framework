@@ -16,6 +16,6 @@
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/nacbest/NAC-Framework</RepositoryUrl>
     <PackageProjectUrl>https://github.com/nacbest/NAC-Framework</PackageProjectUrl>
-    <Version>1.0.2</Version>
+    <Version>2.0.0</Version>
   </PropertyGroup>
 </Project>

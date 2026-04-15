@@ -10,7 +10,26 @@ namespace Nac.Cli.Services;
 public sealed class ScaffoldService
 {
     private const string TemplatePrefix = "Nac.Cli.Templates.nac_solution.";
-    private const string NacVersion = "1.0.2";
+
+    /// <summary>
+    /// Reads the framework version from the CLI assembly instead of hardcoding it.
+    /// The CLI shares Directory.Build.props with all NAC packages, so its version = framework version.
+    /// </summary>
+    private static string GetNacVersion()
+    {
+        var assembly = Assembly.GetExecutingAssembly();
+        var infoVersion = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+
+        // Strip build metadata (e.g. "2.0.0+abc123" → "2.0.0")
+        if (infoVersion is not null)
+        {
+            var plusIndex = infoVersion.IndexOf('+');
+            return plusIndex >= 0 ? infoVersion[..plusIndex] : infoVersion;
+        }
+
+        var version = assembly.GetName().Version;
+        return version is not null ? $"{version.Major}.{version.Minor}.{version.Build}" : "0.0.0";
+    }
 
     /// <summary>
     /// Template path → output path mapping using placeholder tokens.
@@ -49,7 +68,7 @@ public sealed class ScaffoldService
         Console.WriteLine();
 
         var assembly = Assembly.GetExecutingAssembly();
-        var model = new { project_name = projectName, module_name = moduleName, nac_version = NacVersion };
+        var model = new { project_name = projectName, module_name = moduleName, nac_version = GetNacVersion() };
         var filesCreated = 0;
         var errors = 0;
 
@@ -97,8 +116,9 @@ public sealed class ScaffoldService
 
         Console.WriteLine();
 
-        // Run dotnet restore
-        await RunDotnetRestoreAsync(outputDir);
+        // Run dotnet restore (can be skipped via NAC_SKIP_RESTORE=1 for test environments)
+        if (!string.Equals(Environment.GetEnvironmentVariable("NAC_SKIP_RESTORE"), "1", StringComparison.Ordinal))
+            await RunDotnetRestoreAsync(outputDir);
 
         Console.WriteLine();
         Console.WriteLine("Next steps:");

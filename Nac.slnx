@@ -34,6 +34,7 @@
 
   <!-- Tests -->
   <Folder Name="/tests/">
+    <Project Path="tests/Nac.Cli.Tests/Nac.Cli.Tests.csproj" />
     <Project Path="tests/Nac.Identity.Tests/Nac.Identity.Tests.csproj" />
   </Folder>
 </Solution>
