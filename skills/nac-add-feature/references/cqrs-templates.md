@@ -11,7 +11,7 @@ Replace `{Namespace}` from nac.json, `{Module}` and `{Feature}` from argument.
 ### {Feature}Command.cs (Basic)
 
 ```csharp
-using Nac.Abstractions.Messaging;
+using Nac.Core.Messaging;
 
 namespace {Namespace}.Modules.{Module}.Application.Commands;
 
@@ -21,7 +21,7 @@ public sealed record {Feature}Command() : ICommand<Guid>;
 ### {Feature}Command.cs (With Markers)
 
 ```csharp
-using Nac.Abstractions.Messaging;
+using Nac.Core.Messaging;
 
 namespace {Namespace}.Modules.{Module}.Application.Commands;
 
@@ -37,7 +37,7 @@ public sealed record {Feature}Command(
 ### {Feature}Handler.cs (Basic)
 
 ```csharp
-using Nac.Abstractions.Messaging;
+using Nac.Core.Messaging;
 using Nac.Mediator.Abstractions;
 
 namespace {Namespace}.Modules.{Module}.Application.Commands;
@@ -55,7 +55,7 @@ public sealed class {Feature}Handler : ICommandHandler<{Feature}Command, Guid>
 ### {Feature}Handler.cs (With DI)
 
 ```csharp
-using Nac.Abstractions.Messaging;
+using Nac.Core.Messaging;
 using Nac.Mediator.Abstractions;
 
 namespace {Namespace}.Modules.{Module}.Application.Commands;
@@ -80,7 +80,7 @@ public sealed class {Feature}Handler(
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
-using Nac.Abstractions.WebApi;
+using Nac.WebApi;
 using Nac.Mediator.Core;
 
 namespace {Namespace}.Modules.{Module}.Endpoints;
@@ -108,7 +108,7 @@ Note: Replace `{feature-lowercase}` with lowercase feature name.
 ### {Feature}Query.cs
 
 ```csharp
-using Nac.Abstractions.Messaging;
+using Nac.Core.Messaging;
 
 namespace {Namespace}.Modules.{Module}.Application.Queries;
 
@@ -118,7 +118,7 @@ public sealed record {Feature}Query(Guid Id) : IQuery<{Entity}Dto?>;
 ### {Feature}Query.cs (With Caching)
 
 ```csharp
-using Nac.Abstractions.Messaging;
+using Nac.Core.Messaging;
 
 namespace {Namespace}.Modules.{Module}.Application.Queries;
 
@@ -132,7 +132,7 @@ public sealed record {Feature}Query(Guid Id) : IQuery<{Entity}Dto?>, ICacheable
 ### {Feature}QueryHandler.cs
 
 ```csharp
-using Nac.Abstractions.Messaging;
+using Nac.Core.Messaging;
 using Nac.Mediator.Abstractions;
 
 namespace {Namespace}.Modules.{Module}.Application.Queries;

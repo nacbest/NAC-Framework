@@ -37,7 +37,7 @@ Replace `{Name}` with solution name. Replace `{localNacPath}` if `--local-nac` p
   </PropertyGroup>
   <ItemGroup>
     <!-- NAC Framework -->
-    <PackageVersion Include="Nac.Abstractions" Version="{NacVersion}" />
+    <PackageVersion Include="Nac.Core" Version="{NacVersion}" />
     <PackageVersion Include="Nac.Domain" Version="{NacVersion}" />
     <PackageVersion Include="Nac.Mediator" Version="{NacVersion}" />
     <PackageVersion Include="Nac.WebApi" Version="{NacVersion}" />
@@ -72,7 +72,7 @@ Replace `{Name}` with solution name. Replace `{localNacPath}` if `--local-nac` p
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
-    <PackageReference Include="Nac.Abstractions" />
+    <PackageReference Include="Nac.Core" />
     <PackageReference Include="Nac.Mediator" />
     <PackageReference Include="Nac.WebApi" />
     <PackageReference Include="Nac.Observability" />
@@ -88,7 +88,7 @@ Replace `{Name}` with solution name. Replace `{localNacPath}` if `--local-nac` p
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
-    <ProjectReference Include="{localNacPath}/src/Nac.Abstractions/Nac.Abstractions.csproj" />
+    <ProjectReference Include="{localNacPath}/src/Nac.Core/Nac.Core.csproj" />
     <ProjectReference Include="{localNacPath}/src/Nac.Mediator/Nac.Mediator.csproj" />
     <ProjectReference Include="{localNacPath}/src/Nac.WebApi/Nac.WebApi.csproj" />
     <ProjectReference Include="{localNacPath}/src/Nac.Observability/Nac.Observability.csproj" />
@@ -105,7 +105,7 @@ Replace `{Name}` with solution name. Replace `{localNacPath}` if `--local-nac` p
 
 ```csharp
 using System.Reflection;
-using Nac.Abstractions.Extensions;
+using Nac.WebApi.Extensions;
 using Nac.WebApi.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);

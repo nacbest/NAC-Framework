@@ -16,7 +16,7 @@ Current status, milestones, and future development priorities.
 
 | Package | Status | Version | Notes |
 |---------|--------|---------|-------|
-| Nac.Abstractions | ✅ Complete | 1.0.0 | Zero dependencies |
+| Nac.Core | ✅ Complete | 1.0.0 | Zero dependencies |
 | Nac.Domain | ✅ Complete | 1.0.0 | Entity, AggregateRoot, ValueObject |
 | Nac.Mediator | ✅ Complete | 1.0.0 | Custom CQRS mediator, no MediatR |
 | Nac.Persistence | ✅ Complete | 1.0.0 | EF Core, UoW, Repository, Outbox |
@@ -63,7 +63,7 @@ Current status, milestones, and future development priorities.
 ### Phase 4 Identity Enhancements (April 2026)
 
 **New APIs:**
-- `IIdentityService` in `Nac.Abstractions.Auth` — Query user info from business modules
+- `IIdentityService` in `Nac.Core.Auth` — Query user info from business modules
 - `UserInfo` record — Lightweight user identity DTO
 - `IdentityEventPublisher` — Publish identity lifecycle events (registration, confirmation, reset)
 - `UserRegisteredEvent`, `UserEmailConfirmedEvent`, `PasswordResetEvent` — Integration events
@@ -87,6 +87,28 @@ Current status, milestones, and future development priorities.
   - **Why:** Avoids sync-over-async penalties in handlers
   - **Impact:** `ICurrentUser.Permissions` now safe to access synchronously in handlers
   - `JwtCurrentUser.LoadPermissionsAsync()` called automatically by middleware
+
+### Package Restructure (April 2026)
+
+**Nac.Abstractions → Nac.Core Migration (COMPLETED)**
+
+- **Deleted:** `Nac.Abstractions` package
+- **Created:** `Nac.Core` package (zero-dependency contracts layer)
+  - All interfaces, markers, and base types moved from Nac.Abstractions
+  - Stricter naming: contract-focused, no implementation code
+- **Updated:** `Nac.WebApi` now contains module framework types
+  - `INacModule`, `NacFrameworkBuilder`, `NacServiceCollectionExtensions`
+  - Replaces split responsibility: WebApi provides both API envelopes AND module registration
+- **Updated:** `Nac.MultiTenancy` gained `ITenantResolver` interface
+- **Added:** Explicit package dependencies
+  - `Nac.Mediator`: Microsoft.Extensions.DependencyInjection.Abstractions
+  - `Nac.Caching`: IDistributedCache abstractions (Memory, Logging)
+  - `Nac.Observability`: ILogger abstractions
+
+**Migration Impact:**
+- **All packages updated** to reference `Nac.Core` instead of `Nac.Abstractions`
+- **Zero breaking changes for consumers** (public API unchanged)
+- **Build time improvement**: Stricter zero-dependency guarantee at L0
 
 ---
 

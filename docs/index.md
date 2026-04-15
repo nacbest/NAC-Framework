@@ -117,7 +117,7 @@ Welcome to the NAC Framework documentation. Start here to navigate the entire do
 
 | Tier | Package | Purpose |
 |------|---------|---------|
-| **Foundation** | Nac.Abstractions | Zero-dep interfaces (ICommand, IQuery, IRepository, etc.) |
+| **Foundation** | Nac.Core | Zero-dep interfaces (ICommand, IQuery, IRepository, etc.) |
 |  | Nac.Domain | Entity, AggregateRoot, ValueObject, DomainEvent |
 |  | Nac.Mediator | Custom CQRS mediator (no MediatR) |
 | **Data** | Nac.Persistence | EF Core, UnitOfWork, Repository, Outbox |
@@ -233,18 +233,19 @@ See [Project Roadmap](./project-roadmap.md) for full timeline.
 Target: 800 LOC per file (enforced via guidelines).
 
 ```
-code-standards.md          792 LOC  ████████████████████ 99%
-system-architecture.md     945 LOC  ████████████████████ 118%† (exception)
-testing-and-performance.md 268 LOC  ██████░░░░░░░░░░░░░░ 34%
-project-roadmap.md         439 LOC  ███████████░░░░░░░░░ 55%
-codebase-summary.md        502 LOC  ████████████░░░░░░░░ 63%
-project-overview-pdr.md    257 LOC  ██████░░░░░░░░░░░░░░ 32%
+code-standards.md          907 LOC  ████████████████████ 113%† (exception)
+system-architecture.md    1056 LOC  ████████████████████ 132%† (exception)
+testing-and-performance.md 259 LOC  ██████░░░░░░░░░░░░░░ 32%
+project-roadmap.md         495 LOC  ███████████░░░░░░░░░ 62%
+codebase-summary.md        518 LOC  ████████████░░░░░░░░ 65%
+project-overview-pdr.md    260 LOC  ██████░░░░░░░░░░░░░░ 33%
 README.md                  476 LOC  ███████████░░░░░░░░░ 60%
 ```
 
 **LOC Exception Policy:**
 - Default target: < 800 lines per doc
-- Exception: system-architecture.md (945 LOC) contains critical CQRS pipelines and architectural diagrams that form the foundation of the framework. Cannot be meaningfully split without breaking conceptual unity.
+- Exception: system-architecture.md (1,056 LOC) contains critical CQRS pipelines and architectural diagrams that form the foundation of the framework. Cannot be meaningfully split without breaking conceptual unity.
+- Exception: code-standards.md (907 LOC) contains comprehensive naming, pattern, and convention guidelines essential for developer onboarding. Splitting would break coherence of standards.
 - New files above 800 LOC must justify exception in comment
 - Split strategy: When file approaches 800, extract new topic to separate document (e.g., testing-and-performance.md)
 
@@ -252,5 +253,5 @@ README.md                  476 LOC  ███████████░░░�
 
 ## Last Updated
 
-April 12, 2026 | Version 1.0 Complete
+April 15, 2026 | Version 1.0 Complete (Phase 1 Package Restructure)
 

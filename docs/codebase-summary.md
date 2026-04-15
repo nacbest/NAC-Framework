@@ -4,11 +4,11 @@ Comprehensive package-by-package breakdown of the 15 NuGet packages in the NAC F
 
 ---
 
-## 1. Nac.Abstractions
+## 1. Nac.Core
 
 **Purpose:** Zero-dependency interfaces and markers.
 
-**Files:** 23 (auth, caching, exceptions, extensions, messaging, modularity, multi-tenancy, persistence)
+**Files:** 21 (auth, caching, exceptions, messaging, modularity, multi-tenancy, persistence)
 
 **Key Types:**
 - `ICommand<T>`, `ICommand` — CQRS command markers (no common base)
@@ -16,15 +16,14 @@ Comprehensive package-by-package breakdown of the 15 NuGet packages in the NAC F
 - `INotification` — in-process pub/sub marker
 - `IRepository<T>`, `IReadRepository<T>`, `IUnitOfWork` — persistence contracts
 - `IEventBus`, `IIntegrationEvent`, `IIntegrationEventHandler` — messaging contracts
-- `ITenantContext`, `ITenantResolver`, `TenantInfo` — multi-tenancy
-- `ICurrentUser`, `IRequirePermission` — auth markers
+- `ITenantContext`, `TenantInfo` — multi-tenancy
+- `ICurrentUser`, `IRequirePermission`, `IIdentityService` — auth contracts
 - `ICacheable`, `ICacheInvalidator` — caching contracts
 - `IAuditable`, `ITransactional` — behavioral markers
-- `INacModule`, `NacFrameworkBuilder` — module registration
 - `Specification<T>` — query specification pattern
 - `NacException` — base framework exception (derives from System.Exception)
 
-**Dependencies:** None (ASP.NET Core framework ref only)
+**Dependencies:** None
 
 **LOC:** ~620
 
@@ -47,7 +46,7 @@ Comprehensive package-by-package breakdown of the 15 NuGet packages in the NAC F
 - `StronglyTypedId` — ID generator pattern
 - `IHasDomainEvents`, `IAuditableEntity`, `ISoftDeletable` — entity contracts
 
-**Dependencies:** Nac.Abstractions only
+**Dependencies:** Nac.Core only
 
 **LOC:** ~282
 
@@ -87,7 +86,7 @@ Command: ExceptionHandling → Logging → Validation → Authorization → Tena
 
 Query: ExceptionHandling → Logging → Validation → Authorization → Caching → Handler
 
-**Dependencies:** Nac.Abstractions only
+**Dependencies:** Nac.Core only
 
 **LOC:** ~760
 
@@ -117,7 +116,7 @@ Query: ExceptionHandling → Logging → Validation → Authorization → Cachin
 **Behaviors:**
 - `UnitOfWorkBehavior` — mediator behavior wrapping command handler in transaction
 
-**Dependencies:** EF Core Relational 10.0.5, Nac.Abstractions, Nac.Domain, Nac.Mediator
+**Dependencies:** EF Core Relational 10.0.5, Nac.Core, Nac.Domain, Nac.Mediator
 
 **LOC:** ~555
 
@@ -166,7 +165,7 @@ Query: ExceptionHandling → Logging → Validation → Authorization → Cachin
 - `IntegrationEventDispatcher` — resolves and invokes handlers by event type
 - `MessagingServiceCollectionExtensions` — DI registration
 
-**Dependencies:** Nac.Abstractions, Nac.Persistence, ASP.NET Core
+**Dependencies:** Nac.Core, Nac.Persistence, ASP.NET Core
 
 **LOC:** ~486
 
@@ -188,7 +187,7 @@ Query: ExceptionHandling → Logging → Validation → Authorization → Cachin
 - `RabbitMqConsumerWorker` — BackgroundService, manual ACK, prefetch 10, exponential backoff retries
 - `RabbitMqOptions` — config POCO: hostname, port, username, virtualhost, exchange, queue naming
 
-**Dependencies:** RabbitMQ.Client 7.2.1, Nac.Messaging, Nac.Persistence, Nac.Abstractions
+**Dependencies:** RabbitMQ.Client 7.2.1, Nac.Messaging, Nac.Persistence, Nac.Core
 
 **LOC:** ~476
 
@@ -220,7 +219,7 @@ Query: ExceptionHandling → Logging → Validation → Authorization → Cachin
 **Configuration:**
 - `MultiTenancyServiceCollectionExtensions` — fluent builder
 
-**Dependencies:** Nac.Abstractions, ASP.NET Core
+**Dependencies:** Nac.Core, ASP.NET Core
 
 **LOC:** ~280
 
@@ -246,11 +245,54 @@ Query: ExceptionHandling → Logging → Validation → Authorization → Cachin
 - Default TTL: 5 minutes (configurable per query via `ICacheable.Expiry`)
 - Cache key: query-provided (via `ICacheable.CacheKey`)
 
-**Dependencies:** Nac.Abstractions, Nac.Mediator
+**Dependencies:** Nac.Core, Nac.Mediator
 
 **LOC:** ~100
 
 **Notes:** Query must implement `ICacheable` to be cached. Command must implement `ICacheInvalidator` to invalidate related keys.
+
+---
+
+## 10. Nac.Identity
+
+**Purpose:** ASP.NET Core Identity integration, JWT tokens, authorization, tenant-scoped roles and permissions.
+
+**Files:** 30 (entities, services, configurations, middleware, seeding)
+
+**Key Types:**
+
+**Core Entities:**
+- `NacUser` — ASP.NET Identity user, global account across tenants
+- `TenantMembership` — Links user to tenant with role assignment
+- `TenantRole` — Role + permission set scoped to tenant
+- `RefreshToken` — JWT refresh token, tenant-aware, Redis-backed option
+
+**Services:**
+- `JwtTokenService` — Generate/validate JWT access tokens, refresh flow
+- `IdentityService` (IIdentityService from Nac.Core) — Query user info from business modules
+- `TenantRoleService` — Manage tenant roles and user memberships
+- `IdentityEventPublisher` — Publish identity lifecycle events
+- `RefreshTokenStore` — Abstract token storage (EF Core or Redis)
+- `RefreshTokenCleanupService` — BackgroundService, auto-expire tokens
+
+**Behaviors:**
+- `AuthorizationBehavior` — Check `IRequirePermission` at mediator level
+
+**Integration Events:**
+- `UserRegisteredIntegrationEvent`
+- `UserEmailConfirmedIntegrationEvent`
+- `PasswordResetIntegrationEvent`
+
+**Middleware & Extensions:**
+- `IdentityApplicationBuilderExtensions` — `UseNacIdentity()`, permission preload
+- `IdentityServiceCollectionExtensions` — DI registration
+- `IdentitySeeder` — Seed default roles per tenant
+
+**Dependencies:** Nac.Core, Nac.Mediator, Nac.Persistence, Nac.MultiTenancy, ASP.NET Identity, JWT Bearer, StackExchange.Redis (optional)
+
+**LOC:** ~780
+
+**Notes:** Permissions loaded async at startup, safe to check synchronously in handlers. RefreshToken stores TenantId (preserved on refresh). Multi-tenant scoping via TenantMembership. Event-driven user lifecycle (registration, confirmation, reset).
 
 ---
 
@@ -271,7 +313,7 @@ Query: ExceptionHandling → Logging → Validation → Authorization → Cachin
 - Success/failure + exception details
 - Correlation ID (from HttpContext)
 
-**Dependencies:** Nac.Abstractions, Nac.Mediator
+**Dependencies:** Nac.Core, Nac.Mediator
 
 **LOC:** ~121
 
@@ -281,9 +323,9 @@ Query: ExceptionHandling → Logging → Validation → Authorization → Cachin
 
 ## 12. Nac.WebApi
 
-**Purpose:** Response envelopes, global exception handler.
+**Purpose:** Response envelopes, global exception handler, module framework registration.
 
-**Files:** 3 (response types, exception handler, extensions)
+**Files:** 6 (response types, exception handler, framework builder, extensions, module interfaces)
 
 **Key Types:**
 
@@ -291,6 +333,11 @@ Query: ExceptionHandling → Logging → Validation → Authorization → Cachin
 - `ApiResponse<T>` — record: `Data: T`, `Meta: ResponseMeta`
 - `PaginatedResponse<T>` — record: `Data: T[]`, `Pagination`, `Meta`
 - `ErrorResponse` — record: `Error`, `Meta` (no data)
+
+**Module Framework:**
+- `INacModule` — marker interface for module registration
+- `NacFrameworkBuilder` — fluent builder for framework setup
+- `NacServiceCollectionExtensions` — DI registration helpers
 
 **Exception Handler:**
 - `GlobalExceptionHandler` — ASP.NET Core exception handler middleware
@@ -307,11 +354,11 @@ Query: ExceptionHandling → Logging → Validation → Authorization → Cachin
 - DomainException → 422
 - Unhandled → 500 (includes correlation ID for tracing)
 
-**Dependencies:** Nac.Abstractions, ASP.NET Core
+**Dependencies:** Nac.Core, ASP.NET Core
 
-**LOC:** ~110
+**LOC:** ~180
 
-**Notes:** Envelope standardized across all endpoints. Correlation ID included in all error responses.
+**Notes:** Envelope standardized across all endpoints. Correlation ID included in all error responses. Module framework enables fluent host setup.
 
 ---
 
@@ -338,7 +385,7 @@ var publishedEvents = fakeEventBus.PublishedOf<OrderPlacedIntegrationEvent>();
 Assert.NotEmpty(publishedEvents);
 ```
 
-**Dependencies:** Nac.Abstractions, Nac.Mediator
+**Dependencies:** Nac.Core, Nac.Mediator
 
 **LOC:** ~104
 
@@ -414,7 +461,7 @@ MyApp.slnx
 ## Dependency Visualization
 
 ```
-Nac.Abstractions [ZERO DEPS]
+Nac.Core [ZERO DEPS]
     ↑
     ├─ Nac.Domain
     ├─ Nac.Mediator
@@ -422,6 +469,7 @@ Nac.Abstractions [ZERO DEPS]
             ↑
             ├─ Nac.Persistence ← Domain, Mediator
             │   ├─ Nac.Persistence.PostgreSQL
+            │   ├─ Nac.Identity ← Persistence, Mediator, MultiTenancy
             │   └─ Nac.Messaging ← Persistence
             │       ├─ Nac.Messaging.RabbitMQ
             │       └─ (Outbox worker)
@@ -443,13 +491,13 @@ Nac.Abstractions [ZERO DEPS]
 
 | Metric | Value |
 |--------|-------|
-| **Total LOC** | ~4,575 |
-| **Total files** | ~100 .cs |
-| **Largest package** | Nac.Mediator (760 LOC) |
+| **Total LOC** | ~5,355 |
+| **Total files** | ~130 .cs |
+| **Largest package** | Nac.Identity (780 LOC) |
 | **Smallest package** | Nac.Persistence.PostgreSQL (30 LOC) |
 | **Target framework** | net10.0 |
 | **Language** | C# 13 |
-| **Package dependencies** | ~15 external (EF Core, RabbitMQ.Client, System.CommandLine, Npgsql) |
+| **Package dependencies** | ~15 external (EF Core, RabbitMQ.Client, System.CommandLine, Npgsql, JWT) |
 
 ---
 
