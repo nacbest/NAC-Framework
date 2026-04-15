@@ -1,0 +1,22 @@
+using Microsoft.EntityFrameworkCore;
+using Nac.Core.Auth;
+using Nac.Persistence;
+using {{ project_name }}.Modules.{{ module_name }}.Domain.Entities;
+
+namespace {{ project_name }}.Modules.{{ module_name }}.Infrastructure;
+
+public class {{ module_name }}DbContext : NacDbContext
+{
+    public {{ module_name }}DbContext(
+        DbContextOptions<{{ module_name }}DbContext> options,
+        ICurrentUser? currentUser = null)
+        : base(options, currentUser) { }
+
+    public DbSet<{{ module_name }}Item> {{ module_name }}Items => Set<{{ module_name }}Item>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof({{ module_name }}DbContext).Assembly);
+        base.OnModelCreating(modelBuilder);
+    }
+}

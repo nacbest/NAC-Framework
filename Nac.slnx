@@ -25,10 +25,11 @@
     <Project Path="src/Nac.Messaging.RabbitMQ/Nac.Messaging.RabbitMQ.csproj" />
   </Folder>
 
-  <!-- Tooling: templates, testing -->
+  <!-- Tooling: templates, testing, CLI -->
   <Folder Name="/src/Tooling/">
     <Project Path="src/Nac.Templates/Nac.Templates.csproj" />
     <Project Path="src/Nac.Testing/Nac.Testing.csproj" />
+    <Project Path="src/Nac.Cli/Nac.Cli.csproj" />
   </Folder>
 
   <!-- Tests -->

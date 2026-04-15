@@ -1,0 +1,33 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
+using Nac.CQRS.Core;
+using Nac.WebApi;
+using {{ project_name }}.Modules.{{ module_name }}.Application.Commands.Create{{ module_name }}Item;
+using {{ project_name }}.Modules.{{ module_name }}.Application.Queries.Get{{ module_name }}ItemById;
+
+namespace {{ project_name }}.Modules.{{ module_name }}.Endpoints;
+
+public static class {{ module_name }}ItemEndpoints
+{
+    public static void Map(IEndpointRouteBuilder routes)
+    {
+        var group = routes.MapGroup("/api/{{ module_name | string.downcase }}/items")
+            .WithTags("{{ module_name }}");
+
+        group.MapPost("/", async (Create{{ module_name }}ItemCommand command, IMediator mediator, CancellationToken ct) =>
+        {
+            var id = await mediator.SendAsync(command, ct);
+            return Results.Created($"/api/{{ module_name | string.downcase }}/items/{id}",
+                ApiResponse<Guid>.Success(id));
+        });
+
+        group.MapGet("/{id:guid}", async (Guid id, IMediator mediator, CancellationToken ct) =>
+        {
+            var result = await mediator.SendAsync(new Get{{ module_name }}ItemByIdQuery(id), ct);
+            return result is not null
+                ? Results.Ok(ApiResponse<{{ module_name }}ItemDto>.Success(result))
+                : Results.NotFound();
+        });
+    }
+}

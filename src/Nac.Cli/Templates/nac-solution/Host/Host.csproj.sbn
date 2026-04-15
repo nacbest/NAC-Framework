@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <PackageReference Include="Nac.WebApi" />
+    <PackageReference Include="Nac.Persistence.PostgreSQL" />
+    <PackageReference Include="Nac.Identity" />
+    <PackageReference Include="Nac.Messaging.RabbitMQ" />
+    <PackageReference Include="Nac.Caching" />
+    <PackageReference Include="Nac.MultiTenancy" />
+    <PackageReference Include="Nac.Observability" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Modules\{{ project_name }}.Modules.{{ module_name }}\{{ project_name }}.Modules.{{ module_name }}.csproj" />
+    <ProjectReference Include="..\Modules\{{ project_name }}.Modules.{{ module_name }}.Infrastructure\{{ project_name }}.Modules.{{ module_name }}.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

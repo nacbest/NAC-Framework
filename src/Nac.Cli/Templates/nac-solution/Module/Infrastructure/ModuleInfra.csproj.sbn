@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Nac.Persistence" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\{{ project_name }}.Modules.{{ module_name }}\{{ project_name }}.Modules.{{ module_name }}.csproj" />
+  </ItemGroup>
+</Project>

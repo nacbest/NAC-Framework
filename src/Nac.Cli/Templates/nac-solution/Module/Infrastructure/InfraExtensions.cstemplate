@@ -1,0 +1,16 @@
+using Microsoft.Extensions.DependencyInjection;
+using Nac.Persistence.Extensions;
+using {{ project_name }}.Modules.{{ module_name }}.Domain.Entities;
+
+namespace {{ project_name }}.Modules.{{ module_name }}.Infrastructure;
+
+public static class {{ module_name }}InfrastructureExtensions
+{
+    public static IServiceCollection Add{{ module_name }}Infrastructure(this IServiceCollection services)
+    {
+        services.AddNacRepositoriesFromAssembly<{{ module_name }}DbContext>(
+            typeof({{ module_name }}DbContext).Assembly);
+
+        return services;
+    }
+}

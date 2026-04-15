@@ -1,0 +1,54 @@
+using Nac.Caching.Extensions;
+using Nac.Identity.Extensions;
+using Nac.Messaging.Extensions;
+using Nac.MultiTenancy.Extensions;
+using Nac.Observability.Extensions;
+using Nac.Persistence.PostgreSQL.Extensions;
+using Nac.WebApi.Extensions;
+using {{ project_name }}.Modules.{{ module_name }};
+using {{ project_name }}.Modules.{{ module_name }}.Infrastructure;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.AddNacFramework(nac =>
+{
+    nac.AddModule<{{ module_name }}Module>();
+});
+
+// Persistence
+builder.Services.AddNacPostgreSQL<{{ module_name }}DbContext>(
+    builder.Configuration.GetConnectionString("DefaultConnection")!);
+
+// Identity & Authorization
+builder.Services.AddNacIdentity(
+    builder.Configuration,
+    options => options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")!));
+builder.Services.AddNacAuthorization();
+
+// Messaging
+builder.Services.AddNacInMemoryMessaging(typeof({{ module_name }}Module).Assembly);
+
+// Caching
+builder.Services.AddNacCaching();
+
+// Multi-Tenancy
+builder.Services.AddNacMultiTenancy(mt =>
+{
+    mt.AddHeaderResolver();
+    mt.AddClaimResolver();
+    mt.UseInMemoryStore([]);
+});
+
+// Observability
+builder.Services.AddNacObservability();
+
+var app = builder.Build();
+
+app.UseNacWebApi();
+app.UseNacMultiTenancy();
+app.UseAuthentication();
+app.UseNacIdentity();
+app.UseAuthorization();
+app.UseNacFramework();
+
+app.Run();

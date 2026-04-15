@@ -1,0 +1,29 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- NAC Framework -->
+    <PackageVersion Include="Nac.Core" Version="{{ nac_version }}" />
+    <PackageVersion Include="Nac.Domain" Version="{{ nac_version }}" />
+    <PackageVersion Include="Nac.CQRS" Version="{{ nac_version }}" />
+    <PackageVersion Include="Nac.Persistence" Version="{{ nac_version }}" />
+    <PackageVersion Include="Nac.Persistence.PostgreSQL" Version="{{ nac_version }}" />
+    <PackageVersion Include="Nac.Identity" Version="{{ nac_version }}" />
+    <PackageVersion Include="Nac.Messaging" Version="{{ nac_version }}" />
+    <PackageVersion Include="Nac.Messaging.RabbitMQ" Version="{{ nac_version }}" />
+    <PackageVersion Include="Nac.Caching" Version="{{ nac_version }}" />
+    <PackageVersion Include="Nac.MultiTenancy" Version="{{ nac_version }}" />
+    <PackageVersion Include="Nac.Observability" Version="{{ nac_version }}" />
+    <PackageVersion Include="Nac.WebApi" Version="{{ nac_version }}" />
+    <PackageVersion Include="Nac.Testing" Version="{{ nac_version }}" />
+    <!-- EF Core -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.5" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.1" />
+    <!-- Testing -->
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageVersion Include="xunit" Version="2.9.2" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageVersion Include="FluentAssertions" Version="7.0.0" />
+  </ItemGroup>
+</Project>
