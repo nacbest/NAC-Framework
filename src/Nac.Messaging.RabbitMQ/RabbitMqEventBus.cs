@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Nac.Abstractions.Messaging;
+using Nac.Core.Messaging;
 using RabbitMQ.Client;
 
 namespace Nac.Messaging.RabbitMQ;

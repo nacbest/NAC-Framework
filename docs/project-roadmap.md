@@ -16,7 +16,7 @@ Current status, milestones, and future development priorities.
 
 | Package | Status | Version | Notes |
 |---------|--------|---------|-------|
-| Nac.Abstractions | ✅ Complete | 1.0.0 | Zero dependencies |
+| Nac.Core | ✅ Complete | 1.0.0 | Zero dependencies |
 | Nac.Domain | ✅ Complete | 1.0.0 | Entity, AggregateRoot, ValueObject |
 | Nac.Mediator | ✅ Complete | 1.0.0 | Custom CQRS mediator, no MediatR |
 | Nac.Persistence | ✅ Complete | 1.0.0 | EF Core, UoW, Repository, Outbox |
@@ -41,6 +41,9 @@ Current status, milestones, and future development priorities.
 | **PostgreSQL Support** | ✅ | Nac.Persistence.PostgreSQL package |
 | **Multi-tenancy** | ✅ | Discriminator, Schema-per-tenant, Database-per-tenant |
 | **Tenant Resolution** | ✅ | Header, Claim, Subdomain, Query, Fallback |
+| **Identity System** | ✅ | ASP.NET Identity, JWT, tenant-scoped roles, async permission loading |
+| **User Query Service** | ✅ | IIdentityService for module queries |
+| **Identity Events** | ✅ | UserRegisteredEvent, EmailConfirmedEvent, PasswordResetEvent |
 | **Authorization** | ✅ | Permission-based, wildcard support, tenant-scoped |
 | **Event Bus (In-Memory)** | ✅ | InMemoryEventBus for development |
 | **Event Bus (RabbitMQ)** | ✅ | Outbox pattern, retry, idempotency |
@@ -52,6 +55,60 @@ Current status, milestones, and future development priorities.
 | **CLI Scaffolding** | ✅ | `nac new`, `nac add module/feature/entity` |
 | **Templates** | ✅ | `dotnet new nac-solution` |
 | **Testing Utilities** | ✅ | FakeEventBus, FakeTenantContext, FakeCurrentUser |
+
+---
+
+## Breaking Changes (v1.0 → v1.0.2)
+
+### Phase 4 Identity Enhancements (April 2026)
+
+**New APIs:**
+- `IIdentityService` in `Nac.Core.Auth` — Query user info from business modules
+- `UserInfo` record — Lightweight user identity DTO
+- `IdentityEventPublisher` — Publish identity lifecycle events (registration, confirmation, reset)
+- `UserRegisteredEvent`, `UserEmailConfirmedEvent`, `PasswordResetEvent` — Integration events
+
+**Bug Fixes:**
+- RefreshToken now stores TenantId; preserved on token refresh to maintain tenant context
+
+**Breaking Changes:**
+- `UseNacIdentity()` no longer accepts `seedRoles` parameter
+  - **Migration:** Call `IdentitySeeder.SeedDefaultRolesForTenantAsync(tenantId)` when creating new tenants
+  - **Before:** `app.UseNacIdentity(seedRoles: true);`
+  - **After:** `app.UseNacIdentity(); // Call seeder per-tenant during tenant creation`
+
+- `IdentitySeeder.SeedDefaultRolesAsync()` replaced by `SeedDefaultRolesForTenantAsync(string tenantId)`
+  - **Migration:** Pass tenant ID explicitly
+  - **Before:** `await seeder.SeedDefaultRolesAsync();` (global, all tenants)
+  - **After:** `await seeder.SeedDefaultRolesForTenantAsync(tenantId);` (per-tenant)
+
+**Architecture Change:**
+- Permission loading moved to middleware (`UseNacIdentity()` middleware)
+  - **Why:** Avoids sync-over-async penalties in handlers
+  - **Impact:** `ICurrentUser.Permissions` now safe to access synchronously in handlers
+  - `JwtCurrentUser.LoadPermissionsAsync()` called automatically by middleware
+
+### Package Restructure (April 2026)
+
+**Nac.Abstractions → Nac.Core Migration (COMPLETED)**
+
+- **Deleted:** `Nac.Abstractions` package
+- **Created:** `Nac.Core` package (zero-dependency contracts layer)
+  - All interfaces, markers, and base types moved from Nac.Abstractions
+  - Stricter naming: contract-focused, no implementation code
+- **Updated:** `Nac.WebApi` now contains module framework types
+  - `INacModule`, `NacFrameworkBuilder`, `NacServiceCollectionExtensions`
+  - Replaces split responsibility: WebApi provides both API envelopes AND module registration
+- **Updated:** `Nac.MultiTenancy` gained `ITenantResolver` interface
+- **Added:** Explicit package dependencies
+  - `Nac.Mediator`: Microsoft.Extensions.DependencyInjection.Abstractions
+  - `Nac.Caching`: IDistributedCache abstractions (Memory, Logging)
+  - `Nac.Observability`: ILogger abstractions
+
+**Migration Impact:**
+- **All packages updated** to reference `Nac.Core` instead of `Nac.Abstractions`
+- **Zero breaking changes for consumers** (public API unchanged)
+- **Build time improvement**: Stricter zero-dependency guarantee at L0
 
 ---
 

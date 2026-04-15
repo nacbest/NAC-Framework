@@ -2,7 +2,7 @@ using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using Nac.Abstractions.Messaging;
+using Nac.Core.Messaging;
 using Nac.Messaging.InMemory;
 using Nac.Messaging.Internal;
 using Nac.Messaging.Outbox;

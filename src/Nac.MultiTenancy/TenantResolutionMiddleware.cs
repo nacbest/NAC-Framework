@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using Nac.Abstractions.MultiTenancy;
+using Nac.Core.MultiTenancy;
 
 namespace Nac.MultiTenancy;
 

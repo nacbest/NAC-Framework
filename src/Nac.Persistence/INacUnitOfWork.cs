@@ -1,5 +1,5 @@
-using Nac.Abstractions.Messaging;
-using Nac.Abstractions.Persistence;
+using Nac.Core.Messaging;
+using Nac.Core.Persistence;
 
 namespace Nac.Persistence;
 

@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Nac.Abstractions.Messaging;
+using Nac.Core.Messaging;
 using Nac.Persistence;
 using Nac.Persistence.Outbox;
 

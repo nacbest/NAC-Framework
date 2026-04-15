@@ -2,7 +2,7 @@ using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Nac.Abstractions.Persistence;
+using Nac.Core.Persistence;
 using Nac.Domain;
 using Nac.Mediator.Abstractions;
 using Nac.Persistence.Repository;

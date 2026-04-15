@@ -1,5 +1,5 @@
 using System.Threading.Channels;
-using Nac.Abstractions.Messaging;
+using Nac.Core.Messaging;
 
 namespace Nac.Messaging.InMemory;
 

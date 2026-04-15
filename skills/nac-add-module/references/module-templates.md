@@ -18,7 +18,7 @@ Replace `{Namespace}` from nac.json, `{Module}` from argument. Common properties
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Nac.Abstractions" />
+    <PackageReference Include="Nac.Core" />
     <PackageReference Include="Nac.Domain" />
     <PackageReference Include="Nac.Mediator" />
   </ItemGroup>
@@ -40,7 +40,7 @@ Replace `{Namespace}` from nac.json, `{Module}` from argument. Common properties
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="{localNacPath}/src/Nac.Abstractions/Nac.Abstractions.csproj" />
+    <ProjectReference Include="{localNacPath}/src/Nac.Core/Nac.Core.csproj" />
     <ProjectReference Include="{localNacPath}/src/Nac.Domain/Nac.Domain.csproj" />
     <ProjectReference Include="{localNacPath}/src/Nac.Mediator/Nac.Mediator.csproj" />
   </ItemGroup>
@@ -99,7 +99,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Nac.Abstractions.Modularity;
+using Nac.Core.Modularity;
 
 namespace {Namespace}.Modules.{Module};
 
@@ -127,7 +127,7 @@ Note: Replace `{module-lowercase}` with lowercase module name (e.g., "catalog", 
 
 ```csharp
 using Microsoft.EntityFrameworkCore;
-using Nac.Abstractions.Auth;
+using Nac.Core.Auth;
 using Nac.Persistence;
 
 namespace {Namespace}.Modules.{Module}.Infrastructure;

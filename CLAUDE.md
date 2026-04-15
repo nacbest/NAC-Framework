@@ -6,7 +6,7 @@
 
 ```
 src/
-├── Nac.Abstractions/     — Contracts: ICurrentUser, IRepository, ICommand, etc.
+├── Nac.Core/             — [L0] Contracts: ICurrentUser, IRepository, ICommand, etc. (zero ASP.NET Core deps)
 ├── Nac.Domain/           — Base types: AggregateRoot, Entity, ValueObject, DomainEvent
 ├── Nac.Mediator/         — CQRS dispatcher, pipeline behaviors
 ├── Nac.Persistence/      — EF Core base: NacDbContext, repositories, UoW
@@ -17,7 +17,7 @@ src/
 ├── Nac.Messaging/        — Event bus abstractions
 ├── Nac.Messaging.RabbitMQ/ — RabbitMQ implementation
 ├── Nac.Observability/    — Logging, tracing, health checks
-├── Nac.WebApi/           — Minimal API helpers, exception handling
+├── Nac.WebApi/           — Minimal API helpers, exception handling, module framework
 ├── Nac.Testing/          — Test fakes: FakeEventBus, FakeCurrentUser
 └── Nac.Templates/        — dotnet new templates
 skills/                   — AI-native scaffolding skills (nac-new, nac-add-module, etc.)
@@ -42,14 +42,14 @@ skills/                   — AI-native scaffolding skills (nac-new, nac-add-mod
 ┌─────────────────────────────┴─────────────────────────────────┐
 │                 Module Core Layer (CLEAN)                       │
 │   {Ns}.Modules.{M}                                             │
-│   Refs: Nac.Abstractions, Nac.Domain, Nac.Mediator ONLY       │
+│   Refs: Nac.Core, Nac.Domain, Nac.Mediator ONLY               │
 │   Owns: Domain, Application, Contracts, Endpoints              │
 └─────────────────────────────┬─────────────────────────────────┘
                               │
 ┌─────────────────────────────┴─────────────────────────────────┐
-│                    Nac.Abstractions Layer                      │
+│                       Nac.Core Layer                           │
 │   ICurrentUser, IRepository, ICommand, ITenantContext          │
-│   (Contracts only - NO implementation)                         │
+│   (Contracts only - NO implementation, NO ASP.NET Core)        │
 └───────────────────────────────────────────────────────────────┘
 ```
 
@@ -58,7 +58,7 @@ skills/                   — AI-native scaffolding skills (nac-new, nac-add-mod
 Host → Module.Infrastructure → Nac.Persistence
 Host → Module.Infrastructure → Module (core)
 Host → Module (core)
-Module (core) → Nac.Abstractions, Nac.Domain, Nac.Mediator ONLY
+Module (core) → Nac.Core, Nac.Domain, Nac.Mediator ONLY
 Module (core) ✗ Nac.Persistence (FORBIDDEN)
 Module (core) ✗ Module.Infrastructure (FORBIDDEN)
 ```
@@ -91,12 +91,12 @@ public sealed class Staff : AggregateRoot<Guid>
 
 ### Access User Info
 
-Use `ICurrentUser` from `Nac.Abstractions`:
+Use `ICurrentUser` from `Nac.Core`:
 
 ```csharp
 public class GetCurrentStaffQueryHandler : IQueryHandler<GetCurrentStaffQuery, StaffDto?>
 {
-    private readonly ICurrentUser _currentUser;  // From Nac.Abstractions
+    private readonly ICurrentUser _currentUser;  // From Nac.Core
     private readonly IStaffRepository _staffRepo;
 
     public async Task<StaffDto?> Handle(GetCurrentStaffQuery query, CancellationToken ct)
@@ -123,7 +123,7 @@ public class GetCurrentStaffQueryHandler : IQueryHandler<GetCurrentStaffQuery, S
 
 Each module splits into **core** (clean, persistence-ignorant) and **infrastructure** (EF Core, repositories):
 
-**Module core** (`{Ns}.Modules.{M}`) — refs: `Nac.Abstractions`, `Nac.Domain`, `Nac.Mediator`:
+**Module core** (`{Ns}.Modules.{M}`) — refs: `Nac.Core`, `Nac.Domain`, `Nac.Mediator`:
 ```
 {Ns}.Modules.Catalog/
 ├── Domain/Entities/Product.cs            — Entity inherits AggregateRoot<Guid>
@@ -189,7 +189,7 @@ services.AddCatalogInfrastructure(connectionString);
 ## Forbidden Patterns
 
 - **Module core referencing Nac.Persistence** — only `.Infrastructure` can reference it
-- **Module core referencing Nac.Identity** — use `ICurrentUser` from Nac.Abstractions
+- **Module core referencing Nac.Identity** — use `ICurrentUser` from Nac.Core
 - **Module core referencing its own .Infrastructure** — dependency flows one way only
 - **Navigation properties to NacUser** — use `Guid UserId` only
 - **Cross-module DbContext access** — modules are isolated
@@ -227,13 +227,13 @@ Each skill:
 
 | Interface | Package | Purpose |
 |-----------|---------|---------|
-| `ICommand<T>` | Nac.Abstractions | Write operation |
-| `IQuery<T>` | Nac.Abstractions | Read operation |
-| `ITransactional` | Nac.Abstractions | Wrap in DB transaction |
-| `IRequirePermission` | Nac.Abstractions | Check Permission property |
-| `ICacheable` | Nac.Abstractions | Cache query result |
-| `ICacheInvalidator` | Nac.Abstractions | Invalidate cache keys post-command |
-| `IAuditable` | Nac.Abstractions | Log audit trail |
+| `ICommand<T>` | Nac.Core | Write operation |
+| `IQuery<T>` | Nac.Core | Read operation |
+| `ITransactional` | Nac.Core | Wrap in DB transaction |
+| `IRequirePermission` | Nac.Core | Check Permission property |
+| `ICacheable` | Nac.Core | Cache query result |
+| `ICacheInvalidator` | Nac.Core | Invalidate cache keys post-command |
+| `IAuditable` | Nac.Core | Log audit trail |
 
 ## Multi-Tenancy Strategies
 
@@ -259,6 +259,6 @@ Examples:
 ```csharp
 // Use Fakes from Nac.Testing
 var fakeEventBus = new FakeEventBus();
-var fakeUser = new FakeCurrentUser("user-id", ["orders.create"]);
+var fakeUser = FakeCurrentUser.Authenticated("user-id", "orders.create");
 var fakeTenant = new FakeTenantContext("tenant-123");
 ```

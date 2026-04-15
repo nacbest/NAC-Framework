@@ -1,5 +1,5 @@
-using Nac.Abstractions.Auth;
-using Nac.Abstractions.Exceptions;
+using Nac.Core.Auth;
+using Nac.Core.Exceptions;
 using Nac.Mediator.Abstractions;
 using Nac.Mediator.Core;
 

@@ -1,12 +1,12 @@
 # NAC Framework
 
-[![NuGet](https://img.shields.io/nuget/v/Nac.Abstractions.svg)](https://www.nuget.org/packages/Nac.Abstractions)
+[![NuGet](https://img.shields.io/nuget/v/Nac.Core.svg)](https://www.nuget.org/packages/Nac.Core)
 [![CI](https://github.com/nacbest/NAC-Framework/actions/workflows/ci.yml/badge.svg)](https://github.com/nacbest/NAC-Framework/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 A modular .NET 10 foundation framework for building scalable backend Web APIs with clean architecture principles, opt-in multi-tenancy, and a clear path from monolith to microservices.
 
-**Status:** v1.0 Complete (14 packages) | **License:** MIT
+**Status:** v1.0 Complete (15 packages) | **License:** MIT
 
 ---
 
@@ -16,7 +16,7 @@ A modular .NET 10 foundation framework for building scalable backend Web APIs wi
 
 ```bash
 # Core packages
-dotnet add package Nac.Abstractions
+dotnet add package Nac.Core
 dotnet add package Nac.Domain
 dotnet add package Nac.Mediator
 
@@ -179,11 +179,11 @@ if (!_currentUser.HasPermission("catalog.products.create"))
 
 ---
 
-## 14 Packages
+## 15 Packages
 
 | Package | Purpose |
 |---------|---------|
-| **Nac.Abstractions** | Zero-dependency interfaces (ICommand, IQuery, IRepository, etc.) |
+| **Nac.Core** | Zero-dependency contracts (ICommand, IQuery, IRepository, etc.) |
 | **Nac.Domain** | Entity, AggregateRoot, ValueObject, DomainEvent |
 | **Nac.Mediator** | Custom CQRS mediator (no MediatR dependency) |
 | **Nac.Persistence** | EF Core integration, UnitOfWork, Repository, Outbox |
@@ -194,8 +194,9 @@ if (!_currentUser.HasPermission("catalog.products.create"))
 | **Nac.MultiTenancy** | Tenant resolution (Header, Claim, Subdomain, Query), 3 strategies |
 | **Nac.Caching** | Query-level caching with post-command invalidation |
 | **Nac.Observability** | Structured logging (entry/exit/duration/errors) |
-| **Nac.WebApi** | Response envelopes, global exception handler |
+| **Nac.WebApi** | Response envelopes, global exception handler, module framework |
 | **Nac.Testing** | Fakes (EventBus, TenantContext, CurrentUser) |
+| **Nac.Cli** | `nac` dotnet command-line tool for scaffolding |
 | **Nac.Templates** | `dotnet new nac-solution` template |
 
 ---
@@ -353,7 +354,7 @@ Each module's boundary is already clear—extraction is **mechanical, not archit
 ### Dependency Graph
 
 ```
-Nac.Abstractions (zero deps)
+Nac.Core (zero deps, zero ASP.NET Core)
   ↑
   ├─ Nac.Domain
   ├─ Nac.Mediator

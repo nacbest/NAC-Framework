@@ -37,54 +37,60 @@ Create a reusable foundation that eliminates boilerplate, enforces architectural
 #### Core Foundation
 | Package | Purpose | Dependencies |
 |---------|---------|--------------|
-| **Nac.Abstractions** | Interfaces, markers, base types | None |
-| **Nac.Domain** | Entity, AggregateRoot, ValueObject, DomainEvent | Abstractions |
-| **Nac.Mediator** | Custom CQRS mediator, behaviors, handler resolution | Abstractions |
+| **Nac.Core** | Interfaces, markers, base types | None |
+| **Nac.Domain** | Entity, AggregateRoot, ValueObject, DomainEvent | Nac.Core |
+| **Nac.Mediator** | Custom CQRS mediator, behaviors, handler resolution | Nac.Core |
 
 #### Persistence & Data
 | Package | Purpose | Dependencies |
 |---------|---------|--------------|
-| **Nac.Persistence** | EF Core, UnitOfWork, Repository, Outbox/Inbox patterns | Abstractions, Domain, Mediator |
+| **Nac.Persistence** | EF Core, UnitOfWork, Repository, Outbox/Inbox patterns | Nac.Core, Domain, Mediator |
 | **Nac.Persistence.PostgreSQL** | PostgreSQL provider wrapper | Persistence |
 
 #### Messaging & Events
 | Package | Purpose | Dependencies |
 |---------|---------|--------------|
-| **Nac.Messaging** | IEventBus abstraction, InMemoryEventBus, Outbox/Inbox | Abstractions, Persistence |
+| **Nac.Messaging** | IEventBus abstraction, InMemoryEventBus, Outbox/Inbox | Nac.Core, Persistence |
 | **Nac.Messaging.RabbitMQ** | RabbitMQ IEventBus implementation | Messaging, RabbitMQ.Client 7.2.1 |
+
+#### Identity & Authentication
+| Package | Purpose | Dependencies |
+|---------|---------|--------------|
+| **Nac.Identity** | ASP.NET Core Identity + JWT + tenant roles/permissions | Nac.Core, Mediator, Persistence, MultiTenancy |
 
 #### Cross-cutting Concerns
 | Package | Purpose | Dependencies |
 |---------|---------|--------------|
-| **Nac.MultiTenancy** | Tenant resolution (Header/Claim/Subdomain/Query), 3 strategies | Abstractions |
-| **Nac.Caching** | Query cache + invalidation behaviors | Abstractions, Mediator |
-| **Nac.Observability** | Logging behaviors (command/query entry/exit/duration) | Abstractions, Mediator |
+| **Nac.MultiTenancy** | Tenant resolution (Header/Claim/Subdomain/Query), 3 strategies | Nac.Core |
+| **Nac.Caching** | Query cache + invalidation behaviors | Nac.Core, Mediator |
+| **Nac.Observability** | Logging behaviors (command/query entry/exit/duration) | Nac.Core, Mediator |
 
 #### API & Distribution
 | Package | Purpose | Dependencies |
 |---------|---------|--------------|
-| **Nac.WebApi** | Response envelopes, global exception handler | Abstractions |
-| **Nac.Testing** | Fake implementations (EventBus, TenantContext, CurrentUser) | Abstractions, Mediator |
+| **Nac.WebApi** | Response envelopes, global exception handler, module framework | Nac.Core |
+| **Nac.Testing** | Fake implementations (EventBus, TenantContext, CurrentUser) | Nac.Core, Mediator |
 | **Nac.Cli** | `nac` dotnet tool (scaffold, add modules/features) | System.CommandLine |
 | **Nac.Templates** | `dotnet new nac-solution` template package | None |
 
 ### Dependency Flow (strict one-direction)
 
 ```
-Nac.Abstractions (zero dependencies)
+Nac.Core (zero dependencies)
   ↑
-Nac.Domain ← Abstractions
+Nac.Domain ← Nac.Core
   ↑
-Nac.Mediator ← Abstractions
+Nac.Mediator ← Nac.Core
   ↑
-Nac.Persistence ← Abstractions, Domain, Mediator
+Nac.Persistence ← Nac.Core, Domain, Mediator
   ↑
-Nac.Messaging ← Abstractions, Persistence
-Nac.MultiTenancy ← Abstractions
-Nac.Caching ← Abstractions, Mediator
-Nac.Observability ← Abstractions, Mediator
-Nac.WebApi ← Abstractions
-Nac.Testing ← Abstractions, Mediator
+Nac.Identity ← Nac.Core, Persistence, Mediator, MultiTenancy
+Nac.Messaging ← Nac.Core, Persistence
+Nac.MultiTenancy ← Nac.Core
+Nac.Caching ← Nac.Core, Mediator
+Nac.Observability ← Nac.Core, Mediator
+Nac.WebApi ← Nac.Core
+Nac.Testing ← Nac.Core, Mediator
 Nac.Cli ← System.CommandLine
 ```
 

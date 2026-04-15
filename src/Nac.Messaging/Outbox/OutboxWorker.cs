@@ -92,7 +92,7 @@ internal sealed class OutboxWorker<TContext> : BackgroundService
                 }
 
                 var @event = JsonSerializer.Deserialize(message.Payload, eventType);
-                if (@event is not Nac.Abstractions.Messaging.IIntegrationEvent integrationEvent)
+                if (@event is not Nac.Core.Messaging.IIntegrationEvent integrationEvent)
                 {
                     message.Error = "Deserialization returned non-IIntegrationEvent";
                     message.RetryCount++;

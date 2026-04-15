@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
-using Nac.Abstractions.Auth;
-using Nac.Abstractions.Messaging;
+using Nac.Core.Auth;
+using Nac.Core.Messaging;
 using Nac.Domain;
 using Nac.Persistence.Conventions;
 using Nac.Persistence.Outbox;

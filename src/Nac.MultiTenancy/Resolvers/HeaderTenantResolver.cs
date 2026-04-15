@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Http;
-using Nac.Abstractions.MultiTenancy;
 
 namespace Nac.MultiTenancy.Resolvers;
 

@@ -1,5 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-using Nac.Abstractions.Messaging;
+using Nac.Core.Messaging;
 using Nac.Mediator.Abstractions;
 
 namespace Nac.Mediator.Internal;

@@ -31,11 +31,11 @@ Built on **NAC Framework v1.0** — modular .NET 10 foundation with CQRS, multi-
 ┌─────────────────────────────┴─────────────────────────────────┐
 │                    Business Modules Layer                      │
 │   {Name}.Modules.Staff, {Name}.Modules.Customer, etc.          │
-│   Can ONLY reference: Nac.Abstractions, Nac.Domain, Nac.Mediator│
+│   Can ONLY reference: Nac.Core, Nac.Domain, Nac.Mediator│
 └─────────────────────────────┬─────────────────────────────────┘
                               │
 ┌─────────────────────────────┴─────────────────────────────────┐
-│                    Nac.Abstractions Layer                      │
+│                    Nac.Core Layer                      │
 │   ICurrentUser, IRepository, ICommand, ITenantContext          │
 │   (Contracts only - NO implementation)                         │
 └───────────────────────────────────────────────────────────────┘
@@ -48,7 +48,7 @@ Domain (innermost)
   ↑ NO external dependencies except Nac.Domain
   │
 Application
-  ↑ Depends on: Domain, Nac.Abstractions, Nac.Mediator
+  ↑ Depends on: Domain, Nac.Core, Nac.Mediator
   │
 Infrastructure
   ↑ Implements interfaces from Application
@@ -78,7 +78,7 @@ public sealed class Staff : AggregateRoot<Guid>
 }
 ```
 
-Access user info via `ICurrentUser` from Nac.Abstractions:
+Access user info via `ICurrentUser` from Nac.Core:
 
 ```csharp
 public class GetStaffHandler : IQueryHandler<GetStaffQuery, StaffDto?>

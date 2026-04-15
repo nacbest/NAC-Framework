@@ -6,7 +6,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Nac.Abstractions.Auth;
+using Nac.Core.Auth;
+using Nac.Core.Messaging;
 using Nac.Identity.CurrentUser;
 using Nac.Identity.Data;
 using Nac.Identity.Entities;
@@ -121,6 +122,8 @@ public static class IdentityServiceCollectionExtensions
         // Register services
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<ITenantRoleService, TenantRoleService>();
+        services.AddScoped<IIdentityService, IdentityService>();
+        services.AddScoped<IdentityEventPublisher>();
 
         // Register refresh token store (EF or Redis)
         if (options.UseRedisRefreshTokenStore && !string.IsNullOrEmpty(options.RedisConnection))

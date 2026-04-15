@@ -1,7 +1,7 @@
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Nac.Abstractions.Messaging;
+using Nac.Core.Messaging;
 using Nac.Messaging.Extensions;
 
 namespace Nac.Messaging.RabbitMQ.Extensions;
