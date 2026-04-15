@@ -12,7 +12,7 @@ namespace Nac.Messaging.RabbitMQ;
 
 /// <summary>
 /// Background worker that consumes integration events from a RabbitMQ queue
-/// and dispatches them to registered <see cref="Nac.Abstractions.Messaging.IIntegrationEventHandler{TEvent}"/>
+/// and dispatches them to registered <see cref="Nac.Core.Messaging.IIntegrationEventHandler{TEvent}"/>
 /// implementations via <see cref="IntegrationEventDispatcher"/>.
 /// Uses manual ack: ack on success, nack without requeue on repeated failure.
 /// </summary>
@@ -149,7 +149,7 @@ internal sealed class RabbitMqConsumerWorker : BackgroundService
                 return;
             }
 
-            var @event = (Abstractions.Messaging.IIntegrationEvent)
+            var @event = (Nac.Core.Messaging.IIntegrationEvent)
                 JsonSerializer.Deserialize(body, clrType)!;
 
             using var scope = _scopeFactory.CreateScope();

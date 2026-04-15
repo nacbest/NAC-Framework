@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using Nac.Abstractions.Messaging;
+using Nac.Core.Messaging;
 using Nac.Mediator.Core;
 using Nac.Mediator.Registration;
 

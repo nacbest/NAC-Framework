@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Nac.Abstractions.Messaging;
+using Nac.Core.Messaging;
 using Nac.Persistence;
 using Nac.Persistence.Outbox;
 

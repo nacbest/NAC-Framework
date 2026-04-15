@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Nac.Abstractions.MultiTenancy;
+using Nac.Core.MultiTenancy;
 using Nac.MultiTenancy.Resolvers;
 
 namespace Nac.MultiTenancy.Extensions;

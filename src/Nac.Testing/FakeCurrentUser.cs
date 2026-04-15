@@ -1,4 +1,4 @@
-using Nac.Abstractions.Auth;
+using Nac.Core.Auth;
 
 namespace Nac.Testing;
 
@@ -40,16 +40,33 @@ public sealed class FakeCurrentUser : ICurrentUser
 
     public bool HasPermission(string permission)
     {
+        if (string.IsNullOrEmpty(permission))
+            return false;
+
         if (_permissions.Contains(permission))
             return true;
 
-        // Wildcard: "orders.*" matches "orders.create"
+        // Wildcard matching — mirrors JwtCurrentUser.MatchesWildcard
         foreach (var p in _permissions)
         {
-            if (!p.EndsWith(".*")) continue;
-            var prefix = p[..^1]; // "orders."
-            if (permission.StartsWith(prefix, StringComparison.Ordinal))
+            if (p == "*")
                 return true;
+
+            // "orders.*" matches "orders.create"
+            if (p.EndsWith(".*"))
+            {
+                var prefix = p[..^1]; // "orders."
+                if (permission.StartsWith(prefix, StringComparison.Ordinal))
+                    return true;
+            }
+
+            // "*.create" matches "orders.create"
+            if (p.StartsWith("*."))
+            {
+                var suffix = p[1..]; // ".create"
+                if (permission.EndsWith(suffix, StringComparison.Ordinal))
+                    return true;
+            }
         }
 
         return false;

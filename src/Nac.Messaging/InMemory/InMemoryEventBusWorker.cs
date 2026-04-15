@@ -48,7 +48,7 @@ internal sealed class InMemoryEventBusWorker : BackgroundService
     }
 
     private async Task DispatchEventAsync(
-        Nac.Abstractions.Messaging.IIntegrationEvent @event,
+        Nac.Core.Messaging.IIntegrationEvent @event,
         CancellationToken ct)
     {
         try

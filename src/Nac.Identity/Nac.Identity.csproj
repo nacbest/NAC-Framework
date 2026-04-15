@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Nac.Abstractions\Nac.Abstractions.csproj" />
+    <ProjectReference Include="..\Nac.Core\Nac.Core.csproj" />
     <ProjectReference Include="..\Nac.Mediator\Nac.Mediator.csproj" />
     <ProjectReference Include="..\Nac.Persistence\Nac.Persistence.csproj" />
     <ProjectReference Include="..\Nac.MultiTenancy\Nac.MultiTenancy.csproj" />

@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore.Storage;
-using Nac.Abstractions.Messaging;
+using Nac.Core.Messaging;
 
 namespace Nac.Persistence.UnitOfWork;
 

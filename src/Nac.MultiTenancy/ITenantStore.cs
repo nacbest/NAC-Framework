@@ -1,4 +1,4 @@
-using Nac.Abstractions.MultiTenancy;
+using Nac.Core.MultiTenancy;
 
 namespace Nac.MultiTenancy;
 

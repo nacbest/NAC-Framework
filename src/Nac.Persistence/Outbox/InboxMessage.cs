@@ -6,7 +6,7 @@ namespace Nac.Persistence.Outbox;
 /// </summary>
 public sealed class InboxMessage
 {
-    /// <summary>The EventId from <see cref="Nac.Abstractions.Messaging.IIntegrationEvent"/>.</summary>
+    /// <summary>The EventId from <see cref="Nac.Core.Messaging.IIntegrationEvent"/>.</summary>
     public Guid EventId { get; init; }
 
     /// <summary>Fully-qualified CLR type name of the event.</summary>

@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
-using Nac.Abstractions.Caching;
+using Nac.Core.Caching;
 using Nac.Mediator.Abstractions;
 using Nac.Mediator.Core;
 

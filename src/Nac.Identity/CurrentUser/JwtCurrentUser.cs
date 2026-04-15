@@ -1,8 +1,8 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
-using Nac.Abstractions.Auth;
-using Nac.Abstractions.MultiTenancy;
+using Nac.Core.Auth;
+using Nac.Core.MultiTenancy;
 using Nac.Identity.Data;
 
 namespace Nac.Identity.CurrentUser;

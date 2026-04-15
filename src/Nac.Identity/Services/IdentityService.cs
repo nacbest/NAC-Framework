@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Nac.Abstractions.Auth;
+using Nac.Core.Auth;
 using Nac.Identity.Entities;
 
 namespace Nac.Identity.Services;

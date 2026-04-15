@@ -1,4 +1,4 @@
-using Nac.Abstractions.Messaging;
+using Nac.Core.Messaging;
 
 namespace Nac.Domain;
 

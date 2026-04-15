@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>[CORE] Interfaces, markers, and base types. Zero external dependencies. Use in: Modules + Host.</Description>
+    <PackageTags>nac;framework;core;contracts</PackageTags>
+  </PropertyGroup>
+
+</Project>

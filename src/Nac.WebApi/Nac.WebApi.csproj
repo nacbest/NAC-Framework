@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>[INFRA] Exception handler, endpoint helpers. Use in: Host only.</Description>
-    <PackageTags>nac;framework;webapi;envelope;exception-handler</PackageTags>
+    <Description>[INFRA] Exception handler, endpoint helpers, module framework. Use in: Host only.</Description>
+    <PackageTags>nac;framework;webapi;envelope;exception-handler;modules</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
@@ -10,7 +10,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Nac.Abstractions\Nac.Abstractions.csproj" />
+    <ProjectReference Include="..\Nac.Core\Nac.Core.csproj" />
     <ProjectReference Include="..\Nac.Mediator\Nac.Mediator.csproj" />
   </ItemGroup>
 

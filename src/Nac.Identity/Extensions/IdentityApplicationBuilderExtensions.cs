@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Nac.Abstractions.Auth;
+using Nac.Core.Auth;
 using Nac.Identity.CurrentUser;
 
 namespace Nac.Identity.Extensions;

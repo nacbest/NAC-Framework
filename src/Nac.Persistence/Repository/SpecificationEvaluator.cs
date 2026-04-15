@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using Nac.Abstractions.Persistence;
+using Nac.Core.Persistence;
 
 namespace Nac.Persistence.Repository;
 
