@@ -3,14 +3,15 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Nac.CQRS.Core;
 using Nac.WebApi;
+using Nac.WebApi.Modularity;
 using {{ project_name }}.Modules.{{ module_name }}.Application.Commands.Create{{ module_name }}Item;
 using {{ project_name }}.Modules.{{ module_name }}.Application.Queries.Get{{ module_name }}ItemById;
 
 namespace {{ project_name }}.Modules.{{ module_name }}.Endpoints;
 
-public static class {{ module_name }}ItemEndpoints
+public sealed class {{ module_name }}ItemEndpoints : IEndpointMapper
 {
-    public static void Map(IEndpointRouteBuilder routes)
+    public void MapEndpoints(IEndpointRouteBuilder routes)
     {
         var group = routes.MapGroup("/api/{{ module_name | string.downcase }}/items")
             .WithTags("{{ module_name }}");

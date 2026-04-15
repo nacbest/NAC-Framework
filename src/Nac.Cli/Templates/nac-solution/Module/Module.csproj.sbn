@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+  {{ if is_local }}
+    <ProjectReference Include="{{ local_path }}/src/Nac.Core/Nac.Core.csproj" />
+    <ProjectReference Include="{{ local_path }}/src/Nac.Domain/Nac.Domain.csproj" />
+    <ProjectReference Include="{{ local_path }}/src/Nac.CQRS/Nac.CQRS.csproj" />
+    <ProjectReference Include="{{ local_path }}/src/Nac.Persistence/Nac.Persistence.csproj" />
+    <ProjectReference Include="{{ local_path }}/src/Nac.Persistence.PostgreSQL/Nac.Persistence.PostgreSQL.csproj" />
+    <ProjectReference Include="{{ local_path }}/src/Nac.WebApi/Nac.WebApi.csproj" />
+  {{ else }}
+    <PackageReference Include="Nac.Core" />
+    <PackageReference Include="Nac.Domain" />
+    <PackageReference Include="Nac.CQRS" />
+    <PackageReference Include="Nac.Persistence" />
+    <PackageReference Include="Nac.Persistence.PostgreSQL" />
+    <PackageReference Include="Nac.WebApi" />
+  {{ end }}
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\{{ project_name }}.Shared\{{ project_name }}.Shared.csproj" />
+  </ItemGroup>
+</Project>

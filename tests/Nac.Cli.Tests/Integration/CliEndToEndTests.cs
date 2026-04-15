@@ -65,7 +65,7 @@ public sealed class CliEndToEndTests : IAsyncLifetime
         await root.InvokeAsync(["new", "TestApp", "--output", outDir]);
 
         var files = Directory.GetFiles(outDir, "*", SearchOption.AllDirectories);
-        files.Should().HaveCount(22);
+        files.Should().HaveCount(21);
     }
 
     [Fact]
@@ -113,8 +113,9 @@ public sealed class CliEndToEndTests : IAsyncLifetime
             Path.Combine(outDir, "src", "Modules", "TestApp2.Modules.Catalog"))
             .Should().BeTrue();
 
+        // Infrastructure folder lives inside the module project (single-project pattern)
         Directory.Exists(
-            Path.Combine(outDir, "src", "Modules", "TestApp2.Modules.Catalog.Infrastructure"))
+            Path.Combine(outDir, "src", "Modules", "TestApp2.Modules.Catalog", "Infrastructure"))
             .Should().BeTrue();
     }
 
@@ -162,7 +163,7 @@ public sealed class CliEndToEndTests : IAsyncLifetime
         Directory.Exists(customOutput).Should().BeTrue();
 
         var files = Directory.GetFiles(customOutput, "*", SearchOption.AllDirectories);
-        files.Should().HaveCount(22);
+        files.Should().HaveCount(21);
     }
 
     [Fact]

@@ -2,6 +2,7 @@
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
+{{ if !is_local }}
   <ItemGroup>
     <!-- NAC Framework -->
     <PackageVersion Include="Nac.Core" Version="{{ nac_version }}" />
@@ -17,6 +18,9 @@
     <PackageVersion Include="Nac.Observability" Version="{{ nac_version }}" />
     <PackageVersion Include="Nac.WebApi" Version="{{ nac_version }}" />
     <PackageVersion Include="Nac.Testing" Version="{{ nac_version }}" />
+  </ItemGroup>
+{{ end }}
+  <ItemGroup>
     <!-- EF Core -->
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.5" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.1" />

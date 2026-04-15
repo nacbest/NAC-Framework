@@ -18,19 +18,21 @@ public static partial class NewCommand
         var nameArg = new Argument<string>("name", "Project name (PascalCase recommended)");
         var moduleOption = new Option<string>("--module", () => "Sample", "First module name");
         var outputOption = new Option<DirectoryInfo?>("--output", "Output directory (default: ./<name>)");
+        var localOption = new Option<string?>("--local", "Path to local NAC framework source for development testing");
 
         var command = new Command("new", "Create a new NAC Framework project")
         {
             nameArg,
             moduleOption,
-            outputOption
+            outputOption,
+            localOption
         };
 
-        command.SetHandler(HandleAsync, nameArg, moduleOption, outputOption);
+        command.SetHandler(HandleAsync, nameArg, moduleOption, outputOption, localOption);
         return command;
     }
 
-    private static async Task<int> HandleAsync(string name, string moduleName, DirectoryInfo? output)
+    private static async Task<int> HandleAsync(string name, string moduleName, DirectoryInfo? output, string? localPath)
     {
         if (!ValidIdentifierRegex().IsMatch(name))
         {
@@ -53,6 +55,6 @@ public static partial class NewCommand
         }
 
         var service = new ScaffoldService();
-        return await service.ScaffoldAsync(name, moduleName, outputDir);
+        return await service.ScaffoldAsync(name, moduleName, outputDir, localPath);
     }
 }

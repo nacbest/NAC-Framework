@@ -8,7 +8,11 @@
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" />
     <PackageReference Include="FluentAssertions" />
+  {{ if is_local }}
+    <ProjectReference Include="{{ local_path }}/src/Nac.Testing/Nac.Testing.csproj" />
+  {{ else }}
     <PackageReference Include="Nac.Testing" />
+  {{ end }}
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Modules\{{ project_name }}.Modules.{{ module_name }}\{{ project_name }}.Modules.{{ module_name }}.csproj" />

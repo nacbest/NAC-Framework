@@ -31,8 +31,9 @@ public sealed class ScaffoldServiceTests : IAsyncLifetime
     // ------------------------------------------------------------------ expected paths
 
     /// <summary>
-    /// All 22 output paths expected for project "MyApp" / module "Sample".
+    /// All 21 output paths expected for project "MyApp" / module "Sample".
     /// Mirrors <see cref="ScaffoldService"/> TemplateMappings with {Name}=MyApp, {Mod}=Sample.
+    /// Single-project module: no separate .Infrastructure project.
     /// </summary>
     private static readonly string[] ExpectedRelativePaths =
     [
@@ -53,25 +54,24 @@ public sealed class ScaffoldServiceTests : IAsyncLifetime
         "src/Modules/MyApp.Modules.Sample/Application/Queries/GetSampleItemById/GetSampleItemByIdQuery.cs",
         "src/Modules/MyApp.Modules.Sample/Application/Queries/GetSampleItemById/GetSampleItemByIdQueryHandler.cs",
         "src/Modules/MyApp.Modules.Sample/Endpoints/SampleItemEndpoints.cs",
-        "src/Modules/MyApp.Modules.Sample.Infrastructure/MyApp.Modules.Sample.Infrastructure.csproj",
-        "src/Modules/MyApp.Modules.Sample.Infrastructure/SampleDbContext.cs",
-        "src/Modules/MyApp.Modules.Sample.Infrastructure/Configurations/SampleItemConfiguration.cs",
-        "src/Modules/MyApp.Modules.Sample.Infrastructure/SampleInfrastructureExtensions.cs",
+        "src/Modules/MyApp.Modules.Sample/Infrastructure/SampleDbContext.cs",
+        "src/Modules/MyApp.Modules.Sample/Infrastructure/Configurations/SampleItemConfiguration.cs",
+        "src/Modules/MyApp.Modules.Sample/Infrastructure/SampleServiceCollectionExtensions.cs",
         "tests/MyApp.Modules.Sample.Tests/MyApp.Modules.Sample.Tests.csproj",
     ];
 
     // ------------------------------------------------------------------ file count
 
     [Fact]
-    public async Task ScaffoldAsync_Creates22Files()
+    public async Task ScaffoldAsync_Creates21Files()
     {
         var service = new ScaffoldService();
 
         await service.ScaffoldAsync("MyApp", "Sample", _outputDir);
 
         var allFiles = Directory.GetFiles(_outputDir, "*", SearchOption.AllDirectories);
-        allFiles.Should().HaveCount(22,
-            because: "22 templates are mapped in ScaffoldService");
+        allFiles.Should().HaveCount(21,
+            because: "21 templates are mapped in ScaffoldService (single-project module)");
     }
 
     [Fact]
@@ -97,7 +97,7 @@ public sealed class ScaffoldServiceTests : IAsyncLifetime
             Path.Combine(_outputDir, "src", "MyApp.Host"),
             Path.Combine(_outputDir, "src", "MyApp.Shared"),
             Path.Combine(_outputDir, "src", "Modules", "MyApp.Modules.Sample"),
-            Path.Combine(_outputDir, "src", "Modules", "MyApp.Modules.Sample.Infrastructure"),
+            Path.Combine(_outputDir, "src", "Modules", "MyApp.Modules.Sample", "Infrastructure"),
             Path.Combine(_outputDir, "tests", "MyApp.Modules.Sample.Tests"),
         };
 
@@ -145,14 +145,14 @@ public sealed class ScaffoldServiceTests : IAsyncLifetime
         var service = new ScaffoldService();
         await service.ScaffoldAsync("Acme", "Inventory", _outputDir);
 
-        // Module core dir should include module name
+        // Module dir should include module name (single project, no .Infrastructure)
         Directory.Exists(
             Path.Combine(_outputDir, "src", "Modules", "Acme.Modules.Inventory"))
             .Should().BeTrue();
 
-        // Module infrastructure dir should include module name
+        // Infrastructure folder lives inside the module project
         Directory.Exists(
-            Path.Combine(_outputDir, "src", "Modules", "Acme.Modules.Inventory.Infrastructure"))
+            Path.Combine(_outputDir, "src", "Modules", "Acme.Modules.Inventory", "Infrastructure"))
             .Should().BeTrue();
     }
 
@@ -200,7 +200,7 @@ public sealed class ScaffoldServiceTests : IAsyncLifetime
 
         // Version is read dynamically from the CLI assembly, so assert it matches
         var assembly = typeof(ScaffoldService).Assembly;
-        var infoVersion = assembly.GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        var infoVersion = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
         var expectedVersion = infoVersion is not null
             ? (infoVersion.IndexOf('+') is var i and >= 0 ? infoVersion[..i] : infoVersion)
             : assembly.GetName().Version is { } v ? $"{v.Major}.{v.Minor}.{v.Build}" : "0.0.0";
@@ -245,5 +245,56 @@ public sealed class ScaffoldServiceTests : IAsyncLifetime
         File.Exists(Path.Combine(_outputDir,
             "tests", "MyApp.Modules.Catalog.Tests", "MyApp.Modules.Catalog.Tests.csproj"))
             .Should().BeTrue();
+    }
+
+    // ------------------------------------------------------------------ single-project module structure
+
+    [Fact]
+    public async Task ScaffoldAsync_NoSeparateInfrastructureProject()
+    {
+        var service = new ScaffoldService();
+        await service.ScaffoldAsync("MyApp", "Sample", _outputDir);
+
+        // No separate .Infrastructure project directory should exist
+        Directory.Exists(
+            Path.Combine(_outputDir, "src", "Modules", "MyApp.Modules.Sample.Infrastructure"))
+            .Should().BeFalse(
+                because: "single-project module has no separate .Infrastructure project");
+
+        // Solution file should not reference .Infrastructure project
+        var slnx = await File.ReadAllTextAsync(Path.Combine(_outputDir, "MyApp.slnx"));
+        slnx.Should().NotContain(".Infrastructure",
+            because: "solution should only list single module project");
+    }
+
+    [Fact]
+    public async Task ScaffoldAsync_EndpointsImplementIEndpointMapper()
+    {
+        var service = new ScaffoldService();
+        await service.ScaffoldAsync("MyApp", "Sample", _outputDir);
+
+        var endpoints = await File.ReadAllTextAsync(
+            Path.Combine(_outputDir, "src", "Modules", "MyApp.Modules.Sample",
+                "Endpoints", "SampleItemEndpoints.cs"));
+
+        endpoints.Should().Contain("IEndpointMapper",
+            because: "endpoints should implement IEndpointMapper for auto-discovery");
+        endpoints.Should().Contain("sealed class",
+            because: "endpoint mapper must be non-static for reflection discovery");
+    }
+
+    [Fact]
+    public async Task ScaffoldAsync_ModuleClassHasNoConfigureEndpoints()
+    {
+        var service = new ScaffoldService();
+        await service.ScaffoldAsync("MyApp", "Sample", _outputDir);
+
+        var moduleClass = await File.ReadAllTextAsync(
+            Path.Combine(_outputDir, "src", "Modules", "MyApp.Modules.Sample", "SampleModule.cs"));
+
+        moduleClass.Should().NotContain("ConfigureEndpoints",
+            because: "INacModule no longer has ConfigureEndpoints");
+        moduleClass.Should().Contain("AddSampleInfrastructure",
+            because: "module should wire its own infrastructure services");
     }
 }

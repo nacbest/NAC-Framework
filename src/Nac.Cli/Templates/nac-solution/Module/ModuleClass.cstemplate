@@ -1,9 +1,8 @@
-using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Nac.CQRS.Registration;
 using Nac.WebApi.Modularity;
-using {{ project_name }}.Modules.{{ module_name }}.Endpoints;
+using {{ project_name }}.Modules.{{ module_name }}.Infrastructure;
 
 namespace {{ project_name }}.Modules.{{ module_name }};
 
@@ -14,10 +13,6 @@ public sealed class {{ module_name }}Module : INacModule
     public void ConfigureServices(IServiceCollection services, IConfiguration configuration)
     {
         services.AddNacMediator<{{ module_name }}Module>();
-    }
-
-    public void ConfigureEndpoints(IEndpointRouteBuilder routes)
-    {
-        {{ module_name }}ItemEndpoints.Map(routes);
+        services.Add{{ module_name }}Infrastructure(configuration);
     }
 }

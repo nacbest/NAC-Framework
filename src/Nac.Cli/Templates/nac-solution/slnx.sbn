@@ -5,7 +5,6 @@
   </Folder>
   <Folder Name="/src/Modules/">
     <Project Path="src/Modules/{{ project_name }}.Modules.{{ module_name }}/{{ project_name }}.Modules.{{ module_name }}.csproj" />
-    <Project Path="src/Modules/{{ project_name }}.Modules.{{ module_name }}.Infrastructure/{{ project_name }}.Modules.{{ module_name }}.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/{{ project_name }}.Modules.{{ module_name }}.Tests/{{ project_name }}.Modules.{{ module_name }}.Tests.csproj" />

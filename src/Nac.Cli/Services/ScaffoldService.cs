@@ -46,29 +46,56 @@ public sealed class ScaffoldService
         ("Host.appsettings.json.sbn", "src/{Name}.Host/appsettings.json"),
         ("Host.appsettings.Development.json.sbn", "src/{Name}.Host/appsettings.Development.json"),
         ("Shared.Shared.csproj.sbn", "src/{Name}.Shared/{Name}.Shared.csproj"),
-        ("Module.Core.Module.csproj.sbn", "src/Modules/{Name}.Modules.{Mod}/{Name}.Modules.{Mod}.csproj"),
-        ("Module.Core.ModuleClass.cstemplate", "src/Modules/{Name}.Modules.{Mod}/{Mod}Module.cs"),
-        ("Module.Core.Entity.cstemplate", "src/Modules/{Name}.Modules.{Mod}/Domain/Entities/{Mod}Item.cs"),
-        ("Module.Core.CreateCommand.cstemplate", "src/Modules/{Name}.Modules.{Mod}/Application/Commands/Create{Mod}Item/Create{Mod}ItemCommand.cs"),
-        ("Module.Core.CreateCommandHandler.cstemplate", "src/Modules/{Name}.Modules.{Mod}/Application/Commands/Create{Mod}Item/Create{Mod}ItemCommandHandler.cs"),
-        ("Module.Core.GetQuery.cstemplate", "src/Modules/{Name}.Modules.{Mod}/Application/Queries/Get{Mod}ItemById/Get{Mod}ItemByIdQuery.cs"),
-        ("Module.Core.GetQueryHandler.cstemplate", "src/Modules/{Name}.Modules.{Mod}/Application/Queries/Get{Mod}ItemById/Get{Mod}ItemByIdQueryHandler.cs"),
-        ("Module.Core.Endpoints.cstemplate", "src/Modules/{Name}.Modules.{Mod}/Endpoints/{Mod}ItemEndpoints.cs"),
-        ("Module.Infrastructure.ModuleInfra.csproj.sbn", "src/Modules/{Name}.Modules.{Mod}.Infrastructure/{Name}.Modules.{Mod}.Infrastructure.csproj"),
-        ("Module.Infrastructure.DbContext.cstemplate", "src/Modules/{Name}.Modules.{Mod}.Infrastructure/{Mod}DbContext.cs"),
-        ("Module.Infrastructure.EntityConfiguration.cstemplate", "src/Modules/{Name}.Modules.{Mod}.Infrastructure/Configurations/{Mod}ItemConfiguration.cs"),
-        ("Module.Infrastructure.InfraExtensions.cstemplate", "src/Modules/{Name}.Modules.{Mod}.Infrastructure/{Mod}InfrastructureExtensions.cs"),
+        ("Module.Module.csproj.sbn", "src/Modules/{Name}.Modules.{Mod}/{Name}.Modules.{Mod}.csproj"),
+        ("Module.ModuleClass.cstemplate", "src/Modules/{Name}.Modules.{Mod}/{Mod}Module.cs"),
+        ("Module.Entity.cstemplate", "src/Modules/{Name}.Modules.{Mod}/Domain/Entities/{Mod}Item.cs"),
+        ("Module.CreateCommand.cstemplate", "src/Modules/{Name}.Modules.{Mod}/Application/Commands/Create{Mod}Item/Create{Mod}ItemCommand.cs"),
+        ("Module.CreateCommandHandler.cstemplate", "src/Modules/{Name}.Modules.{Mod}/Application/Commands/Create{Mod}Item/Create{Mod}ItemCommandHandler.cs"),
+        ("Module.GetQuery.cstemplate", "src/Modules/{Name}.Modules.{Mod}/Application/Queries/Get{Mod}ItemById/Get{Mod}ItemByIdQuery.cs"),
+        ("Module.GetQueryHandler.cstemplate", "src/Modules/{Name}.Modules.{Mod}/Application/Queries/Get{Mod}ItemById/Get{Mod}ItemByIdQueryHandler.cs"),
+        ("Module.Endpoints.cstemplate", "src/Modules/{Name}.Modules.{Mod}/Endpoints/{Mod}ItemEndpoints.cs"),
+        ("Module.DbContext.cstemplate", "src/Modules/{Name}.Modules.{Mod}/Infrastructure/{Mod}DbContext.cs"),
+        ("Module.EntityConfiguration.cstemplate", "src/Modules/{Name}.Modules.{Mod}/Infrastructure/Configurations/{Mod}ItemConfiguration.cs"),
+        ("Module.ServiceExtensions.cstemplate", "src/Modules/{Name}.Modules.{Mod}/Infrastructure/{Mod}ServiceCollectionExtensions.cs"),
         ("Tests.Tests.csproj.sbn", "tests/{Name}.Modules.{Mod}.Tests/{Name}.Modules.{Mod}.Tests.csproj"),
     ];
 
     /// <returns>0 on success, 1 on failure.</returns>
-    public async Task<int> ScaffoldAsync(string projectName, string moduleName, string outputDir)
+    public async Task<int> ScaffoldAsync(string projectName, string moduleName, string outputDir, string? localPath = null)
     {
+        // Validate and resolve --local path
+        if (localPath is not null)
+        {
+            localPath = Path.GetFullPath(localPath);
+            var srcDir = Path.Combine(localPath, "src");
+            if (!Directory.Exists(srcDir))
+            {
+                Console.Error.WriteLine($"Error: Local NAC path '{localPath}' does not contain 'src/' directory.");
+                return 1;
+            }
+
+            var requiredProjects = new[] { "Nac.Core", "Nac.WebApi", "Nac.Persistence" };
+            foreach (var proj in requiredProjects)
+            {
+                var csproj = Path.Combine(srcDir, proj, $"{proj}.csproj");
+                if (!File.Exists(csproj))
+                {
+                    Console.Error.WriteLine($"Error: Missing required project: {csproj}");
+                    return 1;
+                }
+            }
+
+            // Normalize to forward slashes for cross-platform .csproj compatibility
+            localPath = localPath.Replace(Path.DirectorySeparatorChar, '/');
+            Console.WriteLine($"Using local NAC source: {localPath}");
+        }
+
         Console.WriteLine($"Creating NAC project '{projectName}' with module '{moduleName}'...");
         Console.WriteLine();
 
         var assembly = Assembly.GetExecutingAssembly();
-        var model = new { project_name = projectName, module_name = moduleName, nac_version = GetNacVersion() };
+        var isLocal = localPath is not null;
+        var model = new { project_name = projectName, module_name = moduleName, nac_version = GetNacVersion(), local_path = localPath ?? "", is_local = isLocal };
         var filesCreated = 0;
         var errors = 0;
 
