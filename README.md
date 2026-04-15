@@ -18,7 +18,7 @@ A modular .NET 10 foundation framework for building scalable backend Web APIs wi
 # Core packages
 dotnet add package Nac.Core
 dotnet add package Nac.Domain
-dotnet add package Nac.Mediator
+dotnet add package Nac.CQRS
 
 # Infrastructure
 dotnet add package Nac.WebApi
@@ -34,22 +34,7 @@ dotnet add package Nac.Observability
 dotnet add package Nac.Testing
 ```
 
-### Create New Project
-
-Use AI-native skills in [Claude Code](https://claude.ai/code):
-
-```bash
-# Create new solution
-/nac-new MyApp
-
-# Add a module (generates core + infrastructure projects)
-/nac-add-module Catalog
-
-# Add a feature (Command + Handler + Endpoint)
-/nac-add-feature Catalog/CreateProduct
-```
-
-### Project Structure (Generated)
+### Project Structure
 
 Each module follows the **2-project pattern** — core (clean, persistence-ignorant) and infrastructure (EF Core, repositories):
 
@@ -153,7 +138,7 @@ public sealed record OrderCreatedIntegrationEvent(Guid OrderId, decimal Total)
 // Handler publishes integration event when domain event fires
 public sealed class OrderCreatedDomainEventHandler : INotificationHandler<OrderCreatedDomainEvent>
 {
-    public async Task Handle(OrderCreatedDomainEvent evt, CancellationToken ct)
+    public async Task HandleAsync(OrderCreatedDomainEvent evt, CancellationToken ct)
     {
         await _eventBus.PublishAsync(new OrderCreatedIntegrationEvent(evt.OrderId, ...), ct);
     }
@@ -183,9 +168,9 @@ if (!_currentUser.HasPermission("catalog.products.create"))
 
 | Package | Purpose |
 |---------|---------|
-| **Nac.Core** | Zero-dependency contracts (ICommand, IQuery, IRepository, etc.) |
-| **Nac.Domain** | Entity, AggregateRoot, ValueObject, DomainEvent |
-| **Nac.Mediator** | Custom CQRS mediator (no MediatR dependency) |
+| **Nac.Core** | Zero-dependency base types: Entity, AggregateRoot, ValueObject, ICurrentUser, IEventBus |
+| **Nac.Domain** | DomainEvent, IRepository, IReadRepository, IUnitOfWork, Specification |
+| **Nac.CQRS** | Custom CQRS mediator: ICommand, IQuery, pipeline behaviors |
 | **Nac.Persistence** | EF Core integration, UnitOfWork, Repository, Outbox |
 | **Nac.Persistence.PostgreSQL** | PostgreSQL provider wrapper |
 | **Nac.Identity** | ASP.NET Identity + JWT + tenant roles/permissions |
@@ -196,7 +181,7 @@ if (!_currentUser.HasPermission("catalog.products.create"))
 | **Nac.Observability** | Structured logging (entry/exit/duration/errors) |
 | **Nac.WebApi** | Response envelopes, global exception handler, module framework |
 | **Nac.Testing** | Fakes (EventBus, TenantContext, CurrentUser) |
-| **Nac.Cli** | `nac` dotnet command-line tool for scaffolding |
+| **Nac.Cli** | `nac` dotnet CLI tool (planned) |
 | **Nac.Templates** | `dotnet new nac-solution` template |
 
 ---
@@ -221,44 +206,13 @@ if (!_currentUser.HasPermission("catalog.products.create"))
 
 ✅ **Testing Utilities** — Fakes for isolated unit testing
 
-✅ **AI-Native Skills** — Scaffold solutions, modules, features via Claude Code skills
-
----
-
-## AI-Native Skills
-
-NAC replaces traditional CLI with AI-native skills for [Claude Code](https://claude.ai/code). Copy `skills/` to `~/.claude/skills/` to use.
-
-```bash
-/nac-new <Name>                    # New solution
-/nac-add-module <Name>             # New module (core + infrastructure)
-/nac-add-feature <Module>/<Name>   # Command + Handler + Endpoint
-/nac-add-entity <Module>/<Name>    # Entity in Domain/Entities/
-/nac-install-identity              # Add Nac.Identity to Host project
-/nac-install-caching               # Add Nac.Caching to Host project
-/nac-install-messaging             # Add Nac.Messaging to Host project
-/nac-install-observability         # Add Nac.Observability to Host project
-```
-
-Each skill reads context from `nac.json`, confirms operations via hard-gate, and runs `dotnet build` to verify.
+✅ **AI Reference** — Comprehensive `llms-full.txt` for AI-assisted development
 
 ---
 
 ## Example: Create Product Feature
 
-### 1. Scaffold
-
-```bash
-/nac-add-feature Catalog/CreateProduct
-```
-
-**Generated in module core (`MyApp.Modules.Catalog`):**
-- `Application/Commands/CreateProduct/CreateProductCommand.cs`
-- `Application/Commands/CreateProduct/CreateProductCommandHandler.cs`
-- `Application/Commands/CreateProduct/CreateProductCommandValidator.cs`
-- `Endpoints/CreateProductEndpoint.cs`
-
-### 2. Implement
+### 1. Implement
 
 **CreateProductCommand:**
 ```csharp
@@ -283,7 +237,7 @@ public sealed class CreateProductCommandHandler : ICommandHandler<CreateProductC
         _repository = repository;
     }
     
-    public async Task<Guid> Handle(CreateProductCommand request, CancellationToken ct)
+    public async Task<Guid> HandleAsync(CreateProductCommand request, CancellationToken ct)
     {
         var product = Product.Create(request.Name, request.Price, request.Description);
         _repository.Add(product);
@@ -356,8 +310,8 @@ Each module's boundary is already clear—extraction is **mechanical, not archit
 ```
 Nac.Core (zero deps, zero ASP.NET Core)
   ↑
-  ├─ Nac.Domain
-  ├─ Nac.Mediator
+  ├─ Nac.Domain (+ Nac.Core)
+  ├─ Nac.CQRS (+ Nac.Core)
   ├─ Nac.Persistence
   ├─ Nac.Messaging
   ├─ Nac.MultiTenancy
@@ -452,6 +406,7 @@ app.Run();
 
 ## Documentation
 
+- **[llms-full.txt](./llms-full.txt)** — Complete AI reference (API, patterns, examples)
 - **[Project Overview & PDR](./docs/project-overview-pdr.md)** — Vision, goals, feature matrix
 - **[Codebase Summary](./docs/codebase-summary.md)** — Package-by-package breakdown
 - **[Code Standards](./docs/code-standards.md)** — Naming, patterns, C# 13 conventions

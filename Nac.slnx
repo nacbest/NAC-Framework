@@ -5,7 +5,7 @@
   <!-- Core: Modules CAN reference these -->
   <Folder Name="/src/Core/">
     <Project Path="src/Nac.Domain/Nac.Domain.csproj" />
-    <Project Path="src/Nac.Mediator/Nac.Mediator.csproj" />
+    <Project Path="src/Nac.CQRS/Nac.CQRS.csproj" />
   </Folder>
 
   <!-- Infrastructure: Host ONLY -->

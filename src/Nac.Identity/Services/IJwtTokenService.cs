@@ -4,9 +4,9 @@ using Nac.Identity.Models;
 namespace Nac.Identity.Services;
 
 /// <summary>
-/// Service for generating and validating JWT tokens.
+/// Generic service for generating and validating JWT tokens.
 /// </summary>
-public interface IJwtTokenService
+public interface IJwtTokenService<TUser> where TUser : NacIdentityUser
 {
     /// <summary>
     /// Generates access and refresh tokens for a user.
@@ -16,7 +16,7 @@ public interface IJwtTokenService
     /// <param name="deviceInfo">Optional device/client info for refresh token tracking.</param>
     /// <returns>Token result with access and refresh tokens.</returns>
     Task<TokenResult> GenerateTokensAsync(
-        NacUser user,
+        TUser user,
         string? tenantId = null,
         string? deviceInfo = null);
 
@@ -41,4 +41,11 @@ public interface IJwtTokenService
     /// Revokes a specific refresh token.
     /// </summary>
     Task RevokeTokenAsync(string refreshToken);
+}
+
+/// <summary>
+/// Non-generic convenience alias using <see cref="NacIdentityUser"/> directly.
+/// </summary>
+public interface IJwtTokenService : IJwtTokenService<NacIdentityUser>
+{
 }

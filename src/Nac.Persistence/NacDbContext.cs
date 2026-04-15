@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Nac.Core;
 using Nac.Core.Auth;
 using Nac.Core.Messaging;
 using Nac.Domain;

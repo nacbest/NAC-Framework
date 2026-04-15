@@ -16,9 +16,9 @@ Current status, milestones, and future development priorities.
 
 | Package | Status | Version | Notes |
 |---------|--------|---------|-------|
-| Nac.Core | ✅ Complete | 1.0.0 | Zero dependencies |
-| Nac.Domain | ✅ Complete | 1.0.0 | Entity, AggregateRoot, ValueObject |
-| Nac.Mediator | ✅ Complete | 1.0.0 | Custom CQRS mediator, no MediatR |
+| Nac.Core | ✅ Complete | 1.0.0 | Base types + contracts, near-zero dependencies |
+| Nac.Domain | ✅ Complete | 1.0.0 | DomainEvent, persistence contracts |
+| Nac.CQRS | ✅ Complete | 1.0.0 | Custom CQRS mediator, no MediatR (renamed from Nac.Mediator) |
 | Nac.Persistence | ✅ Complete | 1.0.0 | EF Core, UoW, Repository, Outbox |
 | Nac.Persistence.PostgreSQL | ✅ Complete | 1.0.0 | PostgreSQL provider wrapper |
 | Nac.Messaging | ✅ Complete | 1.0.0 | IEventBus, InMemory, Outbox |
@@ -88,27 +88,38 @@ Current status, milestones, and future development priorities.
   - **Impact:** `ICurrentUser.Permissions` now safe to access synchronously in handlers
   - `JwtCurrentUser.LoadPermissionsAsync()` called automatically by middleware
 
-### Package Restructure (April 2026)
+### Package Restructure (April 2026) — COMPLETED
 
-**Nac.Abstractions → Nac.Core Migration (COMPLETED)**
+**Summary of all changes:**
 
-- **Deleted:** `Nac.Abstractions` package
-- **Created:** `Nac.Core` package (zero-dependency contracts layer)
-  - All interfaces, markers, and base types moved from Nac.Abstractions
-  - Stricter naming: contract-focused, no implementation code
-- **Updated:** `Nac.WebApi` now contains module framework types
-  - `INacModule`, `NacFrameworkBuilder`, `NacServiceCollectionExtensions`
-  - Replaces split responsibility: WebApi provides both API envelopes AND module registration
-- **Updated:** `Nac.MultiTenancy` gained `ITenantResolver` interface
-- **Added:** Explicit package dependencies
-  - `Nac.Mediator`: Microsoft.Extensions.DependencyInjection.Abstractions
-  - `Nac.Caching`: IDistributedCache abstractions (Memory, Logging)
-  - `Nac.Observability`: ILogger abstractions
+| Change | Before | After |
+|--------|--------|-------|
+| Abstractions package | `Nac.Abstractions` | **DELETED** — types distributed |
+| CQRS package | `Nac.Mediator` (namespace `Nac.Mediator.*`) | `Nac.CQRS` (namespace `Nac.CQRS.*`) |
+| Base domain types | `Nac.Domain` | **Moved to `Nac.Core`** |
+| Repo interfaces | `Nac.Core` | **Moved to `Nac.Domain.Persistence`** |
+| `ICommand`, `IQuery` | `Nac.Core.Messaging` | `Nac.CQRS.Abstractions` |
+| `INotification` | `Nac.Abstractions.Messaging` | `Nac.Core.Messaging` (stays) |
+| Module framework | `Nac.Abstractions.Modularity` | `Nac.WebApi.Modularity` |
+| `ITenantResolver` | `Nac.Abstractions` | `Nac.MultiTenancy` (stays, no circular dep) |
+| Identity user class | `NacUser` (sealed) | `NacIdentityUser` (unsealed; +TenantId, +IsDeleted) |
+| Identity DbContext | `NacIdentityDbContext` | `NacIdentityDbContext<TUser>` (generic) |
+| Identity DI | `AddNacIdentity()` | `AddNacIdentity()` + `AddNacIdentity<TUser>()` |
+| UserManager | — | `TenantAwareUserManager<TUser>` added |
+
+**New types in Nac.Core:**
+- `IDateTimeProvider`, `SystemDateTimeProvider` — time abstraction
+- `PaginationRequest` — pagination contracts
+- `DomainError` — typed error value
+- `UserInfo` — lightweight user DTO (has TenantId)
+- `IIdentityService` — query interface for business modules
 
 **Migration Impact:**
-- **All packages updated** to reference `Nac.Core` instead of `Nac.Abstractions`
-- **Zero breaking changes for consumers** (public API unchanged)
-- **Build time improvement**: Stricter zero-dependency guarantee at L0
+- Module core: replace `Nac.Mediator` ref → `Nac.CQRS`; update using statements
+- All `using Nac.Mediator.*` → `using Nac.CQRS.*`
+- `NacUser` references → `NacIdentityUser`
+- `ICommand`/`IQuery` namespace → `Nac.CQRS.Abstractions`
+- `IRepository`/`IUnitOfWork` namespace → `Nac.Domain.Persistence`
 
 ---
 

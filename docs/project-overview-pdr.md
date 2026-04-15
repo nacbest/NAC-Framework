@@ -37,14 +37,14 @@ Create a reusable foundation that eliminates boilerplate, enforces architectural
 #### Core Foundation
 | Package | Purpose | Dependencies |
 |---------|---------|--------------|
-| **Nac.Core** | Interfaces, markers, base types | None |
-| **Nac.Domain** | Entity, AggregateRoot, ValueObject, DomainEvent | Nac.Core |
-| **Nac.Mediator** | Custom CQRS mediator, behaviors, handler resolution | Nac.Core |
+| **Nac.Core** | Base types (Entity, AggregateRoot, ValueObject), interfaces, markers | DI.Abstractions only |
+| **Nac.Domain** | DomainEvent, persistence contracts (Nac.Domain.Persistence) | Nac.Core |
+| **Nac.CQRS** | Custom CQRS mediator, ICommand/IQuery, behaviors, handler resolution | Nac.Core |
 
 #### Persistence & Data
 | Package | Purpose | Dependencies |
 |---------|---------|--------------|
-| **Nac.Persistence** | EF Core, UnitOfWork, Repository, Outbox/Inbox patterns | Nac.Core, Domain, Mediator |
+| **Nac.Persistence** | EF Core, UnitOfWork, Repository, Outbox/Inbox patterns | Nac.Core, Domain, CQRS |
 | **Nac.Persistence.PostgreSQL** | PostgreSQL provider wrapper | Persistence |
 
 #### Messaging & Events
@@ -56,41 +56,40 @@ Create a reusable foundation that eliminates boilerplate, enforces architectural
 #### Identity & Authentication
 | Package | Purpose | Dependencies |
 |---------|---------|--------------|
-| **Nac.Identity** | ASP.NET Core Identity + JWT + tenant roles/permissions | Nac.Core, Mediator, Persistence, MultiTenancy |
+| **Nac.Identity** | ASP.NET Core Identity + JWT + tenant roles/permissions | Nac.Core, CQRS, Persistence, MultiTenancy |
 
 #### Cross-cutting Concerns
 | Package | Purpose | Dependencies |
 |---------|---------|--------------|
 | **Nac.MultiTenancy** | Tenant resolution (Header/Claim/Subdomain/Query), 3 strategies | Nac.Core |
-| **Nac.Caching** | Query cache + invalidation behaviors | Nac.Core, Mediator |
-| **Nac.Observability** | Logging behaviors (command/query entry/exit/duration) | Nac.Core, Mediator |
+| **Nac.Caching** | Query cache + invalidation behaviors | Nac.Core, CQRS |
+| **Nac.Observability** | Logging behaviors (command/query entry/exit/duration) | Nac.Core, CQRS |
 
 #### API & Distribution
 | Package | Purpose | Dependencies |
 |---------|---------|--------------|
 | **Nac.WebApi** | Response envelopes, global exception handler, module framework | Nac.Core |
-| **Nac.Testing** | Fake implementations (EventBus, TenantContext, CurrentUser) | Nac.Core, Mediator |
+| **Nac.Testing** | Fake implementations (EventBus, TenantContext, CurrentUser) | Nac.Core, CQRS |
 | **Nac.Cli** | `nac` dotnet tool (scaffold, add modules/features) | System.CommandLine |
 | **Nac.Templates** | `dotnet new nac-solution` template package | None |
 
 ### Dependency Flow (strict one-direction)
 
 ```
-Nac.Core (zero dependencies)
+Nac.Core (DI.Abstractions only — includes Entity, AggregateRoot, ValueObject)
   ↑
-Nac.Domain ← Nac.Core
+Nac.Domain ← Nac.Core  (DomainEvent, Nac.Domain.Persistence interfaces)
+Nac.CQRS ← Nac.Core   (ICommand, IQuery, IMediator, behaviors)
   ↑
-Nac.Mediator ← Nac.Core
+Nac.Persistence ← Nac.Core, Domain, CQRS
   ↑
-Nac.Persistence ← Nac.Core, Domain, Mediator
-  ↑
-Nac.Identity ← Nac.Core, Persistence, Mediator, MultiTenancy
+Nac.Identity ← Nac.Core, Persistence, CQRS, MultiTenancy
 Nac.Messaging ← Nac.Core, Persistence
 Nac.MultiTenancy ← Nac.Core
-Nac.Caching ← Nac.Core, Mediator
-Nac.Observability ← Nac.Core, Mediator
-Nac.WebApi ← Nac.Core
-Nac.Testing ← Nac.Core, Mediator
+Nac.Caching ← Nac.Core, CQRS
+Nac.Observability ← Nac.Core, CQRS
+Nac.WebApi ← Nac.Core  (gains INacModule, NacFrameworkBuilder)
+Nac.Testing ← Nac.Core, CQRS
 Nac.Cli ← System.CommandLine
 ```
 

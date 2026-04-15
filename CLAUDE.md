@@ -1,264 +1,64 @@
 # NAC Framework
 
 > Modular .NET 10 framework with CQRS, multi-tenancy, and clean architecture.
+> Complete API reference & usage patterns: **see `llms-full.txt`**
 
 ## Project Structure
 
 ```
 src/
-├── Nac.Core/             — [L0] Contracts: ICurrentUser, IRepository, ICommand, etc. (zero ASP.NET Core deps)
-├── Nac.Domain/           — Base types: AggregateRoot, Entity, ValueObject, DomainEvent
-├── Nac.Mediator/         — CQRS dispatcher, pipeline behaviors
-├── Nac.Persistence/      — EF Core base: NacDbContext, repositories, UoW
+├── Nac.Core/                   — [L0] Contracts (zero ASP.NET Core deps)
+├── Nac.Domain/                 — Domain primitives, persistence interfaces
+├── Nac.CQRS/                   — Custom mediator, pipeline behaviors
+├── Nac.Persistence/            — EF Core: NacDbContext, repositories, UoW
 ├── Nac.Persistence.PostgreSQL/ — PostgreSQL provider
-├── Nac.Identity/         — [INFRA] ASP.NET Identity + JWT + tenant permissions
-├── Nac.MultiTenancy/     — Tenant resolution, context, strategies
-├── Nac.Caching/          — Distributed caching behaviors
-├── Nac.Messaging/        — Event bus abstractions
-├── Nac.Messaging.RabbitMQ/ — RabbitMQ implementation
-├── Nac.Observability/    — Logging, tracing, health checks
-├── Nac.WebApi/           — Minimal API helpers, exception handling, module framework
-├── Nac.Testing/          — Test fakes: FakeEventBus, FakeCurrentUser
-└── Nac.Templates/        — dotnet new templates
-skills/                   — AI-native scaffolding skills (nac-new, nac-add-module, etc.)
+├── Nac.Identity/               — ASP.NET Identity + JWT + tenant permissions
+├── Nac.MultiTenancy/           — Tenant resolution, strategies
+├── Nac.Caching/                — Query caching behaviors
+├── Nac.Messaging/              — Event bus (InMemory, Outbox)
+├── Nac.Messaging.RabbitMQ/     — RabbitMQ implementation
+├── Nac.Observability/          — Structured logging behaviors
+├── Nac.WebApi/                 — Response envelopes, exception handler, module framework
+├── Nac.Testing/                — Test fakes
+└── Nac.Templates/              — dotnet new templates
 ```
 
 ## Package Dependency Rules (CRITICAL)
 
 ```
-┌───────────────────────────────────────────────────────────────┐
-│                         Host Layer                             │
-│   Composition root: wires DI, runs app                         │
-│   Refs: Module.Infrastructure, Module (core), Nac.Identity     │
-└─────────────────────────────┬─────────────────────────────────┘
-                              │
-┌─────────────────────────────┴─────────────────────────────────┐
-│               Module Infrastructure Layer                      │
-│   {Ns}.Modules.{M}.Infrastructure                              │
-│   Refs: Nac.Persistence, Module (core)                         │
-│   Owns: DbContext, Configurations, Repositories, DI extension  │
-└─────────────────────────────┬─────────────────────────────────┘
-                              │
-┌─────────────────────────────┴─────────────────────────────────┐
-│                 Module Core Layer (CLEAN)                       │
-│   {Ns}.Modules.{M}                                             │
-│   Refs: Nac.Core, Nac.Domain, Nac.Mediator ONLY               │
-│   Owns: Domain, Application, Contracts, Endpoints              │
-└─────────────────────────────┬─────────────────────────────────┘
-                              │
-┌─────────────────────────────┴─────────────────────────────────┐
-│                       Nac.Core Layer                           │
-│   ICurrentUser, IRepository, ICommand, ITenantContext          │
-│   (Contracts only - NO implementation, NO ASP.NET Core)        │
-└───────────────────────────────────────────────────────────────┘
+L0: Nac.Core (zero deps)
+     ↑
+L1:  Nac.Domain, Nac.CQRS, Nac.Caching
+     ↑
+L2+: Nac.Persistence → Nac.Persistence.PostgreSQL
+     Nac.Identity, Nac.Messaging → Nac.Messaging.RabbitMQ
+     Nac.MultiTenancy, Nac.Observability, Nac.WebApi, Nac.Testing
 ```
 
-**Dependency Rules:**
 ```
-Host → Module.Infrastructure → Nac.Persistence
-Host → Module.Infrastructure → Module (core)
-Host → Module (core)
-Module (core) → Nac.Core, Nac.Domain, Nac.Mediator ONLY
-Module (core) ✗ Nac.Persistence (FORBIDDEN)
-Module (core) ✗ Module.Infrastructure (FORBIDDEN)
+Module (core) → Nac.Core, Nac.Domain, Nac.CQRS ONLY
+Module.Infrastructure → Nac.Persistence + Module (core)
+Host → Module.Infrastructure + Module (core) + Nac.Identity
 ```
-
-## Identity Linking Pattern
-
-Business entities (Staff, Customer) link to NacUser via **Guid primitive only**:
-
-```csharp
-// ✅ CORRECT - Guid primitive, no navigation property
-public sealed class Staff : AggregateRoot<Guid>
-{
-    public Guid UserId { get; set; }  // FK to NacUser.Id
-    public required string EmployeeCode { get; init; }
-    public required string Department { get; set; }
-}
-
-// ❌ WRONG - Navigation property couples to Infrastructure
-public sealed class Staff : AggregateRoot<Guid>
-{
-    public NacUser User { get; set; }  // FORBIDDEN! Couples to Nac.Identity
-}
-```
-
-### Why?
-
-- `NacUser` lives in `Nac.Identity` — an Infrastructure package
-- Business modules CANNOT reference Infrastructure
-- FK constraint enforced at database level only (migrations or raw SQL)
-
-### Access User Info
-
-Use `ICurrentUser` from `Nac.Core`:
-
-```csharp
-public class GetCurrentStaffQueryHandler : IQueryHandler<GetCurrentStaffQuery, StaffDto?>
-{
-    private readonly ICurrentUser _currentUser;  // From Nac.Core
-    private readonly IStaffRepository _staffRepo;
-
-    public async Task<StaffDto?> Handle(GetCurrentStaffQuery query, CancellationToken ct)
-    {
-        if (!_currentUser.IsAuthenticated) return null;
-        var userId = Guid.Parse(_currentUser.UserId!);
-        return await _staffRepo.GetByUserIdAsync(userId, ct);
-    }
-}
-```
-
-## Nac.Identity Components
-
-| Component | Purpose |
-|-----------|---------|
-| `NacUser` | ASP.NET Identity user, global account |
-| `TenantMembership` | Links user to tenant with role |
-| `TenantRole` | Role + permissions scoped to tenant |
-| `JwtCurrentUser` | Implements `ICurrentUser`, loads permissions from JWT + DB |
-| `IJwtTokenService` | Generate/validate JWT tokens |
-| `ITenantRoleService` | Manage tenant roles and memberships |
-
-## Module Architecture (2-Project Pattern)
-
-Each module splits into **core** (clean, persistence-ignorant) and **infrastructure** (EF Core, repositories):
-
-**Module core** (`{Ns}.Modules.{M}`) — refs: `Nac.Core`, `Nac.Domain`, `Nac.Mediator`:
-```
-{Ns}.Modules.Catalog/
-├── Domain/Entities/Product.cs            — Entity inherits AggregateRoot<Guid>
-├── Application/Commands/CreateProduct/   — Handler injects IRepository<Product>
-├── Contracts/IProductRepository.cs       — Custom repo interface (optional)
-└── Endpoints/ProductEndpoints.cs
-```
-
-**Module infrastructure** (`{Ns}.Modules.{M}.Infrastructure`) — refs: `Nac.Persistence`, Module core:
-```
-{Ns}.Modules.Catalog.Infrastructure/
-├── CatalogDbContext.cs
-├── CatalogInfrastructureExtensions.cs    — DI registration (1 line in Host)
-├── Configurations/ProductConfiguration.cs
-└── Repositories/ProductRepository.cs
-```
-
-**DbContext** (in `.Infrastructure`):
-```csharp
-public sealed class CatalogDbContext : NacDbContext
-{
-    public CatalogDbContext(
-        DbContextOptions<CatalogDbContext> options,
-        ICurrentUser? currentUser = null) : base(options, currentUser) { }
-
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
-    {
-        base.OnModelCreating(modelBuilder);
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(CatalogDbContext).Assembly);
-    }
-}
-```
-
-**DI extension** (in `.Infrastructure`):
-```csharp
-public static class CatalogInfrastructureExtensions
-{
-    public static IServiceCollection AddCatalogInfrastructure(
-        this IServiceCollection services,
-        string connectionString)
-    {
-        services.AddNacPostgreSQL<CatalogDbContext>(connectionString);
-        services.AddNacRepositoriesFromAssembly<CatalogDbContext>(
-            typeof(CatalogModule).Assembly);
-        return services;
-    }
-}
-```
-
-**Host wiring** (1 line per module):
-```csharp
-// Program.cs
-services.AddCatalogInfrastructure(connectionString);
-```
-
-**Rules:**
-- Module core handlers inject `IRepository<T>` / `IReadRepository<T>` — never DbContext directly
-- Module core never calls `SaveChangesAsync` — UnitOfWork behavior handles it
-- Custom queries beyond `IRepository`: define interface in module core `Contracts/`, implement in `.Infrastructure`
-- `AddNacRepositoriesFromAssembly` auto-scans `Entity<TId>` subtypes and registers repositories
-- Each module owns its own DbContext and migrations
 
 ## Forbidden Patterns
 
-- **Module core referencing Nac.Persistence** — only `.Infrastructure` can reference it
-- **Module core referencing Nac.Identity** — use `ICurrentUser` from Nac.Core
-- **Module core referencing its own .Infrastructure** — dependency flows one way only
-- **Navigation properties to NacUser** — use `Guid UserId` only
-- **Cross-module DbContext access** — modules are isolated
-- **Direct project references between modules** — use Integration Events
-- **IQueryable exposure from repositories** — return concrete types only
-- **Handlers calling SaveChanges** — UnitOfWork behavior handles it
+- Module core → Nac.Persistence ✗
+- Module core → Nac.Identity ✗
+- Module core → own .Infrastructure ✗
+- Navigation property to NacIdentityUser ✗ (use `Guid UserId`)
+- Cross-module DbContext access ✗
+- Direct project references between modules ✗
+- IQueryable exposure from repositories ✗
+- Handlers calling SaveChanges ✗
 
-## Skills (AI-Native Scaffolding)
+## Key Conventions
 
-NAC provides AI-native skills for Claude Code. Copy `skills/` to `~/.claude/skills/` to use.
-
-```bash
-/nac-new <Name>                    # New solution
-/nac-add-module <Name>             # New module
-/nac-add-feature <Module>/<Name>   # Command + Handler + Endpoint
-/nac-add-entity <Module>/<Name>    # Entity in Domain/Entities/
-/nac-install-identity              # Add Nac.Identity to Host project
-/nac-install-caching               # Add Nac.Caching to Host project
-/nac-install-messaging             # Add Nac.Messaging to Host project
-/nac-install-observability         # Add Nac.Observability to Host project
-```
-
-Each skill:
-- Reads context from `nac.json`
-- Confirms operations via HARD-GATE
-- Runs `dotnet build` to verify
-
-## CQRS Pipeline
-
-**Command:** ExceptionHandling → Logging → Validation → Authorization → TenantEnrichment → UnitOfWork → Handler → SaveChanges → DomainEvents
-
-**Query:** ExceptionHandling → Logging → Validation → Authorization → CacheCheck → Handler → CacheStore
-
-## Marker Interfaces
-
-| Interface | Package | Purpose |
-|-----------|---------|---------|
-| `ICommand<T>` | Nac.Core | Write operation |
-| `IQuery<T>` | Nac.Core | Read operation |
-| `ITransactional` | Nac.Core | Wrap in DB transaction |
-| `IRequirePermission` | Nac.Core | Check Permission property |
-| `ICacheable` | Nac.Core | Cache query result |
-| `ICacheInvalidator` | Nac.Core | Invalidate cache keys post-command |
-| `IAuditable` | Nac.Core | Log audit trail |
-
-## Multi-Tenancy Strategies
-
-| Strategy | Description |
-|----------|-------------|
-| Discriminator | TenantId column + EF global filter |
-| Schema | Schema per tenant, switched at runtime |
-| Database | Separate database per tenant |
-
-## Permission Format
-
-```
-module.resource.action
-
-Examples:
-- catalog.products.create
-- orders.*           (wildcard: all order permissions)
-- *.approve          (wildcard: approve in any module)
-```
-
-## Testing
-
-```csharp
-// Use Fakes from Nac.Testing
-var fakeEventBus = new FakeEventBus();
-var fakeUser = FakeCurrentUser.Authenticated("user-id", "orders.create");
-var fakeTenant = new FakeTenantContext("tenant-123");
-```
+- **Identity linking**: Business entities use `Guid UserId` — no navigation property. FK at DB level only.
+- **Module pattern**: 2-project split — core (clean) + infrastructure (EF Core).
+- **CQRS handlers**: Never call SaveChanges — UnitOfWorkBehavior handles it.
+- **Repositories**: Inject `IRepository<T>` / `IReadRepository<T>`, never DbContext in module core.
+- **Custom queries**: Interface in module core `Contracts/`, implementation in `.Infrastructure`.
+- **Permissions**: Format `module.resource.action` with wildcard support.
+- **Pipeline order (Command)**: Observability → Authorization → CacheInvalidation → UnitOfWork → Handler
+- **Pipeline order (Query)**: Observability → Authorization → Caching → Handler

@@ -5,17 +5,20 @@ using Nac.Identity.Entities;
 namespace Nac.Identity.Data;
 
 /// <summary>
-/// Identity DbContext for NAC Framework.
-/// Manages users, roles, tenant memberships, and refresh tokens.
+/// Generic Identity DbContext for NAC Framework.
+/// Supports derived user types: class AppDbContext : NacIdentityDbContext&lt;AppUser&gt;
 /// </summary>
-public class NacIdentityDbContext : IdentityDbContext<NacUser, NacRole, Guid>
+public class NacIdentityDbContext<TUser> : IdentityDbContext<TUser, NacRole, Guid>
+    where TUser : NacIdentityUser
 {
     public DbSet<TenantRole> TenantRoles => Set<TenantRole>();
     public DbSet<TenantMembership> TenantMemberships => Set<TenantMembership>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
-    public NacIdentityDbContext(DbContextOptions<NacIdentityDbContext> options)
-        : base(options)
+    /// <summary>
+    /// Accepts non-generic DbContextOptions to allow derived classes to pass their own typed options.
+    /// </summary>
+    public NacIdentityDbContext(DbContextOptions options) : base(options)
     {
     }
 
@@ -26,5 +29,16 @@ public class NacIdentityDbContext : IdentityDbContext<NacUser, NacRole, Guid>
         builder.ApplyConfiguration(new Configurations.TenantRoleConfiguration());
         builder.ApplyConfiguration(new Configurations.TenantMembershipConfiguration());
         builder.ApplyConfiguration(new Configurations.RefreshTokenConfiguration());
+    }
+}
+
+/// <summary>
+/// Non-generic convenience alias using <see cref="NacIdentityUser"/> directly.
+/// Use when you don't need a custom user type.
+/// </summary>
+public class NacIdentityDbContext : NacIdentityDbContext<NacIdentityUser>
+{
+    public NacIdentityDbContext(DbContextOptions<NacIdentityDbContext> options) : base(options)
+    {
     }
 }

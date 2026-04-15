@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Nac.Mediator.Abstractions;
+using Nac.CQRS.Abstractions;
 
 namespace Nac.Observability.Extensions;
 

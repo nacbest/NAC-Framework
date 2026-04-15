@@ -13,18 +13,20 @@ namespace Nac.Identity.Services;
 
 /// <summary>
 /// JWT token generation and validation service.
+/// Generic over TUser to support custom user types extending <see cref="NacIdentityUser"/>.
 /// </summary>
-public sealed class JwtTokenService : IJwtTokenService
+public class JwtTokenService<TUser> : IJwtTokenService<TUser>
+    where TUser : NacIdentityUser
 {
     private readonly NacIdentityOptions _options;
     private readonly IRefreshTokenStore _refreshTokenStore;
-    private readonly UserManager<NacUser> _userManager;
+    private readonly UserManager<TUser> _userManager;
     private readonly SigningCredentials _signingCredentials;
 
     public JwtTokenService(
         IOptions<NacIdentityOptions> options,
         IRefreshTokenStore refreshTokenStore,
-        UserManager<NacUser> userManager)
+        UserManager<TUser> userManager)
     {
         _options = options.Value;
         _refreshTokenStore = refreshTokenStore;
@@ -43,7 +45,7 @@ public sealed class JwtTokenService : IJwtTokenService
     }
 
     public async Task<TokenResult> GenerateTokensAsync(
-        NacUser user,
+        TUser user,
         string? tenantId = null,
         string? deviceInfo = null)
     {
@@ -90,7 +92,10 @@ public sealed class JwtTokenService : IJwtTokenService
         await _refreshTokenStore.RevokeAsync(tokenHash);
 
         // Load user for new token generation (User may be null for Redis store)
-        var user = storedToken.User ?? await _userManager.FindByIdAsync(storedToken.UserId.ToString());
+        var user = storedToken.User is TUser typedUser
+            ? typedUser
+            : await _userManager.FindByIdAsync(storedToken.UserId.ToString());
+
         if (user is null)
             return null;
 
@@ -110,7 +115,7 @@ public sealed class JwtTokenService : IJwtTokenService
     }
 
     private string GenerateAccessToken(
-        NacUser user,
+        TUser user,
         string? tenantId,
         DateTimeOffset issuedAt,
         DateTimeOffset expiresAt)
@@ -152,5 +157,19 @@ public sealed class JwtTokenService : IJwtTokenService
     {
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(token));
         return Convert.ToHexString(bytes).ToLowerInvariant();
+    }
+}
+
+/// <summary>
+/// Non-generic convenience alias using <see cref="NacIdentityUser"/> directly.
+/// </summary>
+public sealed class JwtTokenService : JwtTokenService<NacIdentityUser>, IJwtTokenService
+{
+    public JwtTokenService(
+        IOptions<NacIdentityOptions> options,
+        IRefreshTokenStore refreshTokenStore,
+        UserManager<NacIdentityUser> userManager)
+        : base(options, refreshTokenStore, userManager)
+    {
     }
 }

@@ -46,31 +46,31 @@ public static class TestFixtures
     /// <summary>
     /// Creates a UserManager for testing.
     /// </summary>
-    public static UserManager<NacUser> CreateUserManager(NacIdentityDbContext dbContext)
+    public static UserManager<NacIdentityUser> CreateUserManager(NacIdentityDbContext dbContext)
     {
         var store = new FakeUserStore(dbContext);
-        return new UserManager<NacUser>(
+        return new UserManager<NacIdentityUser>(
             store,
             Microsoft.Extensions.Options.Options.Create(new IdentityOptions()),
-            new PasswordHasher<NacUser>(),
+            new PasswordHasher<NacIdentityUser>(),
             [],
             [],
             new UpperInvariantLookupNormalizer(),
             new IdentityErrorDescriber(),
             null!,
-            NullLogger<UserManager<NacUser>>.Instance);
+            NullLogger<UserManager<NacIdentityUser>>.Instance);
     }
 
     /// <summary>
     /// Creates a test user.
     /// </summary>
-    public static NacUser CreateUser(
+    public static NacIdentityUser CreateUser(
         Guid? id = null,
         string? email = null,
         string? userName = null)
     {
         var userId = id ?? Guid.NewGuid();
-        return new NacUser
+        return new NacIdentityUser
         {
             Id = userId,
             Email = email ?? $"user-{userId}@test.com",
@@ -182,7 +182,7 @@ public sealed class FakeTenantContext : ITenantContext
 /// <summary>
 /// Minimal fake user store for testing.
 /// </summary>
-public sealed class FakeUserStore : IUserStore<NacUser>, IQueryableUserStore<NacUser>
+public sealed class FakeUserStore : IUserStore<NacIdentityUser>, IQueryableUserStore<NacIdentityUser>
 {
     private readonly NacIdentityDbContext _dbContext;
 
@@ -191,52 +191,52 @@ public sealed class FakeUserStore : IUserStore<NacUser>, IQueryableUserStore<Nac
         _dbContext = dbContext;
     }
 
-    public IQueryable<NacUser> Users => _dbContext.Users;
+    public IQueryable<NacIdentityUser> Users => _dbContext.Users;
 
-    public Task<IdentityResult> CreateAsync(NacUser user, CancellationToken ct)
+    public Task<IdentityResult> CreateAsync(NacIdentityUser user, CancellationToken ct)
     {
         _dbContext.Users.Add(user);
         return Task.FromResult(IdentityResult.Success);
     }
 
-    public Task<IdentityResult> DeleteAsync(NacUser user, CancellationToken ct)
+    public Task<IdentityResult> DeleteAsync(NacIdentityUser user, CancellationToken ct)
     {
         _dbContext.Users.Remove(user);
         return Task.FromResult(IdentityResult.Success);
     }
 
-    public Task<NacUser?> FindByIdAsync(string userId, CancellationToken ct)
+    public Task<NacIdentityUser?> FindByIdAsync(string userId, CancellationToken ct)
     {
         return _dbContext.Users.FirstOrDefaultAsync(u => u.Id.ToString() == userId, ct);
     }
 
-    public Task<NacUser?> FindByNameAsync(string normalizedUserName, CancellationToken ct)
+    public Task<NacIdentityUser?> FindByNameAsync(string normalizedUserName, CancellationToken ct)
     {
         return _dbContext.Users.FirstOrDefaultAsync(u => u.NormalizedUserName == normalizedUserName, ct);
     }
 
-    public Task<string?> GetNormalizedUserNameAsync(NacUser user, CancellationToken ct)
+    public Task<string?> GetNormalizedUserNameAsync(NacIdentityUser user, CancellationToken ct)
         => Task.FromResult(user.NormalizedUserName);
 
-    public Task<string> GetUserIdAsync(NacUser user, CancellationToken ct)
+    public Task<string> GetUserIdAsync(NacIdentityUser user, CancellationToken ct)
         => Task.FromResult(user.Id.ToString());
 
-    public Task<string?> GetUserNameAsync(NacUser user, CancellationToken ct)
+    public Task<string?> GetUserNameAsync(NacIdentityUser user, CancellationToken ct)
         => Task.FromResult(user.UserName);
 
-    public Task SetNormalizedUserNameAsync(NacUser user, string? normalizedName, CancellationToken ct)
+    public Task SetNormalizedUserNameAsync(NacIdentityUser user, string? normalizedName, CancellationToken ct)
     {
         user.NormalizedUserName = normalizedName;
         return Task.CompletedTask;
     }
 
-    public Task SetUserNameAsync(NacUser user, string? userName, CancellationToken ct)
+    public Task SetUserNameAsync(NacIdentityUser user, string? userName, CancellationToken ct)
     {
         user.UserName = userName;
         return Task.CompletedTask;
     }
 
-    public Task<IdentityResult> UpdateAsync(NacUser user, CancellationToken ct)
+    public Task<IdentityResult> UpdateAsync(NacIdentityUser user, CancellationToken ct)
         => Task.FromResult(IdentityResult.Success);
 
     public void Dispose() { }

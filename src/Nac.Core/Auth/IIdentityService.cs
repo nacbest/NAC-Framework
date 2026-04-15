@@ -15,13 +15,3 @@ public interface IIdentityService
     /// <summary>Checks whether the user has been assigned a specific role.</summary>
     Task<bool> IsInRoleAsync(Guid userId, string role, CancellationToken ct = default);
 }
-
-/// <summary>
-/// Lightweight DTO for user identity info. Returned by <see cref="IIdentityService"/>.
-/// Does not carry tenant — consumer gets tenant from <see cref="Nac.Core.MultiTenancy.ITenantContext"/>.
-/// </summary>
-public sealed record UserInfo(
-    Guid Id,
-    string Email,
-    string? DisplayName,
-    IReadOnlyList<string> Roles);

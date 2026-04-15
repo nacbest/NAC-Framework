@@ -13,7 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Nac.Core\Nac.Core.csproj" />
-    <ProjectReference Include="..\Nac.Mediator\Nac.Mediator.csproj" />
+    <ProjectReference Include="..\Nac.CQRS\Nac.CQRS.csproj" />
   </ItemGroup>
 
 </Project>

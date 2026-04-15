@@ -117,9 +117,9 @@ Welcome to the NAC Framework documentation. Start here to navigate the entire do
 
 | Tier | Package | Purpose |
 |------|---------|---------|
-| **Foundation** | Nac.Core | Zero-dep interfaces (ICommand, IQuery, IRepository, etc.) |
-|  | Nac.Domain | Entity, AggregateRoot, ValueObject, DomainEvent |
-|  | Nac.Mediator | Custom CQRS mediator (no MediatR) |
+| **Foundation** | Nac.Core | Base types (Entity, AggregateRoot) + contracts; near-zero deps |
+|  | Nac.Domain | DomainEvent, persistence contracts (Nac.Domain.Persistence) |
+|  | Nac.CQRS | Custom CQRS mediator, ICommand/IQuery, behaviors (renamed from Nac.Mediator) |
 | **Data** | Nac.Persistence | EF Core, UnitOfWork, Repository, Outbox |
 |  | Nac.Persistence.PostgreSQL | PostgreSQL provider |
 | **Messaging** | Nac.Messaging | EventBus abstraction, InMemory, Outbox |

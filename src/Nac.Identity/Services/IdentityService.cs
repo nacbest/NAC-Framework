@@ -7,13 +7,15 @@ namespace Nac.Identity.Services;
 
 /// <summary>
 /// Implements <see cref="IIdentityService"/> using ASP.NET Core Identity.
+/// Generic over TUser to support custom user types extending <see cref="NacIdentityUser"/>.
 /// Provides user lookups for business modules without coupling them to Identity infrastructure.
 /// </summary>
-internal sealed class IdentityService : IIdentityService
+internal class IdentityService<TUser> : IIdentityService
+    where TUser : NacIdentityUser
 {
-    private readonly UserManager<NacUser> _userManager;
+    private readonly UserManager<TUser> _userManager;
 
-    public IdentityService(UserManager<NacUser> userManager)
+    public IdentityService(UserManager<TUser> userManager)
         => _userManager = userManager;
 
     public async Task<UserInfo?> GetUserInfoAsync(Guid userId, CancellationToken ct = default)
@@ -22,7 +24,7 @@ internal sealed class IdentityService : IIdentityService
         if (user is null) return null;
 
         var roles = await _userManager.GetRolesAsync(user);
-        return new UserInfo(user.Id, user.Email ?? string.Empty, user.DisplayName, roles.ToList());
+        return new UserInfo(user.Id, user.Email ?? string.Empty, user.DisplayName, user.TenantId, roles.ToList());
     }
 
     public async Task<IReadOnlyList<UserInfo>> GetUsersAsync(
@@ -40,7 +42,7 @@ internal sealed class IdentityService : IIdentityService
         foreach (var user in users)
         {
             var roles = await _userManager.GetRolesAsync(user);
-            result.Add(new UserInfo(user.Id, user.Email ?? string.Empty, user.DisplayName, roles.ToList()));
+            result.Add(new UserInfo(user.Id, user.Email ?? string.Empty, user.DisplayName, user.TenantId, roles.ToList()));
         }
         return result;
     }

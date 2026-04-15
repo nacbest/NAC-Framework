@@ -14,7 +14,7 @@ Guidelines for writing code within the NAC Framework and projects built on it.
 // ✓ Correct
 namespace Nac.Persistence.Repository;
 namespace Nac.Messaging.Outbox;
-namespace Nac.Mediator.Internal;
+namespace Nac.CQRS.Internal;
 
 // ✗ Incorrect
 namespace Persistence;  // Missing Nac prefix
@@ -296,7 +296,7 @@ public sealed class MyCustomBehavior<T> : ICommandBehavior<T> where T : ICommand
         _logger = logger;
     }
     
-    public async Task<Unit> Handle(
+    public async Task<Unit> HandleAsync(
         T request,
         CommandHandlerDelegate next,
         CancellationToken cancellationToken)
@@ -336,11 +336,11 @@ public sealed record UpdateProductCommand(Guid Id, string Name, decimal Price)
 // Handler
 public sealed class CreateProductCommandHandler : ICommandHandler<CreateProductCommand, Guid>
 {
-    public async Task<Guid> Handle(CreateProductCommand request, CancellationToken ct)
+    public async Task<Guid> HandleAsync(CreateProductCommand request, CancellationToken ct)
     {
         var product = new Product { Name = request.Name, Price = request.Price };
         _repository.Add(product);
-        await _unitOfWork.SaveChangesAsync(ct);
+        // UnitOfWork behavior calls SaveChanges — handler must NOT call it
         return product.Id;
     }
 }
@@ -363,7 +363,7 @@ public sealed record SearchProductsQuery(string? Search, int Page = 1)
 
 public sealed class GetProductByIdQueryHandler : IQueryHandler<GetProductByIdQuery, ProductDto>
 {
-    public async Task<ProductDto?> Handle(GetProductByIdQuery request, CancellationToken ct)
+    public async Task<ProductDto?> HandleAsync(GetProductByIdQuery request, CancellationToken ct)
     {
         var product = await _readRepository.GetByIdAsync(request.Id, ct);
         return product == null ? null : MapToDto(product);
@@ -387,7 +387,7 @@ public sealed record ProductCreatedDomainEvent(Guid ProductId, string Name)
 public sealed class ProductCreatedDomainEventHandler 
     : INotificationHandler<ProductCreatedDomainEvent>
 {
-    public async Task Handle(ProductCreatedDomainEvent notification, CancellationToken ct)
+    public async Task HandleAsync(ProductCreatedDomainEvent notification, CancellationToken ct)
     {
         await _mediator.PublishAsync(new ProductCreatedIntegrationEvent(
             notification.ProductId,
@@ -664,7 +664,7 @@ public class CreateProductCommandHandlerTests
         var command = new CreateProductCommand("Laptop", 1000m);
         
         // Act
-        var productId = await handler.Handle(command, CancellationToken.None);
+        var productId = await handler.HandleAsync(command, CancellationToken.None);
         
         // Assert
         Assert.NotEqual(Guid.Empty, productId);
@@ -781,7 +781,7 @@ public sealed class GetStaffByUserIdQueryHandler : IQueryHandler<GetStaffByUserI
     private readonly IIdentityService _identityService;
     private readonly IStaffRepository _staffRepository;
 
-    public async Task<StaffDto?> Handle(GetStaffByUserIdQuery query, CancellationToken ct)
+    public async Task<StaffDto?> HandleAsync(GetStaffByUserIdQuery query, CancellationToken ct)
     {
         // Get user info from identity service
         var userInfo = await _identityService.GetUserInfoAsync(query.UserId, ct);
@@ -806,12 +806,12 @@ When `Nac.Messaging` is configured, publish events via `IdentityEventPublisher`:
 // In identity registration endpoint or command handler
 public sealed class RegisterUserCommandHandler : ICommandHandler<RegisterUserCommand, Guid>
 {
-    private readonly UserManager<NacUser> _userManager;
+    private readonly UserManager<NacIdentityUser> _userManager;
     private readonly IdentityEventPublisher _eventPublisher;
 
-    public async Task<Guid> Handle(RegisterUserCommand cmd, CancellationToken ct)
+    public async Task<Guid> HandleAsync(RegisterUserCommand cmd, CancellationToken ct)
     {
-        var user = new NacUser { Email = cmd.Email, UserName = cmd.Email };
+        var user = new NacIdentityUser { Email = cmd.Email, UserName = cmd.Email };
         var result = await _userManager.CreateAsync(user, cmd.Password);
         
         if (result.Succeeded)
@@ -844,13 +844,13 @@ public sealed class UserRegisteredIntegrationEventHandler
 
 ### Linking Business Entities to Users
 
-Use **Guid FK only** (no navigation to NacUser) to keep modules decoupled from Infrastructure:
+Use **Guid FK only** (no navigation to NacIdentityUser) to keep modules decoupled from Infrastructure:
 
 ```csharp
 // ✓ CORRECT — In module core
 public sealed class Staff : AggregateRoot<Guid>
 {
-    public Guid UserId { get; set; }  // FK to NacUser, no navigation property
+    public Guid UserId { get; set; }  // FK to NacIdentityUser, no navigation property
     public required string EmployeeCode { get; init; }
     public required string Department { get; set; }
 }
@@ -869,7 +869,7 @@ public async Task<StaffWithUserInfoDto?> GetStaffWithUserAsync(Guid staffId, Can
 // ❌ WRONG — Navigation property couples to Infrastructure
 public sealed class Staff : AggregateRoot<Guid>
 {
-    public NacUser User { get; set; }  // FORBIDDEN! Couples to Nac.Identity
+    public NacIdentityUser User { get; set; }  // FORBIDDEN! Couples to Nac.Identity
 }
 ```
 

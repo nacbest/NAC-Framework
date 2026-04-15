@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
-using Nac.Mediator.Abstractions;
-using Nac.Mediator.Core;
+using Nac.CQRS.Abstractions;
+using Nac.CQRS.Core;
 
 namespace Nac.Observability;
 

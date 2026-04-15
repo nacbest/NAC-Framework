@@ -12,7 +12,7 @@ public sealed class RefreshToken
     public Guid UserId { get; set; }
 
     /// <summary>User navigation property.</summary>
-    public NacUser? User { get; set; }
+    public NacIdentityUser? User { get; set; }
 
     /// <summary>SHA256 hash of the token value.</summary>
     public required string TokenHash { get; set; }

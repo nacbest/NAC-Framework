@@ -126,11 +126,11 @@ NAC supports TWO event buses for different purposes:
 ```csharp
 public sealed class CreateOrderCommandHandler : ICommandHandler<CreateOrderCommand, Guid>
 {
-    public async Task<Guid> Handle(CreateOrderCommand cmd, CancellationToken ct)
+    public async Task<Guid> HandleAsync(CreateOrderCommand cmd, CancellationToken ct)
     {
         var order = Order.Create(cmd.CustomerId, cmd.Items);  // Raises OrderCreatedDomainEvent
         _repository.Add(order);
-        await _unitOfWork.SaveChangesAsync(ct);  // Commits + dispatches event
+        // Don't call SaveChanges! UnitOfWork behavior does it post-handler
         
         // Domain event handled by OrderCreatedDomainEventHandler
         // (which may publish integration event)
@@ -174,7 +174,7 @@ public sealed class CreateOrderCommandHandler : ICommandHandler<CreateOrderComma
 ```csharp
 public sealed class OrderCreatedDomainEventHandler : INotificationHandler<OrderCreatedDomainEvent>
 {
-    public async Task Handle(OrderCreatedDomainEvent evt, CancellationToken ct)
+    public async Task HandleAsync(OrderCreatedDomainEvent evt, CancellationToken ct)
     {
         // Publish integration event (async, may fail and retry)
         await _eventBus.PublishAsync(new OrderCreatedIntegrationEvent(
@@ -189,7 +189,7 @@ public sealed class OrderCreatedDomainEventHandler : INotificationHandler<OrderC
 public sealed class OrderCreatedIntegrationEventHandler 
     : IIntegrationEventHandler<OrderCreatedIntegrationEvent>
 {
-    public async Task Handle(OrderCreatedIntegrationEvent evt, CancellationToken ct)
+    public async Task HandleAsync(OrderCreatedIntegrationEvent evt, CancellationToken ct)
     {
         // Consume and process (maybe deduct inventory)
     }
@@ -296,7 +296,7 @@ services.AddCatalogInfrastructure(connectionString);
 // Handler never opens transaction
 public sealed class CreateProductCommandHandler : ICommandHandler<CreateProductCommand, Guid>
 {
-    public async Task<Guid> Handle(CreateProductCommand cmd, CancellationToken ct)
+    public async Task<Guid> HandleAsync(CreateProductCommand cmd, CancellationToken ct)
     {
         // UnitOfWorkBehavior already opened transaction
         var product = new Product { Name = cmd.Name };
@@ -523,12 +523,13 @@ public interface ITenantContext
 NAC Identity (`Nac.Identity`) provides **ASP.NET Identity + JWT + tenant-scoped roles**.
 
 **Components:**
-- **NacUser:** Global user account (email, username, password)
+- **NacIdentityUser:** Global user account (unsealed; email, username, password; has TenantId, IsDeleted)
 - **TenantMembership:** Links user to tenant with role assignment
 - **TenantRole:** Role + permissions scoped to tenant
-- **JwtCurrentUser:** JWT-based `ICurrentUser` implementation with async permission loading
-- **IdentityEventPublisher:** Publishes identity lifecycle events
-- **IIdentityService:** Query interface for business modules to fetch user info
+- **JwtCurrentUser\<TUser\>:** JWT-based `ICurrentUser` implementation with async permission loading
+- **TenantAwareUserManager\<TUser\>:** UserManager scoped to current tenant
+- **IdentityEventPublisher\<TUser\>:** Publishes identity lifecycle events
+- **IIdentityService:** Query interface for business modules to fetch user info (from Nac.Core)
 
 **Key Pattern: Async Permission Loading**
 
@@ -627,7 +628,7 @@ public sealed record CreateProductCommand(...)
 }
 
 // AuthorizationCommandBehavior checks before handler
-public async Task<Unit> Handle(
+public async Task<Unit> HandleAsync(
     ICommand request,
     CommandHandlerDelegate next,
     CancellationToken ct)

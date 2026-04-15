@@ -6,68 +6,72 @@ Comprehensive package-by-package breakdown of the 15 NuGet packages in the NAC F
 
 ## 1. Nac.Core
 
-**Purpose:** Zero-dependency interfaces and markers.
-
-**Files:** 21 (auth, caching, exceptions, messaging, modularity, multi-tenancy, persistence)
+**Purpose:** Zero-dependency interfaces, markers, and domain base types.
 
 **Key Types:**
-- `ICommand<T>`, `ICommand` — CQRS command markers (no common base)
-- `IQuery<T>` — read-only query marker
-- `INotification` — in-process pub/sub marker
-- `IRepository<T>`, `IReadRepository<T>`, `IUnitOfWork` — persistence contracts
+
+**Base Types (moved from Nac.Domain):**
+- `Entity<TId>` — base entity with Id, domain event collection, ID-based equality
+- `AggregateRoot<TId>` — transactional boundary, optimistic concurrency (`Version: uint`)
+- `ValueObject` — immutable, component-based equality (abstract)
+- `StronglyTypedId` — ID generator pattern
+- `Enumeration<TValue>` — strongly-typed enum base
+- `IHasDomainEvents` — entity contract
+
+**Contracts:**
+- `INotification` — in-process pub/sub marker (Entity depends on it)
 - `IEventBus`, `IIntegrationEvent`, `IIntegrationEventHandler` — messaging contracts
 - `ITenantContext`, `TenantInfo` — multi-tenancy
-- `ICurrentUser`, `IRequirePermission`, `IIdentityService` — auth contracts
+- `ICurrentUser`, `IRequirePermission`, `IIdentityService`, `UserInfo` — auth contracts
 - `ICacheable`, `ICacheInvalidator` — caching contracts
 - `IAuditable`, `ITransactional` — behavioral markers
-- `Specification<T>` — query specification pattern
-- `NacException` — base framework exception (derives from System.Exception)
+- `NacException` — base framework exception
+- `IDateTimeProvider`, `SystemDateTimeProvider` — time abstraction
+- `PaginationRequest` — pagination contracts
+- `DomainError` — typed error value
 
-**Dependencies:** None
+**Dependencies:** Microsoft.Extensions.DependencyInjection.Abstractions only (no ASP.NET Core)
 
-**LOC:** ~620
-
-**Notes:** This is the contract layer. Everything else depends on this. Zero-dependency guarantee maintained strictly.
+**Notes:** L0 contract layer. Zero ASP.NET Core dependency guarantee maintained strictly. ICommand/IQuery live in Nac.CQRS (L1), not here.
 
 ---
 
 ## 2. Nac.Domain
 
-**Purpose:** Domain model base classes and aggregates.
-
-**Files:** 9 (entities, domain events, enums, value objects)
+**Purpose:** Domain events and persistence contracts.
 
 **Key Types:**
-- `Entity<TId>` — base entity with `Id`, domain event collection, ID-based equality
-- `AggregateRoot<TId>` — transactional boundary, optimistic concurrency (`Version: uint`)
-- `ValueObject` — immutable, component-based equality (abstract)
+
+**Domain Events:**
 - `DomainEvent` — record with `EventId`, `OccurredAt`, inherits from `INotification`
-- `Enumeration<TValue>` — strongly-typed enum base
-- `StronglyTypedId` — ID generator pattern
-- `IHasDomainEvents`, `IAuditableEntity`, `ISoftDeletable` — entity contracts
+- `IAuditableEntity`, `ISoftDeletable` — entity contracts
+
+**Persistence (Nac.Domain.Persistence namespace):**
+- `IRepository<T>`, `IReadRepository<T>`, `IUnitOfWork` — persistence contracts
+- `Specification<T>` — query specification pattern
 
 **Dependencies:** Nac.Core only
 
-**LOC:** ~282
-
-**Notes:** Minimal but powerful. Handlers never call `SaveChanges`—UnitOfWork does.
+**Notes:** Base entity types (`Entity`, `AggregateRoot`, `ValueObject`, etc.) now live in Nac.Core. This package provides DomainEvent + persistence interfaces. Handlers never call `SaveChanges` — UnitOfWork does.
 
 ---
 
-## 3. Nac.Mediator
+## 3. Nac.CQRS
 
-**Purpose:** Custom CQRS mediator with pipeline behaviors.
-
-**Files:** 19 (abstractions, core, internal, registration)
+**Purpose:** Custom CQRS mediator with pipeline behaviors. (Renamed from Nac.Mediator; all namespaces `Nac.CQRS.*`)
 
 **Key Types:**
 
-**Core API:**
-- `IMediator` — interface: `Send(ICommand)`, `Send<T>(ICommand<T>)`, `Send<T>(IQuery<T>)`, `PublishAsync(INotification)`
+**Abstractions (Nac.CQRS.Abstractions):**
+- `ICommand<T>`, `ICommand` — CQRS command markers
+- `IQuery<T>` — read-only query marker
 - `ICommandHandler<T>`, `ICommandHandler<T, TResult>` — implement for commands
 - `IQueryHandler<T, TResult>` — implement for queries
 - `INotificationHandler<T>` — implement for domain events
 - `ICommandBehavior<T>`, `IQueryBehavior<T>` — separate pipeline middlewares
+
+**Core (Nac.CQRS.Core):**
+- `IMediator` — interface: `Send(ICommand)`, `Send<T>(ICommand<T>)`, `Send<T>(IQuery<T>)`, `PublishAsync(INotification)`
 
 **Internal:**
 - `NacMediator` — orchestrator, delegates to wrappers
@@ -75,9 +79,8 @@ Comprehensive package-by-package breakdown of the 15 NuGet packages in the NAC F
 - `RequestDelegates`, `Unit` — pipeline delegates and void result
 
 **Registration:**
-- `HandlerRegistry` — fail-fast validation; 1 handler per command; dictionary: Type → HandlerFactory
+- `HandlerRegistry` — fail-fast validation; 1 handler per command
 - `HandlerScanner` — reflection-based discovery (assembly scanning)
-- `MediatorOptions` — pipeline configuration
 - `ServiceCollectionExtensions` — DI registration
 
 **Pipeline Order (default):**
@@ -88,9 +91,7 @@ Query: ExceptionHandling → Logging → Validation → Authorization → Cachin
 
 **Dependencies:** Nac.Core only
 
-**LOC:** ~760
-
-**Notes:** Handler registry is built at startup; missing handler = fail-fast. Behaviors are ordered explicitly, not auto-discovered.
+**Notes:** Handler registry built at startup; missing handler = fail-fast. Behaviors ordered explicitly, not auto-discovered.
 
 ---
 
@@ -116,7 +117,7 @@ Query: ExceptionHandling → Logging → Validation → Authorization → Cachin
 **Behaviors:**
 - `UnitOfWorkBehavior` — mediator behavior wrapping command handler in transaction
 
-**Dependencies:** EF Core Relational 10.0.5, Nac.Core, Nac.Domain, Nac.Mediator
+**Dependencies:** EF Core Relational 10.0.5, Nac.Core, Nac.Domain, Nac.CQRS
 
 **LOC:** ~555
 
@@ -165,7 +166,7 @@ Query: ExceptionHandling → Logging → Validation → Authorization → Cachin
 - `IntegrationEventDispatcher` — resolves and invokes handlers by event type
 - `MessagingServiceCollectionExtensions` — DI registration
 
-**Dependencies:** Nac.Core, Nac.Persistence, ASP.NET Core
+**Dependencies:** Nac.Core, Nac.Persistence, Nac.CQRS, ASP.NET Core
 
 **LOC:** ~486
 
@@ -245,9 +246,7 @@ Query: ExceptionHandling → Logging → Validation → Authorization → Cachin
 - Default TTL: 5 minutes (configurable per query via `ICacheable.Expiry`)
 - Cache key: query-provided (via `ICacheable.CacheKey`)
 
-**Dependencies:** Nac.Core, Nac.Mediator
-
-**LOC:** ~100
+**Dependencies:** Nac.Core, Nac.CQRS
 
 **Notes:** Query must implement `ICacheable` to be cached. Command must implement `ICacheInvalidator` to invalidate related keys.
 
@@ -257,23 +256,29 @@ Query: ExceptionHandling → Logging → Validation → Authorization → Cachin
 
 **Purpose:** ASP.NET Core Identity integration, JWT tokens, authorization, tenant-scoped roles and permissions.
 
-**Files:** 30 (entities, services, configurations, middleware, seeding)
-
 **Key Types:**
 
 **Core Entities:**
-- `NacUser` — ASP.NET Identity user, global account across tenants
+- `NacIdentityUser` — ASP.NET Identity user (unsealed); has `TenantId`, `UpdatedAt`, `CreatedBy`, `IsDeleted`
 - `TenantMembership` — Links user to tenant with role assignment
 - `TenantRole` — Role + permission set scoped to tenant
 - `RefreshToken` — JWT refresh token, tenant-aware, Redis-backed option
 
-**Services:**
-- `JwtTokenService` — Generate/validate JWT access tokens, refresh flow
-- `IdentityService` (IIdentityService from Nac.Core) — Query user info from business modules
+**Generic DbContext:**
+- `NacIdentityDbContext<TUser> where TUser : NacIdentityUser` — generic identity DbContext
+
+**Services (all generic over TUser):**
+- `JwtTokenService<TUser>` — Generate/validate JWT access tokens, refresh flow
+- `IdentityService<TUser>` (IIdentityService from Nac.Core) — Query user info from business modules
+- `IdentityEventPublisher<TUser>` — Publish identity lifecycle events
+- `TenantAwareUserManager<TUser>` — UserManager scoped to current tenant (in MultiTenancy/)
 - `TenantRoleService` — Manage tenant roles and user memberships
-- `IdentityEventPublisher` — Publish identity lifecycle events
 - `RefreshTokenStore` — Abstract token storage (EF Core or Redis)
 - `RefreshTokenCleanupService` — BackgroundService, auto-expire tokens
+
+**DI Registration:**
+- `AddNacIdentity()` — default (uses NacIdentityUser)
+- `AddNacIdentity<TUser>()` — generic overload for custom user types
 
 **Behaviors:**
 - `AuthorizationBehavior` — Check `IRequirePermission` at mediator level
@@ -285,14 +290,11 @@ Query: ExceptionHandling → Logging → Validation → Authorization → Cachin
 
 **Middleware & Extensions:**
 - `IdentityApplicationBuilderExtensions` — `UseNacIdentity()`, permission preload
-- `IdentityServiceCollectionExtensions` — DI registration
 - `IdentitySeeder` — Seed default roles per tenant
 
-**Dependencies:** Nac.Core, Nac.Mediator, Nac.Persistence, Nac.MultiTenancy, ASP.NET Identity, JWT Bearer, StackExchange.Redis (optional)
+**Dependencies:** Nac.Core, Nac.CQRS, Nac.Persistence, Nac.MultiTenancy, ASP.NET Identity, JWT Bearer, StackExchange.Redis (optional)
 
-**LOC:** ~780
-
-**Notes:** Permissions loaded async at startup, safe to check synchronously in handlers. RefreshToken stores TenantId (preserved on refresh). Multi-tenant scoping via TenantMembership. Event-driven user lifecycle (registration, confirmation, reset).
+**Notes:** Permissions loaded async at startup via middleware, safe to access synchronously in handlers. RefreshToken stores TenantId (preserved on refresh). Generic over TUser allows custom user types.
 
 ---
 
@@ -313,9 +315,7 @@ Query: ExceptionHandling → Logging → Validation → Authorization → Cachin
 - Success/failure + exception details
 - Correlation ID (from HttpContext)
 
-**Dependencies:** Nac.Core, Nac.Mediator
-
-**LOC:** ~121
+**Dependencies:** Nac.Core, Nac.CQRS
 
 **Notes:** Uses `ILogger<T>`. Correlation ID propagates from HTTP request. Structured logging (ILogger.LogInformation) for easy machine parsing.
 
@@ -325,8 +325,6 @@ Query: ExceptionHandling → Logging → Validation → Authorization → Cachin
 
 **Purpose:** Response envelopes, global exception handler, module framework registration.
 
-**Files:** 6 (response types, exception handler, framework builder, extensions, module interfaces)
-
 **Key Types:**
 
 **Response Envelopes:**
@@ -334,7 +332,7 @@ Query: ExceptionHandling → Logging → Validation → Authorization → Cachin
 - `PaginatedResponse<T>` — record: `Data: T[]`, `Pagination`, `Meta`
 - `ErrorResponse` — record: `Error`, `Meta` (no data)
 
-**Module Framework:**
+**Module Framework (Nac.WebApi.Modularity — moved from Nac.Abstractions):**
 - `INacModule` — marker interface for module registration
 - `NacFrameworkBuilder` — fluent builder for framework setup
 - `NacServiceCollectionExtensions` — DI registration helpers
@@ -385,9 +383,7 @@ var publishedEvents = fakeEventBus.PublishedOf<OrderPlacedIntegrationEvent>();
 Assert.NotEmpty(publishedEvents);
 ```
 
-**Dependencies:** Nac.Core, Nac.Mediator
-
-**LOC:** ~104
+**Dependencies:** Nac.Core, Nac.CQRS
 
 **Notes:** No Moq/NSubstitute needed for these types. Wildcard matching: `orders.create` matches both `orders.*` and `*.create` permissions.
 
@@ -461,26 +457,25 @@ MyApp.slnx
 ## Dependency Visualization
 
 ```
-Nac.Core [ZERO DEPS]
-    ↑
-    ├─ Nac.Domain
-    ├─ Nac.Mediator
-    └─ (all others depend directly or transitively)
+L0: Nac.Core [DI.Abstractions only — no ASP.NET Core]
+    ↑ (base types + contracts: Entity, AggregateRoot, ICurrentUser, INotification, etc.)
+    │
+L1: ├─ Nac.Domain     (DomainEvent, persistence contracts — Nac.Domain.Persistence)
+    ├─ Nac.CQRS        (ICommand, IQuery, IMediator, pipeline behaviors)
+    └─ Nac.Caching     (ICacheable behaviors)
             ↑
-            ├─ Nac.Persistence ← Domain, Mediator
+L2+:        ├─ Nac.Persistence ← Core, Domain, CQRS
             │   ├─ Nac.Persistence.PostgreSQL
-            │   ├─ Nac.Identity ← Persistence, Mediator, MultiTenancy
+            │   ├─ Nac.Identity ← Persistence, CQRS, MultiTenancy
             │   └─ Nac.Messaging ← Persistence
-            │       ├─ Nac.Messaging.RabbitMQ
-            │       └─ (Outbox worker)
+            │       └─ Nac.Messaging.RabbitMQ
             │
-            ├─ Nac.MultiTenancy
-            ├─ Nac.Caching ← Mediator
-            ├─ Nac.Observability ← Mediator
-            ├─ Nac.WebApi
-            └─ Nac.Testing ← Mediator
+            ├─ Nac.MultiTenancy ← Core
+            ├─ Nac.Observability ← Core, CQRS
+            ├─ Nac.WebApi ← Core  (gains INacModule, NacFrameworkBuilder)
+            └─ Nac.Testing ← Core, CQRS
 
-    [Distribution]
+L3 (Distribution):
     ├─ Nac.Cli [System.CommandLine]
     └─ Nac.Templates [none]
 ```

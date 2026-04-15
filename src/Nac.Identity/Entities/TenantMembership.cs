@@ -8,11 +8,11 @@ public sealed class TenantMembership
 {
     public Guid Id { get; set; }
 
-    /// <summary>User ID (FK to NacUser).</summary>
+    /// <summary>User ID (FK to NacIdentityUser).</summary>
     public Guid UserId { get; set; }
 
     /// <summary>User navigation property.</summary>
-    public NacUser? User { get; set; }
+    public NacIdentityUser? User { get; set; }
 
     /// <summary>Tenant identifier.</summary>
     public required string TenantId { get; set; }
