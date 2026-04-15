@@ -57,7 +57,7 @@ public sealed class JwtTokenService : IJwtTokenService
         // Generate refresh token (opaque, random)
         var refreshToken = GenerateRefreshToken();
 
-        // Store refresh token
+        // Store refresh token (preserve tenantId for token refresh)
         await _refreshTokenStore.StoreAsync(new RefreshToken
         {
             Id = Guid.NewGuid(),
@@ -65,7 +65,8 @@ public sealed class JwtTokenService : IJwtTokenService
             TokenHash = HashToken(refreshToken),
             ExpiresAt = refreshExpiry,
             CreatedAt = now,
-            DeviceInfo = deviceInfo
+            DeviceInfo = deviceInfo,
+            TenantId = tenantId
         });
 
         return new TokenResult(
@@ -93,8 +94,8 @@ public sealed class JwtTokenService : IJwtTokenService
         if (user is null)
             return null;
 
-        // Generate new tokens
-        return await GenerateTokensAsync(user, null, deviceInfo);
+        // Preserve tenant context from original token issuance
+        return await GenerateTokensAsync(user, storedToken.TenantId, deviceInfo);
     }
 
     public async Task RevokeAllTokensAsync(Guid userId)

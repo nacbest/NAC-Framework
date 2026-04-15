@@ -36,7 +36,8 @@ public sealed class RedisRefreshTokenStore : IRefreshTokenStore
             TokenHash = token.TokenHash,
             ExpiresAt = token.ExpiresAt,
             CreatedAt = token.CreatedAt,
-            DeviceInfo = token.DeviceInfo
+            DeviceInfo = token.DeviceInfo,
+            TenantId = token.TenantId
         };
 
         var json = JsonSerializer.Serialize(data);
@@ -73,7 +74,8 @@ public sealed class RedisRefreshTokenStore : IRefreshTokenStore
             TokenHash = data.TokenHash,
             ExpiresAt = data.ExpiresAt,
             CreatedAt = data.CreatedAt,
-            DeviceInfo = data.DeviceInfo
+            DeviceInfo = data.DeviceInfo,
+            TenantId = data.TenantId
         };
     }
 
@@ -116,5 +118,6 @@ public sealed class RedisRefreshTokenStore : IRefreshTokenStore
         public DateTimeOffset ExpiresAt { get; set; }
         public DateTimeOffset CreatedAt { get; set; }
         public string? DeviceInfo { get; set; }
+        public string? TenantId { get; set; }
     }
 }

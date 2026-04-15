@@ -18,7 +18,7 @@ public sealed class JwtCurrentUser : ICurrentUser
     private readonly NacIdentityDbContext _dbContext;
 
     private HashSet<string>? _permissionsCache;
-    private bool _permissionsLoaded;
+    private volatile bool _permissionsLoaded;
     private readonly object _lock = new();
 
     public JwtCurrentUser(
@@ -105,22 +105,63 @@ public sealed class JwtCurrentUser : ICurrentUser
         return false;
     }
 
+    /// <summary>
+    /// Preloads permissions asynchronously. Call from middleware before handlers run
+    /// to avoid sync-over-async DB calls in the <see cref="Permissions"/> property.
+    /// </summary>
+    internal async Task LoadPermissionsAsync(CancellationToken ct = default)
+    {
+        if (_permissionsLoaded)
+            return;
+
+        if (!IsAuthenticated)
+        {
+            _permissionsCache = [];
+            _permissionsLoaded = true;
+            return;
+        }
+
+        var userId = Guid.Parse(UserId!);
+        var tenantId = _tenantContext.TenantId;
+
+        if (string.IsNullOrEmpty(tenantId))
+        {
+            _permissionsCache = [];
+            _permissionsLoaded = true;
+            return;
+        }
+
+        // Async query: membership → role → permissions
+        var membership = await _dbContext.TenantMemberships
+            .Include(m => m.TenantRole)
+            .FirstOrDefaultAsync(m => m.UserId == userId && m.TenantId == tenantId, ct);
+
+        _permissionsCache = membership?.TenantRole?.Permissions is null
+            ? []
+            : [.. membership.TenantRole.Permissions];
+
+        _permissionsLoaded = true;
+    }
+
     private void EnsurePermissionsLoaded()
     {
         if (_permissionsLoaded)
             return;
 
+        // Fallback: if LoadPermissionsAsync wasn't called by middleware,
+        // use sync path with GetAwaiter().GetResult() as last resort.
+        // This should not happen in normal flow — middleware preloads permissions.
         lock (_lock)
         {
             if (_permissionsLoaded)
                 return;
 
-            _permissionsCache = LoadPermissions();
+            _permissionsCache = LoadPermissionsFallback();
             _permissionsLoaded = true;
         }
     }
 
-    private HashSet<string> LoadPermissions()
+    private HashSet<string> LoadPermissionsFallback()
     {
         if (!IsAuthenticated)
             return [];
@@ -128,11 +169,10 @@ public sealed class JwtCurrentUser : ICurrentUser
         var userId = Guid.Parse(UserId!);
         var tenantId = _tenantContext.TenantId;
 
-        // No tenant context = no tenant-scoped permissions
         if (string.IsNullOrEmpty(tenantId))
             return [];
 
-        // Single query: membership → role → permissions
+        // Sync fallback — prefer LoadPermissionsAsync in middleware
         var membership = _dbContext.TenantMemberships
             .Include(m => m.TenantRole)
             .FirstOrDefault(m => m.UserId == userId && m.TenantId == tenantId);

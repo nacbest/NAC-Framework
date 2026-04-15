@@ -29,6 +29,9 @@ public sealed class RefreshToken
     /// <summary>Device/client info for audit.</summary>
     public string? DeviceInfo { get; set; }
 
+    /// <summary>Tenant context at time of token issuance. Preserved on refresh.</summary>
+    public string? TenantId { get; set; }
+
     /// <summary>Whether token is still valid.</summary>
     public bool IsActive => RevokedAt == null && ExpiresAt > DateTimeOffset.UtcNow;
 }

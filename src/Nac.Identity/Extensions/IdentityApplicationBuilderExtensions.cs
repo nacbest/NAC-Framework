@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
-using Nac.Identity.Seeding;
+using Microsoft.AspNetCore.Http;
+using Nac.Abstractions.Auth;
+using Nac.Identity.CurrentUser;
 
 namespace Nac.Identity.Extensions;
 
@@ -11,22 +12,21 @@ public static class IdentityApplicationBuilderExtensions
 {
     /// <summary>
     /// Configures the application to use NAC Identity.
+    /// Adds middleware to preload permissions asynchronously.
     /// Should be called after UseAuthentication() and before UseAuthorization().
     /// </summary>
-    /// <param name="app">The application builder.</param>
-    /// <param name="seedRoles">Whether to seed default roles on startup. Default: true.</param>
-    /// <returns>The application builder for chaining.</returns>
-    public static IApplicationBuilder UseNacIdentity(
-        this IApplicationBuilder app,
-        bool seedRoles = true)
+    public static IApplicationBuilder UseNacIdentity(this IApplicationBuilder app)
     {
-        if (seedRoles)
+        // Preload permissions async before handlers run (avoids sync-over-async in JwtCurrentUser)
+        app.Use(async (context, next) =>
         {
-            // Run seeding synchronously during startup
-            using var scope = app.ApplicationServices.CreateScope();
-            var seeder = scope.ServiceProvider.GetRequiredService<IdentitySeeder>();
-            seeder.SeedDefaultRolesAsync().GetAwaiter().GetResult();
-        }
+            var currentUser = context.RequestServices.GetService(typeof(ICurrentUser));
+            if (currentUser is JwtCurrentUser jwtUser && jwtUser.IsAuthenticated)
+            {
+                await jwtUser.LoadPermissionsAsync(context.RequestAborted);
+            }
+            await next();
+        });
 
         return app;
     }

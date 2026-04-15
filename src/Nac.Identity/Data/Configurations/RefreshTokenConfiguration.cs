@@ -19,6 +19,9 @@ internal sealed class RefreshTokenConfiguration : IEntityTypeConfiguration<Refre
         builder.Property(x => x.DeviceInfo)
             .HasMaxLength(512);
 
+        builder.Property(x => x.TenantId)
+            .HasMaxLength(128);
+
         // User relationship
         builder.HasOne(x => x.User)
             .WithMany(u => u.RefreshTokens)
