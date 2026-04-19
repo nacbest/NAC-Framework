@@ -25,7 +25,7 @@ public class NacRoleTests
     public void Constructor_WithRoleNameAndDescription_SetsPropertiesCorrectly()
     {
         // Act
-        var role = new NacRole(TestRoleName, TestDescription);
+        var role = new NacRole(TestRoleName, description: TestDescription);
 
         // Assert
         role.Name.Should().Be(TestRoleName);

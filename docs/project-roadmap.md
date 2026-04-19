@@ -6,8 +6,8 @@ Strategic roadmap for NAC Framework development through Q4 2026 and beyond.
 
 ## Current State
 
-**Completed:** L0 Nac.Core + Wave 1 (L1 CQRS/Caching + L2 Persistence) + Wave 2A (Nac.EventBus, Nac.Testing) + Wave 2B (Nac.Identity, Nac.MultiTenancy) + Wave 2B-Enhancement (Nac.MultiTenancy.Management) + Wave 2C (Nac.Observability, Nac.Jobs) + Wave 3 (L3 Nac.WebApi) + Wave 4A (Consumer Reference Architecture) + **Pattern A Identity Migration** (Phases 01–04: Domain, Services, Auth, Roles)  
-**Tests:** 615 unit tests + 11 integration tests, all passing  
+**Completed:** L0 Nac.Core + Wave 1 (L1 CQRS/Caching + L2 Persistence) + Wave 2A (Nac.EventBus, Nac.Testing) + Wave 2B (Nac.Identity, Nac.MultiTenancy) + Wave 2B-Enhancement (Nac.MultiTenancy.Management) + Wave 2C (Nac.Observability, Nac.Jobs) + Wave 3 (L3 Nac.WebApi) + Wave 4A (Consumer Reference Architecture) + **Pattern A Identity Migration** (Phases 01–07: Domain, Services, Auth, Roles, Membership, Admin, Host Permissions)  
+**Tests:** 626 unit tests + 11 integration tests, all passing  
 **Packages:** 12 (Nac.Core, Nac.Cqrs, Nac.Caching, Nac.Persistence, Nac.EventBus, Nac.Testing, Nac.MultiTenancy, Nac.MultiTenancy.Management, Nac.Identity, Nac.Observability, Nac.Jobs, Nac.WebApi)
 
 ---
@@ -97,6 +97,26 @@ Strategic roadmap for NAC Framework development through Q4 2026 and beyond.
 - Cache invalidation on all mutations; manual API via ITenantCacheInvalidator
 - Host-realm only (non-null TenantId rejected); ICurrentUser enforcement
 - Outbox integration for reliable domain event publication
+
+### Phase 8A-Ext2: Pattern A Identity Migration (COMPLETE ✅)
+
+**Completed (2026-04-19):**
+1. ✅ **Phases 01–07 Full Implementation** — Domain refactor, services, auth endpoints, role templates, membership services, tenant switching, admin endpoints, host permissions
+   - New files: `HostPermissions.cs`, `HostPermissionProvider.cs`, `HostQueryExtensions.cs`
+   - Framework enhancement: `ForbiddenAccessException.cs` in Nac.Core/Domain
+   - Middleware auto-registration: `TenantRequiredGateMiddleware` in `UseNacApplication`
+   - Authorization: `HostAdminOnlyFilter` checks both `IsHost` flag AND `Host.AccessAllTenants` permission
+   - Pattern A finalized: Global users, tenant-scoped memberships, runtime permission resolution
+2. ✅ **JWT Shape Finalized:** `sub, email, name?, tenant_id?, role_ids?, is_host?` (no permission claims)
+3. ✅ **Permission Resolution:** Cache-backed store with 10-minute TTL; invalidated on role/grant changes
+
+**Tests Added:** 11 new tests + existing suite (626 total), all passing
+
+**Key Decisions:**
+- `NacUser` has no `TenantId` — users are global identities; memberships define tenant scope
+- Permissions evaluated at request time, not embedded in JWT (enables live updates)
+- Host realm (`IsHost=true`) users access all tenants via `Host.AccessAllTenants` permission
+- `TenantRequiredGateMiddleware` auto-gates tenant-scoped endpoints (403 if tenant null)
 
 ### Phase 8B: Framework Enhancements (Pending)
 
@@ -244,7 +264,8 @@ Strategic roadmap for NAC Framework development through Q4 2026 and beyond.
 | 1.4.0 | 2026-04-16 | Wave 2C: L2 Observability, Jobs (49 tests, 535 total) | ✅ Complete |
 | 1.5.0 | 2026-04-17 | Wave 3: L3 WebApi Composition Root (42 tests, 577 total) | ✅ Complete |
 | 1.5.1 | 2026-04-17 | Consumer Reference Architecture (samples/ReferenceApp, EventBus idempotency fix) | ✅ Complete |
-| 1.6.0 | 2026-Q3 | OutboxWorker<TContext> enhancement, multi-module outbox polling | 📋 Planned |
+| 1.6.0 | 2026-04-19 | Pattern A Identity Migration (Phases 01–07: Domain, Services, Auth, Roles, Membership, Admin, Host Permissions) | ✅ Complete |
+| 1.7.0 | 2026-Q3 | OutboxWorker<TContext> enhancement, multi-module outbox polling | 📋 Planned |
 | 2.0.0 | 2026-Q4 | dotnet new templates, Examples expansion | 📋 Planned |
 
 ---
@@ -274,7 +295,7 @@ Roadmap reviewed quarterly (Jan, Apr, Jul, Oct):
 
 ---
 
-**Last Updated:** 2026-04-17 (Wave 3 complete)  
-**Next Update:** 2026-07-17  
+**Last Updated:** 2026-04-19 (Pattern A Identity Migration Phases 01–07 complete)  
+**Next Update:** 2026-07-19  
 **Maintainer:** Solo development  
 **License:** MIT

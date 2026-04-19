@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text.Json;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using NSubstitute;
@@ -12,8 +13,8 @@ public class CurrentUserAccessorTests
     private const string TestUserId = "550e8400-e29b-41d4-a716-446655440000";
     private const string TestEmail = "user@example.com";
     private const string TestTenantId = "tenant-123";
-    private const string TestRole1 = "Admin";
-    private const string TestRole2 = "User";
+    private static readonly Guid TestRoleId1 = Guid.NewGuid();
+    private static readonly Guid TestRoleId2 = Guid.NewGuid();
 
     [Fact]
     public void Id_WithValidNameIdentifierClaim_ReturnsParsedGuid()
@@ -97,41 +98,39 @@ public class CurrentUserAccessorTests
     }
 
     [Fact]
-    public void Roles_WithMultipleRoleClaims_ReturnsAllRoles()
+    public void RoleIds_WithRoleIdsClaim_ReturnsDeserializedGuids()
     {
-        // Arrange
+        // Arrange — role_ids claim carries a JSON-serialized Guid[]
+        var expected = new[] { TestRoleId1, TestRoleId2 };
         var claims = new[]
         {
-            new Claim(ClaimTypes.Role, TestRole1),
-            new Claim(ClaimTypes.Role, TestRole2),
+            new Claim(NacIdentityClaims.RoleIds, JsonSerializer.Serialize(expected)),
         };
         var user = CreateClaimsPrincipal(claims);
         var httpContextAccessor = CreateHttpContextAccessor(user);
         var accessor = new CurrentUserAccessor(httpContextAccessor);
 
         // Act
-        var roles = accessor.Roles;
+        var roleIds = accessor.RoleIds;
 
         // Assert
-        roles.Should().HaveCount(2);
-        roles.Should().Contain(TestRole1);
-        roles.Should().Contain(TestRole2);
+        roleIds.Should().BeEquivalentTo(expected);
     }
 
     [Fact]
-    public void Roles_ReturnsReadOnlyList()
+    public void RoleIds_WithoutClaim_ReturnsEmptyList()
     {
         // Arrange
-        var claims = new[] { new Claim(ClaimTypes.Role, TestRole1) };
-        var user = CreateClaimsPrincipal(claims);
+        var user = CreateClaimsPrincipal([]);
         var httpContextAccessor = CreateHttpContextAccessor(user);
         var accessor = new CurrentUserAccessor(httpContextAccessor);
 
         // Act
-        var roles = accessor.Roles;
+        var roleIds = accessor.RoleIds;
 
         // Assert
-        roles.Should().BeAssignableTo<IReadOnlyList<string>>();
+        roleIds.Should().BeEmpty();
+        roleIds.Should().BeAssignableTo<IReadOnlyList<Guid>>();
     }
 
     [Fact]

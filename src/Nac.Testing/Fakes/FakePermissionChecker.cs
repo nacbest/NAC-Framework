@@ -7,13 +7,19 @@ public sealed class FakePermissionChecker : IPermissionChecker
     private bool _grantAll;
     private readonly HashSet<string> _granted = [];
 
-    public Task<bool> IsGrantedAsync(string permissionName) =>
+    public Task<bool> IsGrantedAsync(string permissionName, CancellationToken ct = default) =>
         Task.FromResult(_grantAll || _granted.Contains(permissionName));
 
-    public Task<bool> IsGrantedAsync(Guid userId, string permissionName) =>
+    public Task<bool> IsGrantedAsync(Guid userId, string permissionName,
+        string? tenantId = null, CancellationToken ct = default) =>
         Task.FromResult(_grantAll || _granted.Contains(permissionName));
 
-    public Task<MultiplePermissionGrantResult> IsGrantedAsync(string[] permissionNames)
+    public Task<bool> IsGrantedAsync(string permissionName, string resourceType,
+        string resourceId, CancellationToken ct = default) =>
+        Task.FromResult(_grantAll || _granted.Contains(permissionName));
+
+    public Task<MultiplePermissionGrantResult> IsGrantedAsync(string[] permissionNames,
+        CancellationToken ct = default)
     {
         var result = new MultiplePermissionGrantResult();
         foreach (var name in permissionNames)

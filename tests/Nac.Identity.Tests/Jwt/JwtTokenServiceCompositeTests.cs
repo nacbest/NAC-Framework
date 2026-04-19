@@ -1,183 +1,100 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Text.Json;
 using FluentAssertions;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
-using NSubstitute;
-using Nac.Core.Abstractions.Permissions;
 using Nac.Identity.Jwt;
 using Nac.Identity.Services;
-using Nac.Identity.Users;
 using Xunit;
 
 namespace Nac.Identity.Tests.Jwt;
 
 /// <summary>
-/// Composite and integration tests for JwtTokenService with multiple claims.
-/// Tests token generation with complex claim combinations.
+/// Composite and integration tests for JwtTokenService Pattern A claim shape:
+/// sub, email, name?, tenant_id?, role_ids?, is_host?
 /// </summary>
 public class JwtTokenServiceCompositeTests
 {
     private const string TestSecretKey = "this-is-a-very-long-secret-key-that-is-at-least-32-characters-long";
-    private const string TestIssuer = "TestIssuer";
-    private const string TestAudience = "TestAudience";
-    private const int TestExpirationMinutes = 60;
 
-    private readonly JwtOptions _jwtOptions = new()
+    private readonly JwtTokenService _service = new(Options.Create(new JwtOptions
     {
         SecretKey = TestSecretKey,
-        Issuer = TestIssuer,
-        Audience = TestAudience,
-        ExpirationMinutes = TestExpirationMinutes,
-    };
+        Issuer = "TestIssuer",
+        Audience = "TestAudience",
+        ExpirationMinutes = 60,
+    }));
 
     [Fact]
-    public async Task GenerateTokenAsync_WithMultipleRolesAndPermissions_TokenIncludesAllClaims()
+    public void GenerateToken_WithRoleIds_ContainsRoleIdsClaim()
     {
-        // Arrange
-        var user = CreateTestUser();
-        var roles = new[] { "Admin", "Moderator", "User" };
-        var permissionClaims = new[]
-        {
-            new Claim(NacIdentityClaims.Permission, "Users.Create"),
-            new Claim(NacIdentityClaims.Permission, "Users.Read"),
-            new Claim(NacIdentityClaims.Permission, "Users.Update"),
-            new Claim(NacIdentityClaims.Permission, "Users.Delete"),
-        };
-        var userManager = CreateMockUserManager(user, roles, permissionClaims);
-        var options = Options.Create(_jwtOptions);
-        var service = new JwtTokenService(options, userManager);
-
-        // Act
-        var token = await service.GenerateTokenAsync(user);
+        var roleIds = new[] { Guid.NewGuid(), Guid.NewGuid() };
+        var token = _service.GenerateToken(Guid.NewGuid(), "t1", "u@x.com", null, roleIds, false);
         var claims = DecodeToken(token);
 
-        // Assert
-        var roleClaims = claims.Where(c => c.Type == ClaimTypes.Role).ToList();
-        roleClaims.Should().HaveCount(3);
-        var permClaims = claims.Where(c => c.Type == NacIdentityClaims.Permission).ToList();
-        permClaims.Should().HaveCount(4);
+        var raw = claims.Single(c => c.Type == NacIdentityClaims.RoleIds).Value;
+        var decoded = JsonSerializer.Deserialize<Guid[]>(raw);
+        decoded.Should().BeEquivalentTo(roleIds);
     }
 
     [Fact]
-    public async Task GenerateTokenAsync_TokenProperties_AllRequiredPresent()
+    public void GenerateToken_WithEmptyRoleIds_NoRoleIdsClaim()
     {
-        // Arrange
-        var user = CreateTestUser();
-        var roles = new[] { "Admin" };
-        var permissionClaims = new[] { new Claim(NacIdentityClaims.Permission, "Test.Read") };
-        var userManager = CreateMockUserManager(user, roles, permissionClaims);
-        var options = Options.Create(_jwtOptions);
-        var service = new JwtTokenService(options, userManager);
+        var token = _service.GenerateToken(Guid.NewGuid(), "t1", "u@x.com", null, [], false);
+        var claims = DecodeToken(token);
 
-        // Act
-        var token = await service.GenerateTokenAsync(user);
+        claims.Should().NotContain(c => c.Type == NacIdentityClaims.RoleIds);
+    }
+
+    [Fact]
+    public void GenerateToken_AllRequiredClaimsPresent()
+    {
+        var userId = Guid.NewGuid();
+        var roleIds = new[] { Guid.NewGuid() };
+        var token = _service.GenerateToken(userId, "tenant-x", "u@x.com", "Full Name", roleIds, true);
+
         var handler = new JwtSecurityTokenHandler();
         var jwtToken = handler.ReadToken(token) as JwtSecurityToken;
 
-        // Assert
-        jwtToken!.Should().NotBeNull();
-        jwtToken.Issuer.Should().Be(TestIssuer);
-        jwtToken.Audiences.Should().Contain(TestAudience);
+        jwtToken!.Issuer.Should().Be("TestIssuer");
+        jwtToken.Audiences.Should().Contain("TestAudience");
         jwtToken.ValidTo.Should().BeAfter(DateTime.UtcNow);
-        jwtToken.Claims.Should().NotBeEmpty();
+
+        var claims = jwtToken.Claims.ToList();
+        claims.Should().Contain(c => c.Type == ClaimTypes.NameIdentifier && c.Value == userId.ToString());
+        claims.Should().Contain(c => c.Type == ClaimTypes.Email && c.Value == "u@x.com");
+        claims.Should().Contain(c => c.Type == ClaimTypes.Name && c.Value == "Full Name");
+        claims.Should().Contain(c => c.Type == NacIdentityClaims.TenantId && c.Value == "tenant-x");
+        claims.Should().Contain(c => c.Type == NacIdentityClaims.IsHost && c.Value == "true");
+        claims.Should().Contain(c => c.Type == NacIdentityClaims.RoleIds);
     }
 
     [Fact]
-    public async Task GenerateTokenAsync_WithUserRoles_ProducedTokenContainsRoleClaims()
+    public void GenerateToken_NoPermissionClaims_EmbeddedInToken()
     {
-        // Arrange
-        var user = CreateTestUser();
-        var roles = new[] { "Admin", "Manager" };
-        var userManager = CreateMockUserManager(user, roles, claims: []);
-        var options = Options.Create(_jwtOptions);
-        var service = new JwtTokenService(options, userManager);
-
-        // Act
-        var token = await service.GenerateTokenAsync(user);
+        // Pattern A: permissions are NOT embedded in the JWT — resolved at request time
+        var token = _service.GenerateToken(Guid.NewGuid(), "t1", "u@x.com", null, [], false);
         var claims = DecodeToken(token);
 
-        // Assert
-        var roleClaims = claims.Where(c => c.Type == ClaimTypes.Role).ToList();
-        roleClaims.Should().HaveCount(2);
-        roleClaims.Select(c => c.Value).Should().Contain(roles);
+        claims.Should().NotContain(c => c.Type == NacIdentityClaims.Permission);
+        claims.Should().NotContain(c => c.Type == ClaimTypes.Role);
     }
 
     [Fact]
-    public async Task GenerateTokenAsync_WithUserPermissions_ProducedTokenContainsPermissionClaims()
+    public void GenerateToken_TenantlessToken_NoTenantOrRoleIdsClaims()
     {
-        // Arrange
-        var user = CreateTestUser();
-        var permissionClaims = new[]
-        {
-            new Claim(NacIdentityClaims.Permission, "Users.Create"),
-            new Claim(NacIdentityClaims.Permission, "Users.Delete"),
-        };
-        var userManager = CreateMockUserManager(user, roles: [], claims: permissionClaims);
-        var options = Options.Create(_jwtOptions);
-        var service = new JwtTokenService(options, userManager);
-
-        // Act
-        var token = await service.GenerateTokenAsync(user);
+        var token = _service.GenerateToken(Guid.NewGuid(), null, "u@x.com", null, [], false);
         var claims = DecodeToken(token);
 
-        // Assert
-        var permClaims = claims.Where(c => c.Type == NacIdentityClaims.Permission).ToList();
-        permClaims.Should().HaveCount(2);
-        permClaims.Select(c => c.Value).Should().Contain(new[] { "Users.Create", "Users.Delete" });
-    }
-
-    [Fact]
-    public async Task GenerateTokenAsync_WithNonPermissionClaims_TokenDoesNotIncludeNonPermissionClaims()
-    {
-        // Arrange
-        var user = CreateTestUser();
-        var claims = new[]
-        {
-            new Claim("custom_claim", "custom_value"),
-            new Claim(NacIdentityClaims.Permission, "Users.Read"),
-        };
-        var userManager = CreateMockUserManager(user, roles: [], claims);
-        var options = Options.Create(_jwtOptions);
-        var service = new JwtTokenService(options, userManager);
-
-        // Act
-        var token = await service.GenerateTokenAsync(user);
-        var tokenClaims = DecodeToken(token);
-
-        // Assert
-        var customClaims = tokenClaims.Where(c => c.Type == "custom_claim").ToList();
-        customClaims.Should().BeEmpty();
-        var permClaims = tokenClaims.Where(c => c.Type == NacIdentityClaims.Permission).ToList();
-        permClaims.Should().HaveCount(1);
+        claims.Should().NotContain(c => c.Type == NacIdentityClaims.TenantId);
+        claims.Should().NotContain(c => c.Type == NacIdentityClaims.RoleIds);
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
-    private static NacUser CreateTestUser()
-    {
-        return new NacUser("user@example.com", "tenant-123");
-    }
-
-    private static UserManager<NacUser> CreateMockUserManager(
-        NacUser user,
-        string[] roles,
-        Claim[] claims)
-    {
-        var userStore = Substitute.For<IUserStore<NacUser>>();
-        var userManager = Substitute.For<UserManager<NacUser>>(
-            userStore, null, null, null, null, null, null, null, null);
-
-        userManager.GetRolesAsync(user).Returns(Task.FromResult<IList<string>>(roles.ToList()));
-        userManager.GetClaimsAsync(user).Returns(Task.FromResult<IList<Claim>>(claims.ToList()));
-
-        return userManager;
-    }
-
     private static List<Claim> DecodeToken(string token)
     {
-        var handler = new JwtSecurityTokenHandler();
-        var jwtToken = handler.ReadToken(token) as JwtSecurityToken;
+        var jwtToken = new JwtSecurityTokenHandler().ReadToken(token) as JwtSecurityToken;
         return jwtToken!.Claims.ToList();
     }
 }

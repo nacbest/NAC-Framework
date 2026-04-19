@@ -70,6 +70,12 @@ internal sealed class NacExceptionHandler(ILogger<NacExceptionHandler> logger) :
         // messages (e.g. ArgumentNullException parameter names, internal lookup keys)
         // can leak implementation details. Domain code should use the Result pattern
         // or throw FluentValidation.ValidationException for user-facing messages.
+        Nac.Core.Domain.ForbiddenAccessException => (
+            StatusCodes.Status403Forbidden,
+            "Forbidden",
+            "You do not have permission to perform this action.",
+            null
+        ),
         UnauthorizedAccessException => (
             StatusCodes.Status401Unauthorized,
             "Unauthorized",

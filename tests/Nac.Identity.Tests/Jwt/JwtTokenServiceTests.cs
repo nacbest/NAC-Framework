@@ -1,12 +1,9 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using FluentAssertions;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
-using NSubstitute;
 using Nac.Identity.Jwt;
 using Nac.Identity.Services;
-using Nac.Identity.Users;
 using Xunit;
 
 namespace Nac.Identity.Tests.Jwt;
@@ -18,168 +15,130 @@ public class JwtTokenServiceTests
     private const string TestAudience = "TestAudience";
     private const int TestExpirationMinutes = 60;
 
-    private readonly JwtOptions _jwtOptions = new()
+    private readonly JwtTokenService _service;
+
+    public JwtTokenServiceTests()
     {
-        SecretKey = TestSecretKey,
-        Issuer = TestIssuer,
-        Audience = TestAudience,
-        ExpirationMinutes = TestExpirationMinutes,
-    };
+        var options = Options.Create(new JwtOptions
+        {
+            SecretKey = TestSecretKey,
+            Issuer = TestIssuer,
+            Audience = TestAudience,
+            ExpirationMinutes = TestExpirationMinutes,
+        });
+        _service = new JwtTokenService(options);
+    }
 
     [Fact]
-    public async Task GenerateTokenAsync_WithValidUser_ProducesValidJwt()
+    public void GenerateToken_WithValidParams_ProducesValidJwt()
     {
-        // Arrange
-        var user = CreateTestUser();
-        var userManager = CreateMockUserManager(user, roles: [], claims: []);
-        var options = Options.Create(_jwtOptions);
-        var service = new JwtTokenService(options, userManager);
+        var token = _service.GenerateToken(Guid.NewGuid(), null, "u@example.com", null, [], false);
 
-        // Act
-        var token = await service.GenerateTokenAsync(user);
-
-        // Assert
         token.Should().NotBeNullOrEmpty();
-        var handler = new JwtSecurityTokenHandler();
-        handler.CanReadToken(token).Should().BeTrue();
+        new JwtSecurityTokenHandler().CanReadToken(token).Should().BeTrue();
     }
 
     [Fact]
-    public async Task GenerateTokenAsync_ProducedToken_ContainsNameIdentifierClaim()
+    public void GenerateToken_ContainsNameIdentifierClaim()
     {
-        // Arrange
-        var user = CreateTestUser();
-        var userManager = CreateMockUserManager(user, roles: [], claims: []);
-        var options = Options.Create(_jwtOptions);
-        var service = new JwtTokenService(options, userManager);
-
-        // Act
-        var token = await service.GenerateTokenAsync(user);
+        var userId = Guid.NewGuid();
+        var token = _service.GenerateToken(userId, null, "u@example.com", null, [], false);
         var claims = DecodeToken(token);
 
-        // Assert
-        claims.Should().ContainSingle(c => c.Type == ClaimTypes.NameIdentifier && c.Value == user.Id.ToString());
-    }
-
-    [Fact]
-    public async Task GenerateTokenAsync_ProducedToken_ContainsEmailClaim()
-    {
-        // Arrange
-        var user = CreateTestUser();
-        var userManager = CreateMockUserManager(user, roles: [], claims: []);
-        var options = Options.Create(_jwtOptions);
-        var service = new JwtTokenService(options, userManager);
-
-        // Act
-        var token = await service.GenerateTokenAsync(user);
-        var claims = DecodeToken(token);
-
-        // Assert
-        claims.Should().ContainSingle(c => c.Type == ClaimTypes.Email && c.Value == user.Email);
-    }
-
-    [Fact]
-    public async Task GenerateTokenAsync_ProducedToken_ContainsTenantIdClaim()
-    {
-        // Arrange
-        var user = CreateTestUser();
-        var userManager = CreateMockUserManager(user, roles: [], claims: []);
-        var options = Options.Create(_jwtOptions);
-        var service = new JwtTokenService(options, userManager);
-
-        // Act
-        var token = await service.GenerateTokenAsync(user);
-        var claims = DecodeToken(token);
-
-        // Assert
         claims.Should().ContainSingle(c =>
-            c.Type == NacIdentityClaims.TenantId && c.Value == user.TenantId);
+            c.Type == ClaimTypes.NameIdentifier && c.Value == userId.ToString());
     }
 
+    [Fact]
+    public void GenerateToken_ContainsEmailClaim()
+    {
+        var token = _service.GenerateToken(Guid.NewGuid(), null, "test@example.com", null, [], false);
+        var claims = DecodeToken(token);
+
+        claims.Should().ContainSingle(c => c.Type == ClaimTypes.Email && c.Value == "test@example.com");
+    }
 
     [Fact]
-    public async Task GenerateTokenAsync_ProducedToken_ContainsCorrectIssuer()
+    public void GenerateToken_WithTenantId_ContainsTenantIdClaim()
     {
-        // Arrange
-        var user = CreateTestUser();
-        var userManager = CreateMockUserManager(user, roles: [], claims: []);
-        var options = Options.Create(_jwtOptions);
-        var service = new JwtTokenService(options, userManager);
+        var token = _service.GenerateToken(Guid.NewGuid(), "tenant-123", "u@example.com", null, [], false);
+        var claims = DecodeToken(token);
 
-        // Act
-        var token = await service.GenerateTokenAsync(user);
-        var handler = new JwtSecurityTokenHandler();
-        var jwtToken = handler.ReadToken(token) as JwtSecurityToken;
+        claims.Should().ContainSingle(c =>
+            c.Type == NacIdentityClaims.TenantId && c.Value == "tenant-123");
+    }
 
-        // Assert
+    [Fact]
+    public void GenerateToken_WithoutTenantId_NoTenantIdClaim()
+    {
+        var token = _service.GenerateToken(Guid.NewGuid(), null, "u@example.com", null, [], false);
+        var claims = DecodeToken(token);
+
+        claims.Should().NotContain(c => c.Type == NacIdentityClaims.TenantId);
+    }
+
+    [Fact]
+    public void GenerateToken_WithName_ContainsNameClaim()
+    {
+        var token = _service.GenerateToken(Guid.NewGuid(), null, "u@example.com", "John Doe", [], false);
+        var claims = DecodeToken(token);
+
+        claims.Should().ContainSingle(c => c.Type == ClaimTypes.Name && c.Value == "John Doe");
+    }
+
+    [Fact]
+    public void GenerateToken_WithIsHost_ContainsIsHostClaim()
+    {
+        var token = _service.GenerateToken(Guid.NewGuid(), null, "host@platform.local", null, [], true);
+        var claims = DecodeToken(token);
+
+        claims.Should().ContainSingle(c =>
+            c.Type == NacIdentityClaims.IsHost && c.Value == "true");
+    }
+
+    [Fact]
+    public void GenerateToken_WithoutIsHost_NoIsHostClaim()
+    {
+        var token = _service.GenerateToken(Guid.NewGuid(), null, "u@example.com", null, [], false);
+        var claims = DecodeToken(token);
+
+        claims.Should().NotContain(c => c.Type == NacIdentityClaims.IsHost);
+    }
+
+    [Fact]
+    public void GenerateToken_ContainsCorrectIssuer()
+    {
+        var token = _service.GenerateToken(Guid.NewGuid(), null, "u@example.com", null, [], false);
+        var jwtToken = new JwtSecurityTokenHandler().ReadToken(token) as JwtSecurityToken;
+
         jwtToken!.Issuer.Should().Be(TestIssuer);
     }
 
     [Fact]
-    public async Task GenerateTokenAsync_ProducedToken_ContainsCorrectAudience()
+    public void GenerateToken_ContainsCorrectAudience()
     {
-        // Arrange
-        var user = CreateTestUser();
-        var userManager = CreateMockUserManager(user, roles: [], claims: []);
-        var options = Options.Create(_jwtOptions);
-        var service = new JwtTokenService(options, userManager);
+        var token = _service.GenerateToken(Guid.NewGuid(), null, "u@example.com", null, [], false);
+        var jwtToken = new JwtSecurityTokenHandler().ReadToken(token) as JwtSecurityToken;
 
-        // Act
-        var token = await service.GenerateTokenAsync(user);
-        var handler = new JwtSecurityTokenHandler();
-        var jwtToken = handler.ReadToken(token) as JwtSecurityToken;
-
-        // Assert
         jwtToken!.Audiences.Should().Contain(TestAudience);
     }
 
     [Fact]
-    public async Task GenerateTokenAsync_ProducedToken_ExpiresAtCorrectTime()
+    public void GenerateToken_ExpiresAtCorrectTime()
     {
-        // Arrange
-        var user = CreateTestUser();
-        var userManager = CreateMockUserManager(user, roles: [], claims: []);
-        var options = Options.Create(_jwtOptions);
-        var service = new JwtTokenService(options, userManager);
-        var beforeGeneration = DateTime.UtcNow;
+        var before = DateTime.UtcNow;
+        var token = _service.GenerateToken(Guid.NewGuid(), null, "u@example.com", null, [], false);
+        var jwtToken = new JwtSecurityTokenHandler().ReadToken(token) as JwtSecurityToken;
 
-        // Act
-        var token = await service.GenerateTokenAsync(user);
-        var afterGeneration = DateTime.UtcNow;
-        var handler = new JwtSecurityTokenHandler();
-        var jwtToken = handler.ReadToken(token) as JwtSecurityToken;
-
-        // Assert
-        var expectedExpiration = beforeGeneration.AddMinutes(TestExpirationMinutes);
-        jwtToken!.ValidTo.Should().BeCloseTo(expectedExpiration, TimeSpan.FromSeconds(5));
+        jwtToken!.ValidTo.Should().BeCloseTo(
+            before.AddMinutes(TestExpirationMinutes), TimeSpan.FromSeconds(5));
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
-    private static NacUser CreateTestUser()
-    {
-        return new NacUser("user@example.com", "tenant-123");
-    }
-
-    private static UserManager<NacUser> CreateMockUserManager(
-        NacUser user,
-        string[] roles,
-        Claim[] claims)
-    {
-        var userStore = Substitute.For<IUserStore<NacUser>>();
-        var userManager = Substitute.For<UserManager<NacUser>>(
-            userStore, null, null, null, null, null, null, null, null);
-
-        userManager.GetRolesAsync(user).Returns(Task.FromResult<IList<string>>(roles.ToList()));
-        userManager.GetClaimsAsync(user).Returns(Task.FromResult<IList<Claim>>(claims.ToList()));
-
-        return userManager;
-    }
-
     private static List<Claim> DecodeToken(string token)
     {
-        var handler = new JwtSecurityTokenHandler();
-        var jwtToken = handler.ReadToken(token) as JwtSecurityToken;
+        var jwtToken = new JwtSecurityTokenHandler().ReadToken(token) as JwtSecurityToken;
         return jwtToken!.Claims.ToList();
     }
 }

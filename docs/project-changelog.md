@@ -4,9 +4,9 @@ All significant changes to the NAC Framework are documented here. Format follows
 
 ---
 
-## [Unreleased] — Pattern A Identity Migration Phases 01–04 (2026-04-19)
+## [Unreleased] — Pattern A Identity Migration Phases 01–07 (2026-04-19)
 
-### Added (In Development)
+### Added
 
 #### Phase 01: Domain Model Refactor
 - **NacUser** refactored: removed `TenantId`, added `IsHost` flag; global scope
@@ -71,9 +71,37 @@ All significant changes to the NAC Framework are documented here. Format follows
 - **Test coverage:** Phase 08 deferred (pre-existing compile errors from Phase 01/02 builder changes; risk R10)
 - **Code review:** 8/10 score; 1 critical fixed (NormalizedName on role clone), 1 major fixed (error-code casing NAC_INVALID_CREDENTIALS)
 
+#### Phase 05: Membership & Tenant Switching Services
+- **IMembershipService** + **MembershipService**: Invite (token generation), Accept, List, ChangeRoles (invalidates cache), CreateActiveMembershipAsync (onboarding)
+- **ITenantSwitchService** + **TenantSwitchService**: validates Active membership; re-issues tenant-scoped JWT
+- Cache invalidation on role changes
+- Onboarding event integration
+
+#### Phase 06: Admin Endpoints & Framework Integration
+- **Identity Admin Endpoints**: CRUD, grant/revoke permissions, clone from template, list, delete (soft-delete if unreferenced)
+- **Authorization Filter**: `HostAdminOnlyFilter` enforces `IsHost` flag + permission grant
+- **Middleware Registration**: `TenantRequiredGateMiddleware` auto-registered in `UseNacApplication` when `NacIdentityModule` present (after auth, before authz)
+- **Multi-tenant support**: `AsHostQueryAsync<T>` for admin queries across all tenants
+
+#### Phase 07: Host Permissions & Pattern A Finalization
+- **HostPermissions.cs** constant: `Host.AccessAllTenants` permission name
+- **HostPermissionProvider.cs**: Registered as `IPermissionDefinitionProvider`; defines host realm permissions
+- **HostQueryExtensions.cs**: `AsHostQueryAsync<T>` method bypasses tenant filter for host users
+- **ForbiddenAccessException.cs** in `Nac.Core/Domain`: Maps to HTTP 403 in `NacExceptionHandler`
+- **Pattern A finalized**:
+  - `NacUser` has no `TenantId` — users are global, tenant access via memberships
+  - JWT shape: `sub, email, name?, tenant_id?, role_ids?, is_host?`
+  - Permissions resolved at request time via cache→DB (not embedded in JWT)
+  - Tenant-gated endpoints auto-filter via `TenantRequiredGateMiddleware`
+
+### Status
+- **Phases 01–07:** COMPLETE (full Pattern A implementation + framework integration)
+- **Phases 08+:** PENDING
+- **Test coverage:** Full framework test suite (626 unit tests passing)
+- **Code review:** Phase 07 APPROVED
+
 ### Known Issues / Deferred
-- **M2/M3/M4 + 11 minor review items** → Phase 07 cleanup OR Phase 05 follow-ups (see plans/reports/code-reviewer-260419-1520-phase-03-04.md)
-- **R10 (test builders)** → Phase 08 responsibility; 52 pre-existing compile errors in `tests/Nac.Identity.Tests`
+- None for Phase 07
 
 ---
 
@@ -528,6 +556,6 @@ NAC Framework follows semantic versioning:
 
 ---
 
-**Last Updated:** 2026-04-17 (Wave 3 completion)  
+**Last Updated:** 2026-04-19 (Pattern A Identity Migration Phases 01–07 completion)  
 **Maintainer:** Solo development  
 **License:** MIT

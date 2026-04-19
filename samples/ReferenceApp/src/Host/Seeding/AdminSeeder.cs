@@ -71,7 +71,7 @@ internal sealed class AdminSeeder(ILogger<AdminSeeder> logger) : IDataSeeder
         var adminUser = await userManager.FindByEmailAsync(AdminEmail);
         if (adminUser is null)
         {
-            adminUser = new NacUser(AdminEmail, "default") { FullName = "System Administrator" };
+            adminUser = new NacUser(AdminEmail, "System Administrator");
             var userResult = await userManager.CreateAsync(adminUser, AdminPassword);
             if (!userResult.Succeeded)
             {

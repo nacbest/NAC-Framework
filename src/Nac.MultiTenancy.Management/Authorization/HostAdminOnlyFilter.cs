@@ -1,28 +1,35 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Nac.Core.Abstractions.Identity;
+using Nac.Core.Abstractions.Permissions;
 
 namespace Nac.MultiTenancy.Management.Authorization;
 
 /// <summary>
-/// Action filter that rejects callers scoped to a specific tenant. Tenant
-/// management is a host-level concern: only callers whose
-/// <see cref="ICurrentUser.TenantId"/> is empty (i.e. the host realm) may proceed.
+/// Rejects callers that are not host users with the <c>Host.AccessAllTenants</c> permission.
+/// Both conditions required — defense in depth: IsHost flag + explicit permission grant.
 /// </summary>
-internal sealed class HostAdminOnlyFilter : IAsyncActionFilter
+internal sealed class HostAdminOnlyFilter(ICurrentUser user, IPermissionChecker permissionChecker)
+    : IAsyncActionFilter
 {
-    private readonly ICurrentUser _user;
-
-    public HostAdminOnlyFilter(ICurrentUser user) => _user = user;
+    private static readonly object ForbidBody = new { code = "NAC_HOST_REQUIRED" };
 
     /// <inheritdoc />
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
-        if (!_user.IsAuthenticated || !string.IsNullOrEmpty(_user.TenantId))
+        if (!user.IsAuthenticated || !user.IsHost)
         {
-            context.Result = new ForbidResult();
+            context.Result = new ObjectResult(ForbidBody) { StatusCode = 403 };
             return;
         }
+
+        if (!await permissionChecker.IsGrantedAsync("Host.AccessAllTenants",
+                context.HttpContext.RequestAborted))
+        {
+            context.Result = new ObjectResult(ForbidBody) { StatusCode = 403 };
+            return;
+        }
+
         await next();
     }
 }

@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Nac.Core.Modularity;
+using Nac.Identity;
+using Nac.Identity.Endpoints;
 using Nac.MultiTenancy;
 using Nac.MultiTenancy.Extensions;
 using Nac.Observability;
@@ -53,6 +55,10 @@ public static class ApplicationBuilderExtensions
 
         // 8. Authentication — always (no-op if no auth scheme)
         app.UseAuthentication();
+
+        // 8.5. Tenant gate — enforces tenant claim on authenticated requests (Identity module)
+        if (HasModule<NacIdentityModule>(factory))
+            app.UseMiddleware<TenantRequiredGateMiddleware>();
 
         // 9. Authorization — always
         app.UseAuthorization();

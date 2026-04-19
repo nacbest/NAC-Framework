@@ -36,6 +36,17 @@ builder.Services.AddNacWebApi(opt =>
     opt.EnableOpenApi = true;
     opt.EnableCors = true;
     opt.EnableHealthChecks = true;
+    opt.EnableRateLimiting = true;
+    opt.ConfigureRateLimiter = r =>
+    {
+        r.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+        r.AddFixedWindowLimiter("login", o =>
+        {
+            o.PermitLimit = 5;
+            o.Window = TimeSpan.FromMinutes(1);
+            o.QueueLimit = 0;
+        });
+    };
 });
 
 // ── 2. Persistence: AppDbContext (host-owned identity store) ──────────────────

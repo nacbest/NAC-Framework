@@ -1,9 +1,13 @@
 using System.Security.Claims;
+using System.Text.Json;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Nac.Core.Abstractions.Permissions;
 using Nac.Identity.Permissions;
+using Nac.Identity.Permissions.Cache;
+using Nac.Identity.Permissions.Grants;
 using Nac.Identity.Services;
 using Xunit;
 
@@ -12,150 +16,180 @@ namespace Nac.Identity.Tests.Permissions;
 public class PermissionCheckerTests
 {
     [Fact]
-    public async Task IsGrantedAsync_WithExplicitPermissionClaim_ReturnsTrue()
+    public async Task IsGrantedAsync_WithExplicitUserGrant_ReturnsTrue()
     {
-        // Arrange
-        var permissionName = "Users.Create";
-        var user = CreateClaimsPrincipal(new[] { new Claim(NacIdentityClaims.Permission, permissionName) });
-        var httpContextAccessor = CreateHttpContextAccessor(user);
-        var manager = CreatePermissionManager();
-        var checker = new PermissionChecker(httpContextAccessor, manager);
+        var userId = Guid.NewGuid();
+        var (checker, repo, _) = CreateChecker(userId, tenantId: null);
+        SetupUserGrants(repo, userId, null, ["Users.Create"]);
 
-        // Act
-        var result = await checker.IsGrantedAsync(permissionName);
+        var result = await checker.IsGrantedAsync("Users.Create");
 
-        // Assert
         result.Should().BeTrue();
     }
 
     [Fact]
-    public async Task IsGrantedAsync_WithoutPermissionClaim_ReturnsFalse()
+    public async Task IsGrantedAsync_WithoutGrant_ReturnsFalse()
     {
-        // Arrange
-        var permissionName = "Users.Create";
-        var user = CreateClaimsPrincipal(new Claim[] { });
-        var httpContextAccessor = CreateHttpContextAccessor(user);
-        var manager = CreatePermissionManager();
-        var checker = new PermissionChecker(httpContextAccessor, manager);
+        var userId = Guid.NewGuid();
+        var (checker, repo, _) = CreateChecker(userId, tenantId: null);
+        SetupUserGrants(repo, userId, null, []);
 
-        // Act
-        var result = await checker.IsGrantedAsync(permissionName);
+        var result = await checker.IsGrantedAsync("Users.Create");
 
-        // Assert
         result.Should().BeFalse();
     }
 
     [Fact]
     public async Task IsGrantedAsync_WithUnauthenticatedUser_ReturnsFalse()
     {
-        // Arrange
-        var permissionName = "Users.Create";
-        var user = CreateClaimsPrincipal(new Claim[] { }, isAuthenticated: false);
-        var httpContextAccessor = CreateHttpContextAccessor(user);
-        var manager = CreatePermissionManager();
-        var checker = new PermissionChecker(httpContextAccessor, manager);
+        var httpCtx = new DefaultHttpContext();
+        httpCtx.User = new ClaimsPrincipal(new ClaimsIdentity());
+        var accessor = Substitute.For<IHttpContextAccessor>();
+        accessor.HttpContext.Returns(httpCtx);
+        var checker = BuildChecker(accessor, CreateManager());
 
-        // Act
-        var result = await checker.IsGrantedAsync(permissionName);
+        var result = await checker.IsGrantedAsync("Users.Create");
 
-        // Assert
         result.Should().BeFalse();
     }
 
     [Fact]
     public async Task IsGrantedAsync_WithNullHttpContext_ReturnsFalse()
     {
-        // Arrange
-        var permissionName = "Users.Create";
-        var httpContextAccessor = Substitute.For<IHttpContextAccessor>();
-        httpContextAccessor.HttpContext.Returns((HttpContext?)null);
-        var manager = CreatePermissionManager();
-        var checker = new PermissionChecker(httpContextAccessor, manager);
+        var accessor = Substitute.For<IHttpContextAccessor>();
+        accessor.HttpContext.Returns((HttpContext?)null);
+        var checker = BuildChecker(accessor, CreateManager());
 
-        // Act
-        var result = await checker.IsGrantedAsync(permissionName);
+        var result = await checker.IsGrantedAsync("Users.Create");
 
-        // Assert
         result.Should().BeFalse();
     }
 
     [Fact]
     public async Task IsGrantedAsync_WithUnknownPermissionName_ReturnsFalse()
     {
-        // Arrange — user has a permission claim, but requesting a permission not in the manager registry
-        var user = CreateClaimsPrincipal(new[] { new Claim(NacIdentityClaims.Permission, "Users.Create") });
-        var httpContextAccessor = CreateHttpContextAccessor(user);
-        var manager = CreatePermissionManager();
-        var checker = new PermissionChecker(httpContextAccessor, manager);
+        var userId = Guid.NewGuid();
+        var (checker, repo, _) = CreateChecker(userId, tenantId: null);
+        SetupUserGrants(repo, userId, null, ["Users.Create"]);
 
-        // Act — requesting a permission that was never defined
         var result = await checker.IsGrantedAsync("Unknown.NotDefined");
 
-        // Assert — permission doesn't exist in registry, so it's denied
         result.Should().BeFalse();
     }
 
     [Fact]
-    public async Task IsGrantedAsync_WithParentPermissionClaim_ChildPermissionGranted()
+    public async Task IsGrantedAsync_WithParentGrant_ChildPermissionGranted()
     {
-        // Arrange — user has "Posts.Manage" which is parent of "Posts.Create"
-        var user = CreateClaimsPrincipal(new[] { new Claim(NacIdentityClaims.Permission, "Posts.Manage") });
-        var httpContextAccessor = CreateHttpContextAccessor(user);
-        var manager = CreatePermissionManagerWithHierarchy();
-        var checker = new PermissionChecker(httpContextAccessor, manager);
+        var userId = Guid.NewGuid();
+        var (checker, repo, _) = CreateChecker(userId, tenantId: null, useHierarchy: true);
+        SetupUserGrants(repo, userId, null, ["Posts.Manage"]);
 
-        // Act
         var result = await checker.IsGrantedAsync("Posts.Create");
 
-        // Assert
         result.Should().BeTrue();
     }
 
     [Fact]
-    public async Task IsGrantedAsync_WithoutParentPermission_ChildPermissionDenied()
+    public async Task IsGrantedAsync_WithoutParentGrant_ChildPermissionDenied()
     {
-        // Arrange — user has no permissions, requesting child permission
-        var user = CreateClaimsPrincipal(new Claim[] { });
-        var httpContextAccessor = CreateHttpContextAccessor(user);
-        var manager = CreatePermissionManagerWithHierarchy();
-        var checker = new PermissionChecker(httpContextAccessor, manager);
+        var userId = Guid.NewGuid();
+        var (checker, repo, _) = CreateChecker(userId, tenantId: null, useHierarchy: true);
+        SetupUserGrants(repo, userId, null, []);
 
-        // Act
         var result = await checker.IsGrantedAsync("Posts.Create");
 
-        // Assert
         result.Should().BeFalse();
     }
 
+    [Fact]
+    public async Task IsGrantedAsync_WithRoleGrant_ReturnsTrue()
+    {
+        var userId = Guid.NewGuid();
+        var roleId = Guid.NewGuid();
+        var (checker, repo, _) = CreateChecker(userId, tenantId: "t1", roleIds: [roleId]);
+        SetupUserGrants(repo, userId, "t1", []);
+        SetupRoleGrants(repo, roleId, "t1", ["Roles.Create"]);
 
+        var result = await checker.IsGrantedAsync("Roles.Create");
+
+        result.Should().BeTrue();
+    }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
-    private static ClaimsPrincipal CreateClaimsPrincipal(Claim[] claims, bool isAuthenticated = true)
+    private static (PermissionChecker checker, IPermissionGrantRepository repo, IPermissionGrantCache cache)
+        CreateChecker(Guid userId, string? tenantId, IReadOnlyList<Guid>? roleIds = null,
+            bool useHierarchy = false)
     {
-        var identity = new ClaimsIdentity(claims, isAuthenticated ? "TestAuth" : null);
-        return new ClaimsPrincipal(identity);
-    }
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, userId.ToString()),
+            new(ClaimTypes.Email, "u@example.com"),
+        };
+        if (tenantId is not null)
+            claims.Add(new(NacIdentityClaims.TenantId, tenantId));
+        if (roleIds?.Count > 0)
+            claims.Add(new(NacIdentityClaims.RoleIds, JsonSerializer.Serialize(roleIds)));
 
-    private static IHttpContextAccessor CreateHttpContextAccessor(ClaimsPrincipal user)
-    {
-        var httpContext = new DefaultHttpContext();
-        httpContext.User = user;
+        var httpCtx = new DefaultHttpContext();
+        httpCtx.User = new ClaimsPrincipal(new ClaimsIdentity(claims, "Test"));
         var accessor = Substitute.For<IHttpContextAccessor>();
-        accessor.HttpContext.Returns(httpContext);
-        return accessor;
+        accessor.HttpContext.Returns(httpCtx);
+
+        var repo = Substitute.For<IPermissionGrantRepository>();
+        var cache = new PassThroughCache();
+        var manager = useHierarchy ? CreateHierarchyManager() : CreateManager();
+
+        return (BuildChecker(accessor, manager, repo, cache), repo, cache);
     }
 
-    private static PermissionDefinitionManager CreatePermissionManager()
+    private static PermissionChecker BuildChecker(IHttpContextAccessor accessor,
+        PermissionDefinitionManager manager, IPermissionGrantRepository? repo = null,
+        IPermissionGrantCache? cache = null)
     {
-        var provider = new TestPermissionProvider();
-        return new PermissionDefinitionManager(new[] { provider });
+        repo ??= Substitute.For<IPermissionGrantRepository>();
+        cache ??= new PassThroughCache();
+        return new PermissionChecker(accessor, repo, cache, manager,
+            NullLogger<PermissionChecker>.Instance);
     }
 
-    private static PermissionDefinitionManager CreatePermissionManagerWithHierarchy()
+    private static void SetupUserGrants(IPermissionGrantRepository repo, Guid userId,
+        string? tenantId, string[] grants)
     {
-        var provider = new HierarchicalPermissionProvider();
-        return new PermissionDefinitionManager(new[] { provider });
+        repo.ListGrantsAsync(PermissionProviderNames.User, userId.ToString(), tenantId,
+                Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(new HashSet<string>(grants, StringComparer.Ordinal)));
+    }
+
+    private static void SetupRoleGrants(IPermissionGrantRepository repo, Guid roleId,
+        string? tenantId, string[] grants)
+    {
+        repo.ListGrantsAsync(PermissionProviderNames.Role, roleId.ToString(), tenantId,
+                Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(new HashSet<string>(grants, StringComparer.Ordinal)));
+    }
+
+    private static PermissionDefinitionManager CreateManager()
+    {
+        return new PermissionDefinitionManager([new TestPermissionProvider()]);
+    }
+
+    private static PermissionDefinitionManager CreateHierarchyManager()
+    {
+        return new PermissionDefinitionManager([new HierarchicalPermissionProvider()]);
+    }
+
+    private sealed class PassThroughCache : IPermissionGrantCache
+    {
+        public Task<HashSet<string>> GetOrLoadAsync(string key,
+            Func<CancellationToken, Task<HashSet<string>>> factory,
+            TimeSpan ttl, CancellationToken ct = default) => factory(ct);
+
+        public Task InvalidateAsync(string key, CancellationToken ct = default) =>
+            Task.CompletedTask;
+
+        public Task InvalidateByPatternAsync(string pattern, CancellationToken ct = default) =>
+            Task.CompletedTask;
     }
 
     private sealed class TestPermissionProvider : IPermissionDefinitionProvider

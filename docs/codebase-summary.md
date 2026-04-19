@@ -6,7 +6,7 @@
 
 NAC Framework is a foundational DDD-based framework published as a suite of layered NuGet packages. The mono-repo contains source code, tests, templates, examples, and documentation. Consumers integrate via NuGet—never copying source.
 
-**Current Status:** L0 Nac.Core + Wave 1 (L1 Nac.Cqrs, Nac.Caching + L2 Nac.Persistence) + Wave 2A (Nac.EventBus, Nac.Testing) + Wave 2B (Nac.Identity, Nac.MultiTenancy) + Wave 2C (Nac.Observability, Nac.Jobs) + Wave 3 (L3 Nac.WebApi) fully implemented and tested (577 framework unit tests + 11 consumer integration tests passing). Consumer reference blueprint shipped (samples/ReferenceApp).
+**Current Status:** L0 Nac.Core + Wave 1 (L1 Nac.Cqrs, Nac.Caching + L2 Nac.Persistence) + Wave 2A (Nac.EventBus, Nac.Testing) + Wave 2B (Nac.Identity, Nac.MultiTenancy) + Wave 2C (Nac.Observability, Nac.Jobs) + Wave 3 (L3 Nac.WebApi) fully implemented and tested (626 framework unit tests + 11 consumer integration tests passing). Consumer reference blueprint shipped (samples/ReferenceApp). Pattern A Identity Migration (Phases 01–07) complete.
 
 ## Package Layers
 
@@ -50,7 +50,22 @@ Foundation layer with DDD primitives, modularity, and result patterns.
 **Tests:** 150 new tests (all passing) = 61 MultiTenancy + 89 Identity
 
 - **Nac.MultiTenancy:** TenantInfo/ITenantContext/ITenantStore abstractions, 4 resolution strategies (Header, Claim, Route, Subdomain), TenantResolutionMiddleware, MultiTenantDbContext with RLS query filters, TenantEntityInterceptor, ITenantConnectionStringResolver, AddNacMultiTenancy() + UseNacMultiTenancy() extensions
-- **Nac.Identity:** NacUser (extends IdentityUser<Guid>), NacRole, NacIdentityDbContext<TContext>, CurrentUserAccessor (ICurrentUser from JWT), IdentityService (IIdentityService wrapping UserManager), JwtTokenService (JWT token generation), PermissionDefinitionManager (FrozenDictionary registry), PermissionChecker (claims + hierarchical rules), PermissionAuthorizationHandler (ASP.NET Core Authorization), AddNacIdentity<TContext>() extension
+- **Nac.Identity (Phase 01–04):** NacUser (global, no TenantId), NacRole (tenant-scoped + templates), UserTenantMembership (M:N), MembershipRole, PermissionGrant (ABP-style), NacIdentityDbContext, JwtTokenService, PermissionChecker with cache, IRoleService with clone, RoleTemplateSystem, AuthEndpoints (7 routes), AddNacIdentity<TContext>() extension
+
+### L2 — Feature Layers (Pattern A Phase 05–07 COMPLETE)
+**Tests:** 11 new tests (all passing); 626 total framework tests
+
+- **Nac.Identity (Phase 05–07 Enhancements):** 
+  - IMembershipService/MembershipService: Invite, Accept, List, ChangeRoles (cache invalidation), CreateActiveMembershipAsync
+  - ITenantSwitchService/TenantSwitchService: Active membership validation, tenant-scoped JWT re-issue
+  - HostPermissions.cs constant: `Host.AccessAllTenants`
+  - HostPermissionProvider.cs: IPermissionDefinitionProvider for host realm
+  - HostQueryExtensions.cs: `AsHostQueryAsync<T>` bypasses tenant filter for host users
+  - TenantRequiredGateMiddleware: Auto-registered in UseNacApplication (after auth, before authz); gates tenant-scoped endpoints
+  - HostAdminOnlyFilter: Checks `IsHost` flag AND `Host.AccessAllTenants` permission grant
+  - ForbiddenAccessException.cs (Nac.Core/Domain): Maps to HTTP 403 in NacExceptionHandler
+  - JWT shape: `sub, email, name?, tenant_id?, role_ids?, is_host?`
+  - Pattern A finalized: Global users, runtime permission resolution (cache→DB)
 
 ### L2 — Feature Layers (Wave 2B-Enhancement COMPLETE)
 **Tests:** 38 new tests (all passing)
@@ -144,12 +159,20 @@ NACFramework/
 │   │   ├── Validators/           [TenantRequestValidators]
 │   │   ├── Extensions/           [AddNacTenantManagement()]
 │   │   └── NacTenantManagementModule/ [Modular registration]
-│   ├── Nac.Identity/             [L2 - Identity & authentication]
-│   │   ├── Users/                [NacUser, NacRole]
+│   ├── Nac.Identity/             [L2 - Identity & authentication (Phases 01–07)]
+│   │   ├── Users/                [NacUser (global), NacRole (tenant-scoped + template)]
+│   │   ├── Memberships/          [UserTenantMembership, MembershipRole, IMembershipService]
 │   │   ├── Context/              [NacIdentityDbContext, NacIdentityDbContext<TUser>]
-│   │   ├── Services/             [CurrentUserAccessor, IdentityService]
-│   │   ├── Jwt/                  [JwtOptions, JwtTokenService]
-│   │   ├── Permissions/          [PermissionDefinitionManager, PermissionChecker, PermissionAuthorizationHandler]
+│   │   ├── Services/             [CurrentUserAccessor, IdentityService, TenantSwitchService]
+│   │   ├── Jwt/                  [JwtOptions, JwtTokenService, NacIdentityClaims]
+│   │   ├── Permissions/          [PermissionDefinitionManager, PermissionChecker, PermissionGrantCache]
+│   │   │   ├── Host/             [HostPermissions, HostPermissionProvider (Phase 07)]
+│   │   │   ├── Grants/           [PermissionGrant, IPermissionGrantRepository, PermissionProviderNames]
+│   │   │   └── Cache/            [IPermissionGrantCache, DistributedPermissionGrantCache]
+│   │   ├── Roles/                [IRoleService, RoleTemplateSystem, RoleTemplateSeeder]
+│   │   ├── Endpoints/            [AuthEndpoints (7 routes), TenantRequiredGateMiddleware (Phase 07)]
+│   │   ├── Persistence/          [HostQueryExtensions (Phase 07)]
+│   │   ├── Authorization/        [PermissionAuthorizationHandler, HostAdminOnlyFilter]
 │   │   ├── Extensions/           [ServiceCollectionExtensions, NacIdentityOptions]
 │   │   └── NacIdentityModule/    [Modular registration]
 │   ├── Nac.Observability/        [L2 - Observability & logging]
@@ -182,7 +205,7 @@ NACFramework/
 │   ├── Nac.Testing.Tests/        [47 tests]
 │   ├── Nac.MultiTenancy.Tests/   [61 tests - Wave 2B]
 │   ├── Nac.MultiTenancy.Management.Tests/ [38 tests - Wave 2B-Enhancement]
-│   ├── Nac.Identity.Tests/       [89 tests - Wave 2B]
+│   ├── Nac.Identity.Tests/       [100 tests - Wave 2B + Pattern A Phases 05–07]
 │   ├── Nac.Observability.Tests/  [28 tests - Wave 2C]
 │   ├── Nac.Jobs.Tests/           [21 tests - Wave 2C]
 │   └── Nac.WebApi.Tests/         [42 tests - Wave 3]
@@ -243,7 +266,8 @@ NACFramework/
 - ✅ Testing layer (L2) — 7 in-memory fakes, fluent builders, DI fixtures, assertion extensions
 - ✅ MultiTenancy layer (L2) — 4 resolution strategies, RLS query filters, TenantEntityInterceptor, per-tenant DB support
 - ✅ Identity layer (L2) — NacUser/NacRole, IdentityService, JwtTokenService, permission system with hierarchical checks
-- ✅ Unit tests (486 tests, all passing)
+- ✅ Unit tests (626 tests, all passing)
+- ✅ Pattern A Identity Migration (Phases 01–07: Domain, Services, Auth, Roles, Membership, Admin, Host Permissions)
 
 ### Not Yet Implemented
 - WebApi composition root (L3)

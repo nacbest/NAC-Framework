@@ -15,6 +15,8 @@ public class FakeCurrentUserTests
         user.Email.Should().Be("test@example.com");
         user.TenantId.Should().Be("default");
         user.Roles.Should().Contain("User");
+        user.RoleIds.Should().BeEmpty();
+        user.IsHost.Should().BeFalse();
         user.Id.Should().NotBe(Guid.Empty);
     }
 
@@ -26,6 +28,7 @@ public class FakeCurrentUserTests
         user.IsAuthenticated.Should().BeFalse();
         user.Id.Should().Be(Guid.Empty);
         user.Email.Should().BeNull();
+        user.TenantId.Should().BeNull();
         user.Roles.Should().BeEmpty();
     }
 
@@ -48,5 +51,15 @@ public class FakeCurrentUserTests
         user.Id.Should().Be(id);
         user.Email.Should().Be("custom@example.com");
         user.Roles.Should().BeEquivalentTo(["Admin", "Moderator"]);
+    }
+
+    [Fact]
+    public void Host_SetsIsHostAndNullTenant()
+    {
+        var user = FakeCurrentUser.Host();
+
+        user.IsHost.Should().BeTrue();
+        user.TenantId.Should().BeNull();
+        user.IsAuthenticated.Should().BeTrue();
     }
 }
