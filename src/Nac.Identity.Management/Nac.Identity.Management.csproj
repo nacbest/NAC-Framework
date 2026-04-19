@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Nac.Identity.Management</PackageId>
+    <Version>$(NacFrameworkVersion)</Version>
+    <Description>NAC Framework Identity Management — REST admin API for users, memberships, roles, and permission grants on top of Nac.Identity.</Description>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Nac.Identity.Management.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Nac.Core\Nac.Core.csproj" />
+    <ProjectReference Include="..\Nac.Identity\Nac.Identity.csproj" />
+    <ProjectReference Include="..\Nac.MultiTenancy\Nac.MultiTenancy.csproj" />
+    <ProjectReference Include="..\Nac.Persistence\Nac.Persistence.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+  </ItemGroup>
+</Project>

@@ -9,6 +9,7 @@
     <Project Path="src/Nac.Identity/Nac.Identity.csproj" />
     <Project Path="src/Nac.MultiTenancy/Nac.MultiTenancy.csproj" />
     <Project Path="src/Nac.MultiTenancy.Management/Nac.MultiTenancy.Management.csproj" />
+    <Project Path="src/Nac.Identity.Management/Nac.Identity.Management.csproj" />
     <Project Path="src/Nac.Observability/Nac.Observability.csproj" />
     <Project Path="src/Nac.Jobs/Nac.Jobs.csproj" />
     <Project Path="src/Nac.WebApi/Nac.WebApi.csproj" />
