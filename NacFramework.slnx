@@ -22,6 +22,7 @@
     <Project Path="tests/Nac.EventBus.Tests/Nac.EventBus.Tests.csproj" />
     <Project Path="tests/Nac.Testing.Tests/Nac.Testing.Tests.csproj" />
     <Project Path="tests/Nac.Identity.Tests/Nac.Identity.Tests.csproj" />
+    <Project Path="tests/Nac.Identity.IntegrationTests/Nac.Identity.IntegrationTests.csproj" />
     <Project Path="tests/Nac.MultiTenancy.Tests/Nac.MultiTenancy.Tests.csproj" />
     <Project Path="tests/Nac.MultiTenancy.Management.Tests/Nac.MultiTenancy.Management.Tests.csproj" />
     <Project Path="tests/Nac.Observability.Tests/Nac.Observability.Tests.csproj" />
