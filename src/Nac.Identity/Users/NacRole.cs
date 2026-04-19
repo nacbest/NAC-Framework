@@ -19,6 +19,13 @@ public class NacRole : IdentityRole<Guid>, IAuditableEntity, ISoftDeletable
     /// <summary>Optional description of the role's purpose.</summary>
     public string? Description { get; set; }
 
+    /// <summary>
+    /// Id of the system template this role was cloned from. Null for templates
+    /// themselves and for fully custom roles. Stored for lineage / admin UI
+    /// surfacing only — not evaluated at runtime in v3.
+    /// </summary>
+    public Guid? BaseTemplateId { get; set; }
+
     // ── IAuditableEntity ─────────────────────────────────────────────────────
 
     /// <inheritdoc/>
@@ -48,6 +55,9 @@ public class NacRole : IdentityRole<Guid>, IAuditableEntity, ISoftDeletable
         : base(roleName)
     {
         Id = Guid.NewGuid();
+        // Seed NormalizedName so direct db.Roles.Add bypasses still honor the
+        // (TenantId, NormalizedName) uniqueness index; RoleManager would overwrite this.
+        NormalizedName = roleName.ToUpperInvariant();
         TenantId = tenantId;
         IsTemplate = isTemplate;
         Description = description;

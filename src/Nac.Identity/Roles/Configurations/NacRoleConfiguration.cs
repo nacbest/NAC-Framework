@@ -20,6 +20,11 @@ internal sealed class NacRoleConfiguration : IEntityTypeConfiguration<NacRole>
         builder.Property(r => r.Description)
             .HasMaxLength(500);
 
+        // Lineage reference — nullable, no FK constraint (templates are NacRole rows
+        // in the same table; self-referential FK would complicate seeder ordering).
+        builder.Property(r => r.BaseTemplateId)
+            .IsRequired(false);
+
         // Tenant-scoped role uniqueness. NULL TenantId (system templates) is treated
         // distinct in PostgreSQL — acceptable for v3.
         builder.HasIndex(r => new { r.TenantId, r.NormalizedName })

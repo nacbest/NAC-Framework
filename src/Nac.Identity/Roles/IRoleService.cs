@@ -27,4 +27,11 @@ public interface IRoleService
     /// <summary>Revokes a permission from a role; invalidates the role cache key.</summary>
     Task RevokePermissionAsync(Guid roleId, string permissionName, string tenantId,
                                CancellationToken ct = default);
+
+    /// <summary>Returns the permission names currently granted to <paramref name="roleId"/>.</summary>
+    Task<IReadOnlyList<string>> ListGrantsAsync(Guid roleId, string? tenantId,
+                                                CancellationToken ct = default);
+
+    /// <summary>Returns all system template roles (<c>IsTemplate=true</c>).</summary>
+    Task<IReadOnlyList<NacRole>> ListTemplatesAsync(CancellationToken ct = default);
 }
