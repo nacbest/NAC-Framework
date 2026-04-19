@@ -1,16 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
-    <Description>[INFRA] Tenant resolution middleware and registry. Use in: Host only.</Description>
-    <PackageTags>nac;framework;multitenancy;tenant;saas</PackageTags>
+    <PackageId>Nac.MultiTenancy</PackageId>
+    <Version>$(NacFrameworkVersion)</Version>
+    <Description>NAC Framework MultiTenancy — Tenant resolution, query filters, per-tenant DB</Description>
   </PropertyGroup>
-
+  <ItemGroup>
+    <InternalsVisibleTo Include="Nac.MultiTenancy.Tests" />
+  </ItemGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\Nac.Core\Nac.Core.csproj" />
+    <ProjectReference Include="..\Nac.Persistence\Nac.Persistence.csproj" />
   </ItemGroup>
-
 </Project>

@@ -1,506 +1,256 @@
-# NAC Framework — Project Roadmap
+# NAC Framework — Development Roadmap
 
-Current status, milestones, and future development priorities.
-
----
-
-## Release Status
-
-### v1.0 — Foundation Complete ✅
-
-**Release Date:** April 2026
-
-**Status:** All 15 packages implemented and tested.
-
-#### Packages (15/15)
-
-| Package | Status | Version | Notes |
-|---------|--------|---------|-------|
-| Nac.Core | ✅ Complete | 1.0.0 | Base types + contracts, near-zero dependencies |
-| Nac.Domain | ✅ Complete | 1.0.0 | DomainEvent, persistence contracts |
-| Nac.CQRS | ✅ Complete | 1.0.0 | Custom CQRS mediator, no MediatR (renamed from Nac.Mediator) |
-| Nac.Persistence | ✅ Complete | 1.0.0 | EF Core, UoW, Repository, Outbox |
-| Nac.Persistence.PostgreSQL | ✅ Complete | 1.0.0 | PostgreSQL provider wrapper |
-| Nac.Messaging | ✅ Complete | 1.0.0 | IEventBus, InMemory, Outbox |
-| Nac.Messaging.RabbitMQ | ✅ Complete | 1.0.0 | RabbitMQ integration |
-| Nac.MultiTenancy | ✅ Complete | 1.0.0 | 3 strategies, 5 resolvers |
-| Nac.Caching | ✅ Complete | 1.0.0 | Query-level caching + invalidation |
-| Nac.Observability | ✅ Complete | 1.0.0 | Structured logging |
-| Nac.WebApi | ✅ Complete | 1.0.0 | Response envelopes, exception handler |
-| Nac.Testing | ✅ Complete | 1.0.0 | Fakes (EventBus, TenantContext, User) |
-| Nac.Cli | ✅ Complete | 1.0.0 | CLI tool (`nac` commands) |
-| Nac.Templates | ✅ Complete | 1.0.0 | `dotnet new nac-solution` |
-
-#### Feature Completeness (v1.0)
-
-| Feature | Status | Details |
-|---------|--------|---------|
-| **CQRS Mediator** | ✅ | Separate command/query pipelines, behaviors |
-| **Domain Model** | ✅ | AggregateRoot, Entity, ValueObject, DomainEvent |
-| **EF Core Integration** | ✅ | DbContext per module, UnitOfWork, Repository |
-| **PostgreSQL Support** | ✅ | Nac.Persistence.PostgreSQL package |
-| **Multi-tenancy** | ✅ | Discriminator, Schema-per-tenant, Database-per-tenant |
-| **Tenant Resolution** | ✅ | Header, Claim, Subdomain, Query, Fallback |
-| **Identity System** | ✅ | ASP.NET Identity, JWT, tenant-scoped roles, async permission loading |
-| **User Query Service** | ✅ | IIdentityService for module queries |
-| **Identity Events** | ✅ | UserRegisteredEvent, EmailConfirmedEvent, PasswordResetEvent |
-| **Authorization** | ✅ | Permission-based, wildcard support, tenant-scoped |
-| **Event Bus (In-Memory)** | ✅ | InMemoryEventBus for development |
-| **Event Bus (RabbitMQ)** | ✅ | Outbox pattern, retry, idempotency |
-| **Distributed Caching** | ✅ | IDistributedCache abstraction, per-query TTL |
-| **Cache Invalidation** | ✅ | Post-command invalidation, pattern support |
-| **Observability** | ✅ | Structured logging, correlation IDs |
-| **API Response Envelope** | ✅ | ApiResponse<T>, PaginatedResponse<T> |
-| **Exception Handling** | ✅ | Global handler, HTTP status mapping |
-| **CLI Scaffolding** | ✅ | `nac new`, `nac add module/feature/entity` |
-| **Templates** | ✅ | `dotnet new nac-solution` |
-| **Testing Utilities** | ✅ | FakeEventBus, FakeTenantContext, FakeCurrentUser |
+Strategic roadmap for NAC Framework development through Q4 2026 and beyond.
 
 ---
 
-## Breaking Changes (v1.0 → v1.0.2)
+## Current State
 
-### Phase 4 Identity Enhancements (April 2026)
-
-**New APIs:**
-- `IIdentityService` in `Nac.Core.Auth` — Query user info from business modules
-- `UserInfo` record — Lightweight user identity DTO
-- `IdentityEventPublisher` — Publish identity lifecycle events (registration, confirmation, reset)
-- `UserRegisteredEvent`, `UserEmailConfirmedEvent`, `PasswordResetEvent` — Integration events
-
-**Bug Fixes:**
-- RefreshToken now stores TenantId; preserved on token refresh to maintain tenant context
-
-**Breaking Changes:**
-- `UseNacIdentity()` no longer accepts `seedRoles` parameter
-  - **Migration:** Call `IdentitySeeder.SeedDefaultRolesForTenantAsync(tenantId)` when creating new tenants
-  - **Before:** `app.UseNacIdentity(seedRoles: true);`
-  - **After:** `app.UseNacIdentity(); // Call seeder per-tenant during tenant creation`
-
-- `IdentitySeeder.SeedDefaultRolesAsync()` replaced by `SeedDefaultRolesForTenantAsync(string tenantId)`
-  - **Migration:** Pass tenant ID explicitly
-  - **Before:** `await seeder.SeedDefaultRolesAsync();` (global, all tenants)
-  - **After:** `await seeder.SeedDefaultRolesForTenantAsync(tenantId);` (per-tenant)
-
-**Architecture Change:**
-- Permission loading moved to middleware (`UseNacIdentity()` middleware)
-  - **Why:** Avoids sync-over-async penalties in handlers
-  - **Impact:** `ICurrentUser.Permissions` now safe to access synchronously in handlers
-  - `JwtCurrentUser.LoadPermissionsAsync()` called automatically by middleware
-
-### Package Restructure (April 2026) — COMPLETED
-
-**Summary of all changes:**
-
-| Change | Before | After |
-|--------|--------|-------|
-| Abstractions package | `Nac.Abstractions` | **DELETED** — types distributed |
-| CQRS package | `Nac.Mediator` (namespace `Nac.Mediator.*`) | `Nac.CQRS` (namespace `Nac.CQRS.*`) |
-| Base domain types | `Nac.Domain` | **Moved to `Nac.Core`** |
-| Repo interfaces | `Nac.Core` | **Moved to `Nac.Domain.Persistence`** |
-| `ICommand`, `IQuery` | `Nac.Core.Messaging` | `Nac.CQRS.Abstractions` |
-| `INotification` | `Nac.Abstractions.Messaging` | `Nac.Core.Messaging` (stays) |
-| Module framework | `Nac.Abstractions.Modularity` | `Nac.WebApi.Modularity` |
-| `ITenantResolver` | `Nac.Abstractions` | `Nac.MultiTenancy` (stays, no circular dep) |
-| Identity user class | `NacUser` (sealed) | `NacIdentityUser` (unsealed; +TenantId, +IsDeleted) |
-| Identity DbContext | `NacIdentityDbContext` | `NacIdentityDbContext<TUser>` (generic) |
-| Identity DI | `AddNacIdentity()` | `AddNacIdentity()` + `AddNacIdentity<TUser>()` |
-| UserManager | — | `TenantAwareUserManager<TUser>` added |
-
-**New types in Nac.Core:**
-- `IDateTimeProvider`, `SystemDateTimeProvider` — time abstraction
-- `PaginationRequest` — pagination contracts
-- `DomainError` — typed error value
-- `UserInfo` — lightweight user DTO (has TenantId)
-- `IIdentityService` — query interface for business modules
-
-**Migration Impact:**
-- Module core: replace `Nac.Mediator` ref → `Nac.CQRS`; update using statements
-- All `using Nac.Mediator.*` → `using Nac.CQRS.*`
-- `NacUser` references → `NacIdentityUser`
-- `ICommand`/`IQuery` namespace → `Nac.CQRS.Abstractions`
-- `IRepository`/`IUnitOfWork` namespace → `Nac.Domain.Persistence`
+**Completed:** L0 Nac.Core + Wave 1 (L1 CQRS/Caching + L2 Persistence) + Wave 2A (Nac.EventBus, Nac.Testing) + Wave 2B (Nac.Identity, Nac.MultiTenancy) + Wave 2C (Nac.Observability, Nac.Jobs) + Wave 3 (L3 Nac.WebApi)  
+**Tests:** 577 unit tests, all passing  
+**Packages:** 11 (Nac.Core, Nac.Cqrs, Nac.Caching, Nac.Persistence, Nac.EventBus, Nac.Testing, Nac.Identity, Nac.MultiTenancy, Nac.Observability, Nac.Jobs, Nac.WebApi)
 
 ---
 
-## Post-v1.0 Roadmap
+## Wave 2: L2 Feature Layers (Q2-Q3 2026)
 
-### Q2 2026: Enhancements & Polish
+### Phase 6A: L2 EventBus & Testing (COMPLETE ✅)
 
-#### Priority 1: Kafka Support (High)
+**Completed (2026-04-16):**
+1. ✅ **Nac.EventBus** — IEventPublisher/IEventHandler<T>/IEventDispatcher, InMemory transport (Channels), Outbox bridge, assembly scanning, fan-out dispatch
+2. ✅ **Nac.Testing** — 7 in-memory fakes, fluent builders, NacTestFixture, InMemoryDbContextFixture<T>, assertion extensions
 
-**Package:** `Nac.Messaging.Kafka`
+**Tests Added:** 80+ unit tests, all passing
 
-**Rationale:** Teams using Kafka have no messaging option; RabbitMQ alone insufficient.
+### Phase 6B: L2 Identity & MultiTenancy (COMPLETE ✅)
+
+**Completed (2026-04-16):**
+1. ✅ **Nac.Identity** — ASP.NET Core Identity wrapper, JWT generation, ICurrentUser impl, IPermissionChecker with role/permission hierarchy
+2. ✅ **Nac.MultiTenancy** — ITenantContext/ITenantStore abstractions, 4 resolution strategies (Header/Claim/Route/Subdomain), query filters, per-tenant DB factory
+
+**Tests Added:** 150+ unit tests, all passing
+
+### Phase 6C: L2 Observability & Jobs (COMPLETE ✅)
+
+**Completed (2026-04-16):**
+1. ✅ **Nac.Observability** — LoggingEnricherMiddleware, NacActivitySources, NacMeters, NacLoggingScope
+2. ✅ **Nac.Jobs** — IJobScheduler, IRecurringJobManager, IJobHandler<T>, JobDefinition, FakeJobScheduler, FakeRecurringJobManager fakes
+
+**Tests Added:** 49 unit tests (28 Observability + 21 Jobs), all passing
+
+### Phase 7: L3 Composition Root (COMPLETE ✅)
+
+**Completed (2026-04-17):**
+1. ✅ **Nac.WebApi** — Composition root with module system orchestration
+   - NacModuleLoader with Kahn's topological sort algorithm
+   - NacApplicationFactory with Pre/Config/Post lifecycle
+   - NacApplicationLifetime IHostedService for Init/Shutdown
+   - Middleware pipeline with 13 stages, conditional includes
+   - NacExceptionHandler (RFC 9457 ProblemDetails)
+   - ResultToHttpMapper (6 ResultStatus → HTTP)
+   - API versioning (Asp.Versioning 8.1.0)
+   - OpenAPI/Swagger integration
+   - NacWebApiOptions feature toggles
+   - Consumer API: 4 lines in Program.cs
+
+**Tests Added:** 42 unit tests, all passing
+
+**Total:** 577 tests (all passing)
+
+---
+
+## Wave 4: Consumer Reference Architecture & Enhancements (2026-Q3)
+
+### Phase 8A: Consumer Reference Architecture (COMPLETE ✅)
+
+**Completed (2026-04-17):**
+1. ✅ **samples/ReferenceApp** — Orders + Billing modular blueprint with cross-module event flow
+   - Orders module: aggregate, CQRS, OrderCreatedEvent publication via Outbox
+   - Billing module: OrderCreatedEvent handler → automatic Invoice creation
+   - Integration tests: 11 passing (CRUD, permissions, multi-tenancy, JWT, cross-module events)
+   - Per-module DbContext with schema isolation (external user-managed Postgres; no docker-compose bundled)
+2. ✅ **Framework fix: AddNacEventBus idempotency** — Safe multi-module registration, shared channel architecture
+3. ✅ **Consumer doc rewrite:** NAC-Consumer-Project-Architecture.md (938→972 LOC, 17 sections, real API surface)
+
+**Tests Added:** 11 integration tests, all passing
+
+### Phase 8B: Framework Enhancements (Pending)
 
 **Scope:**
-- `KafkaEventBus` implementing `IEventBus`
-- Consumer group management
-- Partition selection strategy
-- Exactly-once semantics option
-- Configuration via `AddKafkaEventBus()`
 
-**Effort:** 2 weeks | **Dependencies:** Confluent.Kafka NuGet
+#### Enhancement 1: OutboxWorker<TContext> Genericization
+- Root cause: Current OutboxWorker resolves single NacDbContext alias (last-registration-wins)
+- Impact: Multi-module solutions with multiple DbContexts need workaround
+- Fix: Generic `OutboxWorker<TContext>` paired with distinct outbox polling per context
+- Target: v1.6.0 (Q3 2026)
 
----
+#### dotnet new Templates (Deferred to v2.0.0)
+1. **nac-solution** — Full solution scaffolding with all L0-L3 packages
+2. **nac-module** — Domain module with DomainService pattern
+3. **nac-entity** — Domain entity with AggregateRoot boilerplate
+4. **nac-endpoint** — API endpoint with CQRS handler
 
-#### Priority 2: Saga Pattern Framework (High)
+#### Reference Examples
+1. **SimpleCrud** — Basic CRUD app (User + Profile entities)
+   - ~300 LOC
+   - Demonstrates: Result pattern, Spec queries, basic CQRS
+   - No multi-tenancy or complex auth
 
-**Package:** `Nac.Sagas`
+2. **SaaSStarter** — Multi-tenant SaaS application
+   - ~2000 LOC
+   - Demonstrates: Full L0-L3 stack, multi-tenancy, identity, observability
+   - Real-world patterns: user onboarding, role-based access, audit logs
+   - Includes migration scripts, seed data
 
-**Rationale:** Multi-step workflows (Order → Inventory Deduction → Payment) need coordinated failure handling without explicit orchestration.
+3. **MicroserviceExtract** — Module extraction to standalone service
+   - ~1500 LOC
+   - Demonstrates: Breaking monolith module into microservice
+   - Service-to-service communication patterns
+   - Event-driven architecture
 
-**Scope:**
-- `ISagaDefinition<TState>` base interface
-- State machine (`Pending → Approved → Shipped → Completed`)
-- Compensation logic for rollback
-- Timeout handling
-- Saga state persistence
+**Target Completion:** Q4 2026
 
-**Example Use Case:**
-```csharp
-// Order saga: wait for inventory, then payment, then shipment
-public sealed class OrderSagaDefinition : ISagaDefinition<OrderSagaState>
-{
-    public void Define(ISagaBuilder<OrderSagaState> builder)
-    {
-        builder
-            .Event<InventoryReservedIntegrationEvent>()
-            .Then(state => new RequestPaymentCommand(state.OrderId, state.Amount))
-            .Compensate(state => new ReleaseInventoryCommand(state.OrderId))
-            .Next(OrderSagaStep.AwaitingPayment);
-    }
-}
-```
-
-**Effort:** 3 weeks | **Dependencies:** State machine concept
+**Success Metrics:**
+- All templates installable via `dotnet new nac-*`
+- Examples compile and run without errors
+- Documentation examples reflect real-world scenarios
+- Community feedback incorporated
 
 ---
 
-### Q3 2026: API & Documentation
+## Post-Launch: Maintenance & Enhancement (2027+)
 
-#### Priority 3: OpenAPI/Swagger Integration (Medium)
+### Adoption & Feedback Loop
+- NuGet package downloads tracked
+- Community issues/PRs processed weekly
+- Quarterly release cadence
+- Security patch policy: within 48 hours
 
-**Package:** `Nac.OpenApi`
-
-**Rationale:** Auto-generate Swagger from mediator handlers + endpoint definitions.
-
-**Scope:**
-- Auto-discover commands/queries from handlers
-- Generate OpenAPI spec from command/query types
-- Per-module Swagger UI
-- Request/response schema inference
-- Validation rule annotation
-
-**Result:** `GET /api/swagger/catalog` returns OpenAPI spec.
-
-**Effort:** 2 weeks | **Dependencies:** Swashbuckle or custom implementation
+### Planned Enhancements (TBD)
+- Distributed transaction support (Saga pattern)
+- GraphQL CQRS integration
+- gRPC support
+- Dapr integration
+- Cloud-native resilience patterns (circuit breaker, retry, bulkhead)
+- Performance optimizations based on benchmarks
 
 ---
 
-#### Priority 4: GraphQL Endpoint Generator (Medium)
+## Risk Assessment & Mitigations
 
-**Package:** `Nac.GraphQL`
-
-**Rationale:** REST + GraphQL from same mediator backend.
-
-**Scope:**
-- Auto-generate GraphQL schema from `IQuery<T>` types
-- Query endpoint: `POST /graphql` with mediator dispatch
-- Per-tenant schema (if multitenancy enabled)
-- Subscription support (via SignalR + events)
-
-**Result:** Single mediator, multiple API styles (REST + GraphQL).
-
-**Effort:** 3 weeks | **Dependencies:** HotChocolate or GraphQL-dotnet
+| Risk | Impact | Likelihood | Mitigation |
+|------|--------|-----------|-----------|
+| Scope creep (too many packages) | Schedule slip | Medium | Prioritize MVP packages, defer nice-to-haves |
+| Circular dependencies (L2+) | Architecture fail | Medium | Enforce via unit tests; use static analyzer |
+| Performance regression | Adoption barrier | Low | Benchmark baseline before each release |
+| Community adoption low | Project sustainability | Medium | Share templates early; create video tutorials |
+| Breaking changes needed | Consumer pain | Low | Deprecation warnings; 2 major versions support |
+| Third-party lib updates | Compatibility issues | Low | Pin major versions; quarterly update review |
 
 ---
 
-### Q4 2026: Observability & DevOps
+## Quality Gates (All Waves)
 
-#### Priority 5: Advanced Observability (Medium)
+✅ **Mandatory for Release:**
+- 80%+ code coverage (minimum)
+- 100% of tests passing (no skipped)
+- All public APIs documented (XML comments)
+- No critical security issues (OWASP Top 10)
+- Performance benchmarks within expected range
+- Backward compatibility verified (if applicable)
 
-**Package:** `Nac.Observability.OpenTelemetry`
-
-**Rationale:** Structured logging alone insufficient for microservices; need metrics + tracing.
-
-**Scope:**
-- OpenTelemetry SDK integration
-- Per-command/query metrics (count, duration, errors)
-- Distributed tracing (parent-child span propagation)
-- Custom meter for business events
-- Integration with OTEL Collector
-
-**Metrics Collected:**
-- `command.execution_count` (labeled by command type)
-- `command.duration_ms` (histogram)
-- `query.cache_hits_ratio`
-- `event.published_count` (labeled by event type)
-
-**Effort:** 2 weeks | **Dependencies:** OpenTelemetry NuGet
+✅ **Code Review Process:**
+- Lead architecture review (layering, dependencies)
+- Peer code review (2+ reviewers)
+- Automated testing (xUnit + static analysis)
+- Performance profiling (critical paths)
 
 ---
 
-#### Priority 6: Distributed Cache (Redis) Pre-configuration (Low)
+## Documentation Plan
 
-**Package:** `Nac.Caching.Redis` (convenience, not required)
+**By Phase:**
+- Phase 6 (L2): API reference for each new package
+- Phase 7 (L3): Integration guide, architecture decision records
+- Phase 8 (Examples): Step-by-step tutorials, video walkthroughs
 
-**Rationale:** Simplify Redis setup for projects using distributed cache.
-
-**Scope:**
-- Fluent method: `.UseRedisCache(opts => opts.Connection = "...")`
-- Connection pooling preconfigured
-- Automatic serialization (MessagePack or Protobuf)
-- Health check integration
-
-**Effort:** 1 week | **Dependencies:** StackExchange.Redis
-
----
-
-### Q1 2027: Enterprise Features
-
-#### Priority 7: Audit Trail Framework (High)
-
-**Package:** `Nac.Auditing`
-
-**Rationale:** Compliance (GDPR, SOX) requires immutable audit logs.
-
-**Scope:**
-- Opt-in via `IAuditableCommand` marker
-- Automatic logging: who, what, when, tenant, before/after values
-- Audit event storage (custom handler or built-in table)
-- Query audit history: `GetAuditTrailQuery<TEntity>(Guid id)`
-- Retention policies (auto-delete after N days per GDPR)
-
-**Example:**
-```csharp
-public sealed record UpdateProductPriceCommand(Guid Id, decimal NewPrice)
-    : ICommand,
-      IAuditableCommand  // Triggers audit logging
-{
-}
-
-// Handler updates Product.Price
-// Audit trail captures: "Price changed from $100 to $150 by user:alice in tenant:acme"
-```
-
-**Effort:** 2 weeks | **Dependencies:** Custom implementation
+**Maintained Docs:**
+- system-architecture.md — Updated per phase
+- codebase-summary.md — Updated per phase
+- project-overview-pdr.md — PDR for each new package
+- project-changelog.md — Release notes per version
+- project-roadmap.md — This file, quarterly updates
 
 ---
 
-#### Priority 8: GDPR Toolkit (Medium)
+## Success Criteria
 
-**Package:** `Nac.Gdpr`
+### Immediate (By Q2 2026) ✅ ACHIEVED
+- [x] EventBus & Testing packages complete (Wave 2A)
+- [x] L2 Identity & MultiTenancy complete (Wave 2B)
+- [x] L2 Observability & Jobs complete (Wave 2C)
+- [x] L3 WebApi composition root complete (Wave 3)
+- [x] 40+ integration tests for L3
+- [ ] All examples compile and run (Wave 4)
 
-**Rationale:** Data deletion, anonymization, export workflows.
+### Long-term (By Q4 2026)
+- [ ] All templates installable via dotnet new
+- [ ] 100+ GitHub stars
+- [ ] First community contributor PR
+- [ ] NuGet downloads > 1000/month
+- [ ] Zero critical security issues
+- [ ] Performance benchmarks published
 
-**Scope:**
-- Right-to-deletion flow (event-driven cleanup)
-- Anonymization (replace PII with `***`)
-- Data export (per user, per tenant)
-- Audit compliance (no hard deletes, only soft)
-- Automated retention policies
-
-**Commands:**
-```csharp
-public sealed record DeleteUserDataCommand(Guid UserId, Guid TenantId) 
-    : ICommand;  // Triggers cascade deletion in all modules
-
-public sealed record ExportUserDataCommand(Guid UserId) 
-    : ICommand<StreamContent>;  // Returns JSON export
-```
-
-**Effort:** 3 weeks | **Dependencies:** Soft-delete, events
-
----
-
-### Future Considerations (Q2+ 2027)
-
-#### Potential Features (Under Evaluation)
-
-| Feature | Rationale | Status |
-|---------|-----------|--------|
-| **Feature Flags** | Enable/disable features per tenant | Research phase |
-| **A/B Testing** | Experiment management framework | Backlog |
-| **Cost Accounting** | Per-tenant usage tracking + billing | Backlog |
-| **Database Multi-master Replication** | High-availability databases | Backlog |
-| **Service Mesh Integration** | Kubernetes/Istio patterns | Backlog |
-| **Event Sourcing** (opt-in) | Immutable event store + event replay | Backlog |
-| **Temporal.io Integration** | Complex workflows (long-running processes) | Backlog |
-| **Business Rules Engine** | Decoupled business rule evaluation | Backlog |
+### Sustainability (2027+)
+- [ ] Quarterly release cadence maintained
+- [ ] <48 hour response time for critical issues
+- [ ] Community contributions reviewed weekly
+- [ ] Documentation kept current with code
 
 ---
 
-## Development Velocity & Metrics
+## Release Timeline
 
-### Completed (v1.0)
-
-| Metric | Value |
-|--------|-------|
-| **Total LOC** | 4,575 |
-| **Total Packages** | 15 |
-| **Avg Package Size** | 305 LOC |
-| **Development Time** | ~4 weeks (implementation) |
-| **Code Review Cycles** | 3 full reviews |
-| **Test Coverage** | 70%+ (target) |
-
-### Quality Gates (Post-v1.0)
-
-All future packages must meet:
-- **Test Coverage:** ≥ 70%
-- **Code Review:** 2 approvals
-- **Architecture Tests:** No boundary violations
-- **Performance:** No regression > 5% vs. baseline
-- **Security:** No critical/high findings
+| Release | Date | Focus | Status |
+|---------|------|-------|--------|
+| 1.0.0 | 2026-04-08 | L0 Nac.Core (190 tests) | ✅ Complete |
+| 1.1.0 | 2026-04-16 | Wave 1: L1 CQRS/Caching + L2 Persistence (255 tests) | ✅ Complete |
+| 1.2.0 | 2026-04-16 | Wave 2A: L2 EventBus + Testing (80+ tests, 255+ total) | ✅ Complete |
+| 1.3.0 | 2026-04-16 | Wave 2B: L2 Identity + MultiTenancy (150+ tests, 486 total) | ✅ Complete |
+| 1.4.0 | 2026-04-16 | Wave 2C: L2 Observability, Jobs (49 tests, 535 total) | ✅ Complete |
+| 1.5.0 | 2026-04-17 | Wave 3: L3 WebApi Composition Root (42 tests, 577 total) | ✅ Complete |
+| 1.5.1 | 2026-04-17 | Consumer Reference Architecture (samples/ReferenceApp, EventBus idempotency fix) | ✅ Complete |
+| 1.6.0 | 2026-Q3 | OutboxWorker<TContext> enhancement, multi-module outbox polling | 📋 Planned |
+| 2.0.0 | 2026-Q4 | dotnet new templates, Examples expansion | 📋 Planned |
 
 ---
 
-## Success Criteria per Release
+## Technology Decisions (Subject to Review)
 
-### v1.0 (April 2026)
-
-- ✅ 15 packages complete
-- ✅ CLI scaffolding works (tested with 3 real projects)
-- ✅ Multi-tenancy strategies validated
-- ✅ RabbitMQ integration stable
-- ✅ Documentation complete
-
-### v1.1 (Q2 2026)
-
-- [ ] Kafka support stable
-- [ ] Saga pattern widely adopted
-- [ ] OpenAPI generation reduces manual documentation
-- [ ] 0 critical issues from v1.0
-- [ ] Team adopts NAC for 2+ new projects
-
-### v1.2+ (Q3-Q4 2026)
-
-- [ ] Distributed observability in prod
-- [ ] GDPR toolkit deployed in at least 1 project
-- [ ] Audit trail captures all compliance requirements
-- [ ] Framework scales to 50+ microservices
-- [ ] Community PRs for feature extensions
+| Decision | Rationale | Alternative |
+|----------|-----------|-------------|
+| FrozenDictionary for CQRS | O(1) dispatch performance | Dictionary + lock or ConcurrentDictionary |
+| HybridCache over DistributedCache | Single API for hybrid caching | Separate in-mem and distributed caches |
+| EF Core for ORM | .NET-native, LINQ support | Dapper, NHibernate |
+| FluentValidation over DataAnnotations | Composable, testable validation | DataAnnotations attributes |
+| Finbuckle for multi-tenancy | Proven, feature-rich | Custom implementation |
+| xUnit over NUnit | Modern, better async support | NUnit, MSTest |
 
 ---
 
-## Adoption Targets
+## Quarterly Reviews
 
-### Short Term (6 months)
+Roadmap reviewed quarterly (Jan, Apr, Jul, Oct):
+- Progress against milestones
+- Risk assessment updates
+- Scope adjustments based on adoption feedback
+- Timeline revisions if needed
 
-- **Internal:** 3-4 new projects using NAC
-- **External:** Open-source release (GitHub)
-- **Documentation:** Full coverage with 50+ examples
-
-### Medium Term (12 months)
-
-- **Community:** 10+ community-contributed features
-- **Ecosystem:** 3+ complementary packages (distributed transactions, event sourcing, etc.)
-- **Maturity:** v2.0 with breaking changes finalized
-
-### Long Term (18+ months)
-
-- **Adoption:** Benchmark against other frameworks (Clean Architecture kits, Vertical Slice Template)
-- **Certification:** Developer certification program
-- **Commercial:** Optional enterprise support tier
+**Next Review:** Q3 2026 (July)
 
 ---
 
-## Breaking Changes Policy
-
-### Semantic Versioning
-- **v1.x:** API stable; breaking changes only in v2
-- **v2+:** Semantic versioning respected
-
-### Deprecation Warning Period
-- New major version: 6-month deprecation window
-- Migration guide + code examples provided
-- Automated tooling (`nac upgrade`) assists migration
-
----
-
-## Dependency Update Strategy
-
-### Framework Dependencies
-
-| Package | Current | Update Policy |
-|---------|---------|----------------|
-| .NET | 10.0 | Track LTS (n+2 years support) |
-| EF Core | 10.0.5 | Update with .NET |
-| RabbitMQ.Client | 7.2.1 | Quarterly minor updates |
-| System.CommandLine | 2.0.5 | As available |
-| Npgsql | Latest | Quarterly updates |
-
-### Security Updates
-- Critical: Same-day patch release
-- High: Weekly release cycle
-- Medium: Monthly release cycle
-
----
-
-## Monitoring & Feedback
-
-### Metrics Tracked
-
-- **Adoption:** # of projects using NAC
-- **Engagement:** GitHub stars, forum activity
-- **Performance:** Benchmark comparisons
-- **Quality:** Issue resolution time, bug count
-
-### Feedback Channels
-
-- GitHub Issues (bug reports, feature requests)
-- Discussions forum (architecture questions)
-- Monthly sync with early adopters
-- Annual summit (Q1) for community feedback
-
----
-
-## Dependencies & Constraints
-
-### External Dependencies
-
-- **.NET 10+:** Non-negotiable
-- **EF Core:** Only supported ORM (no Dapper, NHibernate)
-- **PostgreSQL:** Recommended; others via custom provider
-- **RabbitMQ/Kafka:** Optional for distributed messaging
-
-### Organizational Constraints
-
-- **Single solution file:** All packages in Nac.slnx
-- **CLI-first:** Scaffolding is primary workflow, not secondary
-- **Module isolation:** Non-negotiable; enforced at build time
-- **Zero third-party mediator:** Custom implementation mandatory
-
----
-
-## Risk Register
-
-| Risk | Probability | Impact | Mitigation |
-|------|-------------|--------|-----------|
-| Breaking changes in .NET 11 | Medium | High | Monitor releases early, participate in betas |
-| Adoption slower than expected | Medium | Medium | Invest in documentation, examples, webinars |
-| Community fragmentation (forks) | Low | High | Clear governance, responsive maintainers |
-| Performance regression in scaling | Low | High | Continuous benchmarking, load tests |
-| Security vulnerability in dependency | Low | High | Security scanning, rapid patch cycle |
-
----
-
-## Glossary & Links
-
-- **CQRS:** Command Query Responsibility Segregation
-- **DDD:** Domain-Driven Design
-- **Saga:** Multi-step workflow with compensation
-- **Outbox Pattern:** Ensures reliable event publishing
-- **Idempotency:** Safe to retry without side effects
-- **Correlation ID:** Request tracing across services
-
----
-
-## Questions & Contact
-
-**For roadmap feedback:** Open GitHub Discussion or email info@nac.best
-
-**For feature requests:** File GitHub Issue with "enhancement" label.
-
-**For security concerns:** Email info@nac.best (responsible disclosure).
-
+**Last Updated:** 2026-04-17 (Wave 3 complete)  
+**Next Update:** 2026-07-17  
+**Maintainer:** Solo development  
+**License:** MIT

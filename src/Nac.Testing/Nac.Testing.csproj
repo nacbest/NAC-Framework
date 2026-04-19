@@ -1,13 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
-    <Description>[TOOLING] Test fakes: FakeEventBus, FakeTenantContext, FakeCurrentUser. Use in: Test projects.</Description>
-    <PackageTags>nac;framework;testing;fakes;helpers</PackageTags>
+    <PackageId>Nac.Testing</PackageId>
+    <Version>$(NacFrameworkVersion)</Version>
+    <Description>NAC Framework Testing — Fakes, builders, fixtures, and assertion helpers</Description>
   </PropertyGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\Nac.Core\Nac.Core.csproj" />
-    <ProjectReference Include="..\Nac.CQRS\Nac.CQRS.csproj" />
+    <ProjectReference Include="..\Nac.Cqrs\Nac.Cqrs.csproj" />
+    <ProjectReference Include="..\Nac.Caching\Nac.Caching.csproj" />
+    <ProjectReference Include="..\Nac.Persistence\Nac.Persistence.csproj" />
+    <ProjectReference Include="..\Nac.EventBus\Nac.EventBus.csproj" />
+    <ProjectReference Include="..\Nac.Jobs\Nac.Jobs.csproj" />
   </ItemGroup>
-
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="FluentAssertions" />
+  </ItemGroup>
 </Project>

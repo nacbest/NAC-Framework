@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <!-- Framework modules -->
+    <ProjectReference Include="$(NacFrameworkSrc)/Nac.Core/Nac.Core.csproj" />
+    <ProjectReference Include="$(NacFrameworkSrc)/Nac.Cqrs/Nac.Cqrs.csproj" />
+    <ProjectReference Include="$(NacFrameworkSrc)/Nac.Persistence/Nac.Persistence.csproj" />
+    <ProjectReference Include="$(NacFrameworkSrc)/Nac.EventBus/Nac.EventBus.csproj" />
+    <ProjectReference Include="$(NacFrameworkSrc)/Nac.MultiTenancy/Nac.MultiTenancy.csproj" />
+    <!-- Billing public contracts -->
+    <ProjectReference Include="../Billing.Contracts/Billing.Contracts.csproj" />
+    <!-- Orders.Contracts only — no reference to Orders internal project -->
+    <ProjectReference Include="../../Orders/Orders.Contracts/Orders.Contracts.csproj" />
+    <!-- Shared kernel: ResultExtensions.ToActionResult() -->
+    <ProjectReference Include="../../../BuildingBlocks/ReferenceApp.SharedKernel/ReferenceApp.SharedKernel.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- ASP.NET Core for ControllerBase, [Authorize], [ApiController] -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- EF Core Postgres provider for BillingDbContext -->
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <!-- EF Core Design for migrations (PrivateAssets=all — not deployed) -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <!-- Core primitives: IDomainEvent, Result<T>, etc. -->
+    <ProjectReference Include="$(NacFrameworkSrc)/Nac.Core/Nac.Core.csproj" />
+    <!-- IIntegrationEvent lives in Nac.Core.Abstractions.Events but is referenced via Nac.Core -->
+  </ItemGroup>
+</Project>

@@ -1,16 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
-    <Description>[CORE] CQRS dispatcher with pipeline behaviors and handler resolution. Use in: Modules + Host.</Description>
-    <PackageTags>nac;framework;cqrs;mediator;pipeline</PackageTags>
+    <PackageId>Nac.Cqrs</PackageId>
+    <Version>$(NacFrameworkVersion)</Version>
+    <Description>NAC Framework CQRS — Custom dispatcher, pipeline behaviors, command/query handling</Description>
   </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
-  </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\Nac.Core\Nac.Core.csproj" />
+    <ProjectReference Include="..\Nac.Caching\Nac.Caching.csproj" />
   </ItemGroup>
-
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+  </ItemGroup>
 </Project>

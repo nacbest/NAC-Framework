@@ -1,56 +1,44 @@
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
-using Nac.Core.Auth;
-using Nac.Identity.Entities;
+using Nac.Core.Abstractions.Identity;
+using Nac.Identity.Users;
 
 namespace Nac.Identity.Services;
 
 /// <summary>
-/// Implements <see cref="IIdentityService"/> using ASP.NET Core Identity.
-/// Generic over TUser to support custom user types extending <see cref="NacIdentityUser"/>.
-/// Provides user lookups for business modules without coupling them to Identity infrastructure.
+/// Implements <see cref="IIdentityService"/> by delegating to
+/// <see cref="UserManager{NacUser}"/>. Registered as scoped.
 /// </summary>
-internal class IdentityService<TUser> : IIdentityService
-    where TUser : NacIdentityUser
+internal sealed class IdentityService(UserManager<NacUser> userManager) : IIdentityService
 {
-    private readonly UserManager<TUser> _userManager;
-
-    public IdentityService(UserManager<TUser> userManager)
-        => _userManager = userManager;
-
-    public async Task<UserInfo?> GetUserInfoAsync(Guid userId, CancellationToken ct = default)
+    /// <inheritdoc/>
+    public async Task<UserInfo?> GetUserInfoAsync(Guid userId)
     {
-        var user = await _userManager.FindByIdAsync(userId.ToString());
+        var user = await userManager.FindByIdAsync(userId.ToString());
         if (user is null) return null;
 
-        var roles = await _userManager.GetRolesAsync(user);
-        return new UserInfo(user.Id, user.Email ?? string.Empty, user.DisplayName, user.TenantId, roles.ToList());
+        var roles = await userManager.GetRolesAsync(user);
+        return new UserInfo(user.Id, user.Email ?? string.Empty, user.FullName, user.TenantId, roles.ToList());
     }
 
-    public async Task<IReadOnlyList<UserInfo>> GetUsersAsync(
-        IEnumerable<Guid> userIds, CancellationToken ct = default)
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<UserInfo>> GetUsersAsync(IEnumerable<Guid> userIds)
     {
-        var ids = userIds.ToHashSet();
-        if (ids.Count == 0)
-            return [];
+        var idSet = userIds.ToHashSet();
+        var users = userManager.Users.Where(u => idSet.Contains(u.Id)).ToList();
 
-        var users = await _userManager.Users
-            .Where(u => ids.Contains(u.Id))
-            .ToListAsync(ct);
-
-        var result = new List<UserInfo>(users.Count);
+        var results = new List<UserInfo>(users.Count);
         foreach (var user in users)
         {
-            var roles = await _userManager.GetRolesAsync(user);
-            result.Add(new UserInfo(user.Id, user.Email ?? string.Empty, user.DisplayName, user.TenantId, roles.ToList()));
+            var roles = await userManager.GetRolesAsync(user);
+            results.Add(new UserInfo(user.Id, user.Email ?? string.Empty, user.FullName, user.TenantId, roles.ToList()));
         }
-        return result;
+        return results;
     }
 
-    public async Task<bool> IsInRoleAsync(Guid userId, string role, CancellationToken ct = default)
+    /// <inheritdoc/>
+    public async Task<bool> IsInRoleAsync(Guid userId, string role)
     {
-        var user = await _userManager.FindByIdAsync(userId.ToString());
-        if (user is null) return false;
-        return await _userManager.IsInRoleAsync(user, role);
+        var user = await userManager.FindByIdAsync(userId.ToString());
+        return user is not null && await userManager.IsInRoleAsync(user, role);
     }
 }

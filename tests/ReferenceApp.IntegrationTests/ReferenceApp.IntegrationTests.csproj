@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <!-- Allow internal types in Billing/Orders to be accessible via InternalsVisibleTo if needed -->
+    <!-- TreatWarningsAsErrors is inherited from Directory.Build.props — keep false for test projects -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- NAC Framework test packages -->
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="FluentAssertions" />
+    <!-- Integration testing infrastructure -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Respawn" />
+    <!-- Npgsql for raw SQL outbox polling -->
+    <PackageReference Include="Npgsql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Host project — exposes public partial class Program for WebApplicationFactory -->
+    <ProjectReference Include="..\..\samples\ReferenceApp\src\Host\Host.csproj" />
+    <!-- Module contracts — for DTO types in tests -->
+    <ProjectReference Include="..\..\samples\ReferenceApp\src\Modules\Orders\Orders.Contracts\Orders.Contracts.csproj" />
+    <ProjectReference Include="..\..\samples\ReferenceApp\src\Modules\Billing\Billing.Contracts\Billing.Contracts.csproj" />
+    <!-- NAC Testing helpers -->
+    <ProjectReference Include="..\..\src\Nac.Testing\Nac.Testing.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- ASP.NET Core for WebApplicationFactory -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="xunit.runner.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+</Project>

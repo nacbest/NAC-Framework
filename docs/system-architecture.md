@@ -1,1096 +1,1464 @@
 # NAC Framework — System Architecture
 
-Comprehensive overview of NAC Framework's architectural patterns, data flows, and design decisions.
+## Architectural Overview
+
+NAC Framework is a **layered, modular architecture** for building .NET applications using Domain-Driven Design (DDD) principles. It provides reusable building blocks across three layers (L0, L1, L2+), with each layer adding higher-level abstractions on top of a zero-dependency foundation.
+
+### Design Philosophy
+
+1. **Layered Dependency Graph:** Lower layers never depend on higher layers
+2. **Zero-Dependency Foundation (L0):** Maximum reusability
+3. **Interface-Based Contracts:** Implementations deferred to higher layers
+4. **Convention over Configuration:** Sensible defaults, explicit when needed
+5. **Composability:** Modules combine via dependency attributes
+6. **Testability:** All abstractions have mockable implementations
 
 ---
 
-## Architecture Overview
+## Layered Architecture
 
-NAC Framework combines **Clean Architecture** (layered, dependency inversion) with **Vertical Slice Modularity** (feature-driven, autonomous modules).
-
-### Why Not Pure Clean Architecture?
-
-Pure Clean Architecture (separate projects per layer: Domain, Application, Infrastructure) creates friction at scale:
-
-- Single business feature requires changes across 3-4 projects
-- Cross-module contracts muddy responsibility boundaries
-- Dependency graphs become fragile and hard to navigate
-
-### NAC Approach: Module = Unit of Deployment
-
-Each module is self-contained with its own Domain/Application/Infrastructure layers. Modules communicate via:
-- **Integration Events** (async, eventual consistency)
-- **Module Contracts** (sync queries, interfaces only)
-- **Shared Kernel** (minimal, stable types)
-
-**Result:** Monolith today, microservices tomorrow without rearchitecture.
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Application                                                 │
+│  (Consumer projects: AddNacWebApi + AddNacApplication)      │
+└─────────────────┬───────────────────────────────────────────┘
+                  │
+┌─────────────────▼───────────────────────────────────────────┐
+│  L3 — WebApi (Composition Root)                             │
+│  ├─ Nac.WebApi                                              │
+│  │  ├─ NacApplicationFactory (Pre/Config/Post lifecycle)    │
+│  │  ├─ NacModuleLoader (Kahn's topo sort)                  │
+│  │  ├─ NacApplicationLifetime (IHostedService)             │
+│  │  ├─ Middleware pipeline (13 stages)                     │
+│  │  ├─ Global exception handling (RFC 9457)                │
+│  │  ├─ API versioning (Asp.Versioning)                     │
+│  │  ├─ OpenAPI/Swagger                                     │
+│  │  ├─ CORS, rate limiting, compression                    │
+│  │  └─ Health checks integration                           │
+└─────────────────┬───────────────────────────────────────────┘
+                  │
+      ┌───────────┴───────────────────────────────────────────┐
+      │                                                        │
+┌─────▼──────────────────────┐    ┌──────────────────────────▼─┐
+│ L2 — Feature Layers        │    │ L2 — Feature Layers       │
+├────────────────────────────┤    ├──────────────────────────┤
+│ Nac.Persistence            │    │ Nac.Identity             │
+│ ├─ DbContext               │    │ ├─ Auth integration      │
+│ ├─ Entity mappings         │    │ ├─ Permission checker    │
+│ ├─ Repository impl         │    │ ├─ Role management       │
+│ ├─ Outbox pattern          │    │ └─ Session management    │
+│ └─ EF Core interceptors    │    │                          │
+└─────┬──────────────────────┘    └──────┬───────────────────┘
+      │                                   │
+      │ ┌──────────────────────┐         │
+      │ │ Nac.MultiTenancy (✅)│         │
+      │ │ ├─ Tenant context    │         │
+      │ │ ├─ RLS integration   │         │
+      │ │ ├─ 4 strategies      │         │
+      │ │ └─ Migration support │         │
+      │ └──────┬───────────────┘         │
+      │        │                         │
+      │ ┌──────▼─────────────────┐      │
+      │ │ Nac.EventBus (✅)     │      │
+      │ │ ├─ Event publishing   │      │
+      │ │ ├─ Handler dispatch   │      │
+      │ │ ├─ Outbox integration │      │
+      │ │ └─ InMemory transport │      │
+      │ └──────┬────────────────┘      │
+      │        │                        │
+      │ ┌──────▼─────────────────┐     │
+      │ │ Nac.Observability (✅) │     │
+      │ │ ├─ Structured logging  │     │
+      │ │ ├─ Diagnostic sources  │     │
+      │ │ └─ Logging scope       │     │
+      │ └──────┬────────────────┘     │
+      │        │                       │
+      │ ┌──────▼─────────────────┐    │
+      │ │ Nac.Jobs (✅)         │    │
+      │ │ ├─ Job scheduling API  │    │
+      │ │ ├─ Recurring jobs      │    │
+      │ │ └─ Job handler pattern │    │
+      │ └──────┬────────────────┘    │
+      │        │                      │
+      │ ┌──────▼─────────────────┐   │
+      │ │ Nac.Testing (✅)      │   │
+      │ │ ├─ Test fixtures      │   │
+      │ │ ├─ Fluent builders    │   │
+      │ │ ├─ 7 in-memory fakes  │   │
+      │ │ └─ Assertion helpers  │   │
+      │ └────────────────────────┘   │
+      │                              │
+┌─────┴──────────────────────────────┴──────┐
+│                                            │
+│  L1 — Higher-Order Abstractions           │
+│  ├─ Nac.Cqrs (COMPLETE ✅)                 │
+│  │  ├─ Command/Query dispatcher           │
+│  │  ├─ Sealed handler pattern             │
+│  │  ├─ ValueTask<T> returns               │
+│  │  ├─ Pipeline behaviors                 │
+│  │  │  ├─ Validation (FluentValidation)   │
+│  │  │  ├─ Logging (ILogger)               │
+│  │  │  ├─ Caching (INacCache)             │
+│  │  │  └─ Transaction (IUnitOfWork)       │
+│  │  ├─ ISender dispatch interface         │
+│  │  └─ Assembly scanning for handlers     │
+│  │                                        │
+│  └─ Nac.Caching (COMPLETE ✅)             │
+│     ├─ INacCache abstraction              │
+│     ├─ HybridCache (.NET 10+) wrapper      │
+│     ├─ Tenant-aware key prefixing         │
+│     ├─ Tag-based invalidation             │
+│     └─ CacheKey static utility            │
+└─────┬───────────────────────────────────┘
+      │
+┌─────▼──────────────────────────────────────┐
+│                                             │
+│  L0 — Core (Zero Dependencies)             │
+│  │                                         │
+│  ├─ Primitives                            │
+│  │  ├─ Entity<TId>                        │
+│  │  ├─ AggregateRoot<TId>                 │
+│  │  ├─ ValueObject                        │
+│  │  ├─ IDomainEvent                       │
+│  │  ├─ IStronglyTypedId                   │
+│  │  ├─ IAuditableEntity                   │
+│  │  └─ ISoftDeletable                     │
+│  │                                         │
+│  ├─ Results                               │
+│  │  ├─ Result                             │
+│  │  ├─ Result<T>                          │
+│  │  ├─ ResultStatus                       │
+│  │  └─ ValidationError                    │
+│  │                                         │
+│  ├─ Domain                                │
+│  │  ├─ IRepository<T>                     │
+│  │  ├─ IReadRepository<T>                 │
+│  │  ├─ Specification<T>                   │
+│  │  ├─ Guard                              │
+│  │  ├─ DomainError                        │
+│  │  └─ ITenantEntity                      │
+│  │                                         │
+│  ├─ Modularity                            │
+│  │  ├─ NacModule                          │
+│  │  ├─ DependsOnAttribute                 │
+│  │  ├─ ServiceConfigurationContext        │
+│  │  ├─ ApplicationInitializationContext   │
+│  │  └─ ApplicationShutdownContext         │
+│  │                                         │
+│  ├─ DependencyInjection                   │
+│  │  ├─ ITransientDependency               │
+│  │  ├─ IScopedDependency                  │
+│  │  ├─ ISingletonDependency               │
+│  │  └─ DependencyAttribute                │
+│  │                                         │
+│  ├─ Abstractions                          │
+│  │  ├─ Identity (ICurrentUser, etc.)      │
+│  │  ├─ Permissions (PermissionDefinition) │
+│  │  ├─ Events (IIntegrationEvent)         │
+│  │  └─ IDateTimeProvider                  │
+│  │                                         │
+│  ├─ DataSeeding                           │
+│  │  ├─ IDataSeeder                        │
+│  │  └─ DataSeedContext                    │
+│  │                                         │
+│  └─ ValueObjects                          │
+│     ├─ Money                              │
+│     ├─ Address                            │
+│     ├─ DateRange                          │
+│     └─ Pagination                         │
+│                                            │
+└──────────────────────────────────────────┘
+```
 
 ---
 
-## CQRS Pipeline Architecture
+## Core Components Deep Dive
 
-### Message Types
+### 1. Primitives Layer (L0)
 
-NAC enforces **strict CQRS separation** via distinct message types:
+#### Entity<TId>
+**Purpose:** Base class for domain entities (reference types identified by ID)
 
-| Type | Purpose | Mutates | Transactions | Caching | Auditing |
-|------|---------|---------|--------------|---------|----------|
-| **Command** | Write operation | Yes | ✓ | ✗ | ✓ |
-| **Query** | Read operation | No | ✗ | ✓ | ✗ |
-| **Notification** | In-process event | No | ✗ | ✗ | ✗ |
+**Key Features:**
+- Type-safe generic ID (TId : notnull)
+- Domain event tracking and sourcing
+- Protected setter for ID (immutable after creation)
+- Event clearing after publication
 
-**Why separate?** If a single interface existed, behaviors could apply to both—breaking CQRS separation.
-
-### Command Pipeline
-
-```
-HTTP Request
-  ↓
-Endpoint Receives Command
-  ↓
-Mediator.Send(command)
-  ↓
-[Pipeline Behaviors (in order)]
-  ├─ 1. ExceptionHandling — catch + log + rethrow
-  ├─ 2. Logging — entry + parameters
-  ├─ 3. Validation — FluentValidation
-  ├─ 4. Authorization — IRequirePermission check
-  ├─ 5. TenantEnrichment — set tenant context (if multitenancy)
-  ├─ 6. UnitOfWork — open transaction
-  │   ├─ 7. Handler — business logic (no SaveChanges!)
-  │   ├─ 8. SaveChanges — EF Core commit
-  │   └─ 9. Domain Event Dispatch — publish in-process notifications
-  └─ 10. (response)
-  ↓
-HTTP Response (200, 4xx, 5xx)
+**Usage:**
+```csharp
+public class User : Entity<UserId>
+{
+    public string Email { get; private set; }
+    
+    public User(UserId id, string email)
+    {
+        Id = id;
+        Email = email;
+    }
+    
+    public void ChangeEmail(string newEmail)
+    {
+        Email = newEmail;
+        RaiseDomainEvent(new UserEmailChangedEvent(Id, newEmail));
+    }
+}
 ```
 
-**Key Points:**
-- Handler NEVER calls SaveChanges—UnitOfWork behavior does
-- Domain events dispatch AFTER transaction commits (post-commit pattern)
-- Behaviors are registered explicitly in order; no auto-discovery
+#### AggregateRoot<TId>
+**Purpose:** Marks a transactional boundary in the domain
 
-### Query Pipeline
+**Key Features:**
+- Extends Entity<TId>
+- Communicates to persistence layer: "save this unit atomically"
+- No additional behavior (semantic marker)
 
-```
-HTTP Request
-  ↓
-Endpoint Receives Query
-  ↓
-Mediator.Send(query)
-  ↓
-[Pipeline Behaviors (in order)]
-  ├─ 1. ExceptionHandling
-  ├─ 2. Logging — entry + parameters
-  ├─ 3. Validation
-  ├─ 4. Authorization — IRequirePermission check
-  ├─ 5. Caching — check cache (if ICacheable)
-  │   ├─ Hit: return cached result
-  │   └─ Miss: continue to handler
-  ├─ 6. Handler — fetch data
-  └─ 7. CachingStoreResult — store result if ICacheable
-  ↓
-HTTP Response (200, 404, 5xx)
+**Usage:**
+```csharp
+public class Order : AggregateRoot<OrderId>
+{
+    // Order is the transactional boundary
+    // All order-related entities cascade from here
+}
 ```
 
-**Lighter than commands:** No transaction, no domain events, just read + optional cache.
+#### ValueObject
+**Purpose:** Immutable, equality-by-value types
 
----
+**Key Features:**
+- Record-based immutability
+- Operator overloading (==, !=)
+- Hashable (can use in collections)
+- No ID; equality determined by property values
 
-## Dual Event System
-
-NAC supports TWO event buses for different purposes:
-
-### Layer 1: Domain Events (In-Process)
-
-**Scope:** Within a single module, immediate consistency
-
-**Flow:**
-```
-1. Handler processes command
-2. Business logic mutates aggregate
-3. Aggregate raises domain event (added to collection)
-4. UnitOfWork commits transaction
-5. Domain events collected from tracked entities
-6. Mediator.PublishAsync(notification) for each event
-7. Event handlers run in-process, same request scope
+**Usage:**
+```csharp
+public record Money(decimal Amount, string CurrencyCode) : ValueObject
+{
+    // Equality: two Money objects with same Amount and Currency are equal
+    // No ID needed
+}
 ```
 
-**Characteristics:**
-- Fire-and-forget within same request
-- No serialization needed
-- Perfect for internal module consistency
-- If handler needs to write → new transaction
+#### IDomainEvent
+**Purpose:** Marker for in-domain events
+
+**Key Features:**
+- Simple interface: `interface IDomainEvent { }`
+- Raised on entities, cleared after processing
+- Used for event sourcing and audit trails
+
+### 2. Results Layer (L0)
+
+#### Result Pattern
+**Purpose:** Explicit error handling without exceptions for business logic
+
+**Key Features:**
+- ResultStatus enum: Ok, Invalid, NotFound, Forbidden, Conflict, Error
+- Errors: string[] for general errors
+- ValidationErrors: field-level validation errors
+- Generic Result<T> for payloads
+
+**Result Statuses:**
+| Status | Meaning | HTTP | Use Case |
+|--------|---------|------|----------|
+| Ok | Success | 200 | Operation succeeded |
+| Invalid | Validation failed | 400 | Invalid input |
+| NotFound | Resource not found | 404 | Entity doesn't exist |
+| Forbidden | Access denied | 403 | Permission denied |
+| Conflict | State conflict | 409 | Business rule violated |
+| Error | Server error | 500 | Unexpected error |
+
+**Usage:**
+```csharp
+public Result Validate()
+{
+    if (Age < 18)
+        return Result.Invalid(new ValidationError("Age", "Must be 18+"));
+    
+    return Result.Success();
+}
+
+public async Task<Result<User>> GetUserAsync(int id)
+{
+    var user = await _repository.GetAsync(id);
+    if (user is null)
+        return Result.NotFound($"User {id} not found");
+    
+    return Result.Success(user);
+}
+```
+
+### 3. Domain Layer (L0)
+
+#### Repository Pattern
+**Purpose:** Abstract data access for domain entities
+
+**Contracts:**
+```csharp
+public interface IRepository<T> where T : AggregateRoot<TId>
+{
+    Task AddAsync(T entity);
+    Task UpdateAsync(T entity);
+    Task RemoveAsync(T entity);
+}
+
+public interface IReadRepository<T> where T : Entity<TId>
+{
+    Task<T?> GetAsync(TId id);
+    Task<IEnumerable<T>> GetAllAsync();
+}
+```
+
+**Design Decision:** Separate read/write repos prevent accidental mutations on queries
+
+#### Specification Pattern
+**Purpose:** Encapsulate reusable query logic with boolean composition
+
+**Features:**
+- Composable with And/Or/Not operators
+- Type-safe predicate matching
+- Can be translated to SQL (via L2 Persistence layer)
+
+**Usage:**
+```csharp
+// Specifications as building blocks
+public class ActiveUserSpec : Specification<User>
+{
+    public ActiveUserSpec() : base(u => u.IsActive) { }
+}
+
+public class PremiumUserSpec : Specification<User>
+{
+    public PremiumUserSpec() : base(u => u.IsPremium) { }
+}
+
+// Compose dynamically
+var spec = new ActiveUserSpec() & new PremiumUserSpec();
+var results = users.Where(spec.Criteria).ToList();
+```
+
+#### Guard
+**Purpose:** Declarative input validation
+
+**Common Guards:**
+```csharp
+Guard.NotNull(value, nameof(value));          // Reference type validation
+Guard.NotEmpty(text, nameof(text));           // String validation
+Guard.GreaterThanOrEqual(age, 18, nameof(age)); // Numeric bounds
+Guard.Length(password, 8, 128, nameof(password)); // String length
+```
+
+### 4. Modularity Layer (L0)
+
+#### NacModule
+**Purpose:** Define a feature module with automatic DI wiring
+
+**Lifecycle:**
+1. **ConfigureServices:** Register dependencies
+2. **OnApplicationInitializationAsync:** Start-up logic (seed data, warm caches)
+3. **OnApplicationShutdownAsync:** Cleanup
 
 **Example:**
 ```csharp
-public sealed class CreateOrderCommandHandler : ICommandHandler<CreateOrderCommand, Guid>
+[DependsOn(typeof(CoreModule))]
+public class UserModule : NacModule
 {
-    public async Task<Guid> HandleAsync(CreateOrderCommand cmd, CancellationToken ct)
+    public override void ConfigureServices(ServiceConfigurationContext context)
     {
-        var order = Order.Create(cmd.CustomerId, cmd.Items);  // Raises OrderCreatedDomainEvent
-        _repository.Add(order);
-        // Don't call SaveChanges! UnitOfWork behavior does it post-handler
-        
-        // Domain event handled by OrderCreatedDomainEventHandler
-        // (which may publish integration event)
-        return order.Id;
+        context.Services.AddScoped<IUserService, UserService>();
+        context.Services.AddScoped<IUserRepository, UserRepository>();
+    }
+
+    public override async Task OnApplicationInitializationAsync(ApplicationInitializationContext context)
+    {
+        // Seed initial users
+        var seeder = context.ServiceProvider.GetRequiredService<IDataSeeder>();
+        await seeder.SeedAsync();
     }
 }
 ```
 
-### Layer 2: Integration Events (Distributed)
-
-**Scope:** Between modules, eventual consistency
-
-**Flow:**
-```
-1. Domain event handler publishes integration event to IEventBus
-2. Bus implementation decides:
-   
-   InMemoryEventBus:
-   ├─ Store in Channel
-   └─ Worker picks up async, invokes handlers
-   
-   OutboxEventBus:
-   ├─ Persist to OutboxMessage table
-   ├─ Background worker polls Outbox
-   └─ Publishes to actual broker (RabbitMQ)
-   
-   RabbitMqEventBus:
-   ├─ Serialize to JSON
-   ├─ Publish to topic exchange
-   └─ Subscribers consume (with idempotency via event ID)
-```
-
-**Characteristics:**
-- Async, bounded contexts
-- Requires serialization
-- Broker-based (if using RabbitMQ/Kafka)
-- Consumer responsible for idempotency
-- At-least-once delivery guarantee (Outbox pattern)
+#### DependsOn Attribute
+**Purpose:** Declare module dependencies (alternative to reflection)
 
 **Example:**
 ```csharp
-public sealed class OrderCreatedDomainEventHandler : INotificationHandler<OrderCreatedDomainEvent>
+[DependsOn(typeof(CoreModule), typeof(PersistenceModule))]
+public class ApplicationModule : NacModule { }
+```
+
+### 5. Abstractions Layer (L0)
+
+#### Identity Abstractions
+**Purpose:** Identity contracts for auth/authorization
+
+```csharp
+public interface ICurrentUser
 {
-    public async Task HandleAsync(OrderCreatedDomainEvent evt, CancellationToken ct)
-    {
-        // Publish integration event (async, may fail and retry)
-        await _eventBus.PublishAsync(new OrderCreatedIntegrationEvent(
-            evt.OrderId,
-            evt.CustomerId,
-            evt.TotalAmount
-        ), ct);
-    }
+    int? Id { get; }
+    string? Name { get; }
+    bool IsAuthenticated { get; }
+    IReadOnlyList<string> Roles { get; }
 }
 
-// Subscriber in different module (e.g., Inventory)
-public sealed class OrderCreatedIntegrationEventHandler 
-    : IIntegrationEventHandler<OrderCreatedIntegrationEvent>
+public interface IIdentityService
 {
-    public async Task HandleAsync(OrderCreatedIntegrationEvent evt, CancellationToken ct)
-    {
-        // Consume and process (maybe deduct inventory)
-    }
+    Task<Result<UserInfo>> AuthenticateAsync(string username, string password);
+    Task<Result> RegisterAsync(string username, string email, string password);
 }
 ```
 
-### Event Bus Abstraction
-
-**Single interface, swappable implementation:**
+#### Permissions Abstractions
+**Purpose:** Declarative permission definitions
 
 ```csharp
-public interface IEventBus
+public class PermissionDefinition
 {
-    Task PublishAsync<T>(T @event, CancellationToken cancellationToken = default) 
-        where T : IIntegrationEvent;
+    public string Name { get; init; }
+    public string DisplayName { get; init; }
+    public PermissionGroup? ParentGroup { get; init; }
+    public bool IsGrantedByDefault { get; init; }
 }
 
-// Development: InMemoryEventBus (fast, single-process)
-services.AddInMemoryEventBus();
-
-// Production: RabbitMQ (distributed, reliable)
-services.AddRabbitMqEventBus(opts =>
+public interface IPermissionChecker
 {
-    opts.HostName = "rabbitmq";
-    opts.ExchangeName = "nac.events";
-});
+    Task<bool> IsGrantedAsync(string permissionName);
+}
+```
+
+#### Events Abstractions
+**Purpose:** Integration event contracts
+
+```csharp
+public interface IIntegrationEvent
+{
+    Guid Id { get; }
+    DateTime CreatedAt { get; }
+}
+
+// Concrete events
+public record UserRegisteredEvent(Guid Id, string Email, string Name) : IIntegrationEvent
+{
+    public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
+}
 ```
 
 ---
 
-## Persistence Architecture
+## Data Flow Patterns
 
-### DbContext Per Module (Mandatory)
-
-Each module is a **single project** with clean architecture enforced by folders.
-The DbContext lives in the `Infrastructure/` folder within the module.
+### 1. Command (Write) Flow
 
 ```
-{Ns}.Modules.Catalog/
-  Domain/Entities/Product.cs
-  Application/Commands/...
-  Contracts/IProductRepository.cs
-  Infrastructure/
-    CatalogDbContext.cs
-    Configurations/ProductConfiguration.cs
-    Repositories/ProductRepository.cs
-  Endpoints/
-    ProductEndpoints.cs              ← implements IEndpointMapper
-  CatalogModule.cs                   ← : INacModule (services only)
-  CatalogServiceCollectionExtensions.cs
+API Controller
+    ↓
+ICommandHandler<TCommand, TResult>
+    ↓
+[Pipeline Behaviors: Validation, Logging, Authorization]
+    ↓
+Domain Service / Aggregate Root
+    ↓
+Guard clauses (validate inputs)
+    ↓
+Business logic (raise domain events)
+    ↓
+Repository.UpdateAsync()
+    ↓
+[EF Core DbContext]
+    ↓
+Persist entity + events
+    ↓
+[Event Bus: Publish integration events]
+    ↓
+Return Result<T>
 ```
 
-**DbContext** (in `Infrastructure/`):
+### 2. Query (Read) Flow
 
-```csharp
-// In {Ns}.Modules.Catalog/Infrastructure/CatalogDbContext.cs
-public sealed class CatalogDbContext : NacDbContext
-{
-    public CatalogDbContext(
-        DbContextOptions<CatalogDbContext> options,
-        ICurrentUser? currentUser = null) : base(options, currentUser) { }
-
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
-    {
-        base.OnModelCreating(modelBuilder);
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(CatalogDbContext).Assembly);
-    }
-}
+```
+API Controller
+    ↓
+IQueryHandler<TQuery, TResult>
+    ↓
+[Pipeline Behaviors: Caching, Logging]
+    ↓
+ReadRepository + Specification
+    ↓
+[EF Core DbContext (no tracking)]
+    ↓
+Fetch data
+    ↓
+[Cache if applicable]
+    ↓
+Map to DTO / ValueObject
+    ↓
+Return Result<T>
 ```
 
-**DI extension** (module wires its own infrastructure in `ConfigureServices`):
+### 3. Event Sourcing Flow
 
-```csharp
-// In {Ns}.Modules.Catalog/CatalogServiceCollectionExtensions.cs
-public static class CatalogServiceCollectionExtensions
-{
-    public static IServiceCollection AddCatalogModule(
-        this IServiceCollection services,
-        string connectionString)
-    {
-        services.AddNacPostgreSQL<CatalogDbContext>(connectionString);
-        services.AddNacRepositoriesFromAssembly<CatalogDbContext>(
-            typeof(CatalogModule).Assembly);
-        return services;
-    }
-}
+```
+Aggregate raises domain event
+    ↓
+Event added to _domainEvents list
+    ↓
+Entity persisted (Outbox pattern)
+    ↓
+Domain events stored in Events table
+    ↓
+Integration events created
+    ↓
+Event bus publishes to subscribers
+    ↓
+Handlers update read models, send notifications
+    ↓
+Domain events cleared from entity
 ```
 
-**Module class** (only `Name` + `ConfigureServices`):
+---
 
-```csharp
-public sealed class CatalogModule : INacModule
-{
-    public string Name => "Catalog";
+## Dependency Injection Container Flow
 
-    public void ConfigureServices(IServiceCollection services, IConfiguration configuration)
-    {
-        var connStr = configuration.GetConnectionString("DefaultConnection")!;
-        services.AddCatalogModule(connStr);
-    }
-}
+```
+NacModule.ConfigureServices()
+    ↓
+ServiceConfigurationContext.Services.Add*()
+    ↓
+Convention-based: ITransientDependency, IScopedDependency, ISingletonDependency
+    ↓
+[L2+ packages] Register implementations
+    ↓
+ServiceProvider.BuildServiceProvider()
+    ↓
+DependencyAttribute wiring (if enabled)
+    ↓
+Modules discovered via [DependsOn]
+    ↓
+ApplicationInitializationContext.ServiceProvider
+    ↓
+Modules execute OnApplicationInitializationAsync
 ```
 
-**Endpoint mapper** (auto-discovered by `UseNacFramework()`):
+---
 
-```csharp
-public sealed class ProductEndpoints : IEndpointMapper
-{
-    public void MapEndpoints(IEndpointRouteBuilder routes)
-    {
-        var group = routes.MapGroup("/api/catalog/products").WithTags("Catalog");
-        group.MapGet("/", GetProducts);
-        group.MapPost("/", CreateProduct);
-    }
-}
-```
+## Cross-Cutting Concerns
 
-**Host Program.cs** — simplified:
+### 1. Null Safety
+- Nullable reference types enabled globally
+- Guard clauses for public API boundaries
+- Required properties for immutable types
 
-```csharp
-builder.AddNacFramework(nac =>
-{
-    nac.AddModule<CatalogModule>();
-    nac.AddModule<OrdersModule>();
-});
+### 2. Immutability
+- ValueObjects are records (immutable)
+- AggregateRoots state tracked via entities
+- Domain events immutable after raising
 
-var app = builder.Build();
-app.UseNacFramework();  // auto-discovers IEndpointMapper implementations
-```
+### 3. Validation
+- Guard clauses for input validation
+- Result pattern for business rule violations
+- ValidationError for field-level feedback
 
-**Benefits:**
-- Single project per module — KISS
-- Clean architecture via folders, not project boundaries
-- Independent migrations per module
-- Multi-tenancy isolation at DbContext level
-- Ready for microservice extraction
+### 4. Error Handling
+- Exceptions: Programming errors (null args, invalid state)
+- Result pattern: Business logic failures (validation, not found)
+- Domain events: State changes and audit
 
-### Unit of Work Pattern
-
-**UnitOfWork behavior wraps handler in transaction:**
-
-```csharp
-// Handler never opens transaction
-public sealed class CreateProductCommandHandler : ICommandHandler<CreateProductCommand, Guid>
-{
-    public async Task<Guid> HandleAsync(CreateProductCommand cmd, CancellationToken ct)
-    {
-        // UnitOfWorkBehavior already opened transaction
-        var product = new Product { Name = cmd.Name };
-        _repository.Add(product);
-        // Don't call SaveChanges! UnitOfWork will do it
-        return product.Id;
-    }
-}
-
-// UnitOfWorkBehavior execution
-public async Task<Unit> Handle(
-    ICommand request,
-    CommandHandlerDelegate next,
-    CancellationToken ct)
-{
-    using (var transaction = await _context.Database.BeginTransactionAsync(ct))
-    {
-        try
-        {
-            await next(request, ct);  // Handler runs in transaction
-            await _context.SaveChangesAsync(ct);
-            await transaction.CommitAsync(ct);
-            
-            // AFTER commit: dispatch domain events
-            await DispatchDomainEvents(ct);
-            return Unit.Value;
-        }
-        catch (Exception)
-        {
-            await transaction.RollbackAsync(ct);
-            throw;
-        }
-    }
-}
-```
-
-### Repository Pattern (No IQueryable)
-
-**Repositories never expose IQueryable.** Queries use Specification pattern:
-
-```csharp
-// Specification encapsulates query logic
-public sealed class GetProductsByPriceRangeSpec : Specification<Product>
-{
-    public GetProductsByPriceRangeSpec(decimal minPrice, decimal maxPrice)
-    {
-        Query
-            .Where(p => p.Price >= minPrice && p.Price <= maxPrice)
-            .OrderBy(p => p.Price)
-            .Take(100);
-    }
-}
-
-// Repository returns complete result, never IQueryable
-public sealed class ProductRepository : EfRepository<Product>, IProductRepository
-{
-    public async Task<IEnumerable<Product>> GetByPriceRangeAsync(
-        decimal minPrice,
-        decimal maxPrice,
-        CancellationToken ct)
-    {
-        var spec = new GetProductsByPriceRangeSpec(minPrice, maxPrice);
-        return await GetAsync(spec, ct);  // Returns List<Product>
-    }
-}
-
-// ✗ This doesn't exist:
-public IQueryable<Product> GetAll();  // Never!
-```
+### 5. Audit Trail
+- IAuditableEntity: CreatedAt, CreatedBy, ModifiedAt, ModifiedBy
+- Domain events: Who did what, when
+- Change logs: L2 Persistence responsibility
 
 ---
 
 ## Multi-Tenancy Architecture
 
-### Resolution Pipeline
-
-HTTP request → **TenantResolutionMiddleware** → Try resolvers in chain order:
+**Approach:** Tenant context scoped to request
 
 ```
-1. Header ("X-Tenant-ID" or custom header)
-   ├─ Hit: Extract ID
-   └─ Miss: Try next
-
-2. Claim (from JWT token: "tenant_id" claim)
-   ├─ Hit: Extract ID
-   └─ Miss: Try next
-
-3. Subdomain (abc.myapp.com → "abc")
-   ├─ Hit: Extract ID
-   └─ Miss: Try next
-
-4. Route Parameter (/api/tenants/{id}/products → id)
-   ├─ Hit: Extract ID
-   └─ Miss: Try next
-
-5. Query String (?tenant_id=abc)
-   ├─ Hit: Extract ID
-   └─ Miss: Default
-
-Result: Set ITenantContext scoped to request, fail if unresolvable
+HTTP Request (TenantId header)
+    ↓
+TenantContext.SetTenant(tenantId)
+    ↓
+DbContext.QueryFilter (RLS)
+    ↓
+[All queries auto-filtered by TenantId]
+    ↓
+ITenantEntity interface marks tenant-scoped entities
+    ↓
+Repository queries filtered automatically
 ```
 
-**Configuration:**
+---
+
+## Testing Architecture
+
+### Unit Test Structure
+```
+[Layer]Tests/
+├── [Feature]/
+│   └── [Type]Tests.cs
+└── Fixtures/
+    └── [Feature]Fixture.cs
+```
+
+### Test Doubles Strategy
+- **Mocks:** Interfaces (IRepository, ICurrentUser)
+- **Stubs:** Constants, builders
+- **Fakes:** In-memory implementations for integration tests
+
+### Example
 ```csharp
-builder.AddNacFramework(nac =>
+[Fact]
+public void Create_WithValidUser_RaisesDomainEvent()
 {
-    nac.UseMultiTenancy(tenant =>
-    {
-        tenant.Strategy = TenantStrategy.PerSchema;  // or Discriminator, DatabasePerTenant
-        tenant.ResolutionChain = new[] 
-        { 
-            TenantResolution.Header, 
-            TenantResolution.Claim, 
-            TenantResolution.Subdomain 
-        };
-    });
-});
-```
-
-### Data Isolation Strategies
-
-#### Strategy 1: Discriminator (Column)
-
-**Every table has `TenantId` column, EF global filter hides others:**
-
-```csharp
-public sealed class Product : AggregateRoot<Guid>
-{
-    public Guid TenantId { get; set; }  // Discriminator
-    public required string Name { get; init; }
-}
-
-// EF Configuration
-builder.Entity<Product>()
-    .HasQueryFilter(p => p.TenantId == _tenantContext.TenantId);
-
-// Result: All queries automatically include WHERE TenantId = @current
-```
-
-**Pros:** Single database, simple
-**Cons:** Weak isolation, noisy schema
-
-#### Strategy 2: Schema-per-Tenant
-
-**Each tenant gets schema, DbContext switches schema at runtime:**
-
-```csharp
-public sealed class CatalogDbContext : NacDbContext
-{
-    public CatalogDbContext(
-        DbContextOptions<CatalogDbContext> options,
-        ITenantContext tenantContext) : base(options)
-    {
-        _tenantContext = tenantContext;
-    }
+    // Arrange
+    var user = new User("john@example.com");
     
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        var schema = _tenantContext.IsMultiTenant 
-            ? $"tenant_{_tenantContext.TenantId}" 
-            : "public";
-        optionsBuilder.UseNpgsql("...", opts => opts.UseLogicalNaming(schema));
-    }
-}
-
-// Result: All queries hit tenant_abc.Products, tenant_xyz.Products, etc.
-```
-
-**Pros:** Better isolation, single DB
-**Cons:** Migration complexity, schema management
-
-#### Strategy 3: Database-per-Tenant
-
-**Each tenant gets separate database, connection string resolved at runtime:**
-
-```csharp
-public sealed class TenantConnectionResolver : ITenantConnectionResolver
-{
-    public async Task<string> ResolveAsync(Guid tenantId)
-    {
-        var tenant = await _tenantStore.GetAsync(tenantId);
-        return tenant.ConnectionString;  // "Host=db; Database=tenant_abc"
-    }
-}
-
-// DbContext registration
-services.AddDbContext<CatalogDbContext>((sp, opts) =>
-{
-    var tenantContext = sp.GetRequiredService<ITenantContext>();
-    var connStr = await _resolver.ResolveAsync(tenantContext.TenantId);
-    opts.UseNpgsql(connStr);
-});
-
-// Result: abc.Postgres, xyz.Postgres, each completely isolated
-```
-
-**Pros:** Maximum isolation, GDPR-friendly
-**Cons:** Operational complexity, higher cost
-
-### When Multitenancy Disabled
-
-**Zero overhead:**
-
-```csharp
-// ITenantContext still exists
-public interface ITenantContext
-{
-    Guid TenantId { get; }
-    bool IsMultiTenant { get; }  // false
-    string? Name { get; }
-}
-
-// Global query filter not registered
-// No resolution middleware
-// Queries run without TenantId filter
-```
-
----
-
-## Identity Architecture
-
-### Multi-Layer Identity System
-
-NAC Identity (`Nac.Identity`) provides **ASP.NET Identity + JWT + tenant-scoped roles**.
-
-**Components:**
-- **NacIdentityUser:** Global user account (unsealed; email, username, password; has TenantId, IsDeleted)
-- **TenantMembership:** Links user to tenant with role assignment
-- **TenantRole:** Role + permissions scoped to tenant
-- **JwtCurrentUser\<TUser\>:** JWT-based `ICurrentUser` implementation with async permission loading
-- **TenantAwareUserManager\<TUser\>:** UserManager scoped to current tenant
-- **IdentityEventPublisher\<TUser\>:** Publishes identity lifecycle events
-- **IIdentityService:** Query interface for business modules to fetch user info (from Nac.Core)
-
-**Key Pattern: Async Permission Loading**
-
-Permissions are loaded asynchronously via middleware to avoid sync-over-async penalties:
-
-```csharp
-// In IdentityApplicationBuilderExtensions.cs
-app.UseNacIdentity();  // Preloads permissions before handlers run
-
-// In JwtCurrentUser.cs
-internal async Task LoadPermissionsAsync(CancellationToken ct = default)
-{
-    // Loads membership → role → permissions from DB
-    // Called from middleware before request reaches handlers
-}
-
-// In handlers, ICurrentUser.Permissions is already cached synchronously
-public async Task<Guid> Handle(CreateProductCommand cmd, CancellationToken ct)
-{
-    if (!_currentUser.HasPermission("products.create"))
-        throw new ForbiddenException(...);
-    // ...
-}
-```
-
-**Identity Events (Integration)**
-
-When `Nac.Messaging` is configured, `IdentityEventPublisher` publishes events:
-
-```csharp
-// In identity workflows (registration, confirmation, reset)
-public sealed class UserRegisteredEvent(Guid UserId, string Email, string? TenantId) 
-    : IIntegrationEvent;
-
-public sealed class UserEmailConfirmedEvent(Guid UserId, string? TenantId) 
-    : IIntegrationEvent;
-
-public sealed class PasswordResetEvent(Guid UserId, string? TenantId) 
-    : IIntegrationEvent;
-
-// Usage in handlers
-var publisher = new IdentityEventPublisher(_eventBus);
-await publisher.PublishUserRegisteredAsync(newUser, tenantId, ct);
-```
-
-**RefreshToken Persistence**
-
-Refresh tokens store `TenantId` at issuance time and preserve it on token rotation:
-
-```csharp
-public sealed class RefreshToken
-{
-    public Guid Id { get; set; }
-    public Guid UserId { get; set; }
-    public required string TokenHash { get; set; }
-    public DateTimeOffset ExpiresAt { get; set; }
-    public string? TenantId { get; set; }  // Preserved on refresh
-    public bool IsActive => RevokedAt == null && ExpiresAt > DateTimeOffset.UtcNow;
-}
-```
-
----
-
-## Authorization Architecture
-
-### Permission-Based (Not Role-Based)
-
-**Hierarchy:** `module.resource.action`
-
-```csharp
-// Examples:
-"catalog.products.create"
-"catalog.products.read"
-"catalog.categories.manage"  // Wildcard: all actions on categories
-"inventory.*"                 // Wildcard: all resources in inventory
-"*.approve"                   // Wildcard: approve action anywhere
-
-// Permission check
-ICurrentUser.HasPermission("orders.create");  // Exact match
-ICurrentUser.HasPermission("orders.*");       // Match anything orders.*
-ICurrentUser.HasPermission("*.create");       // Match anything *.create
-```
-
-**Why?** Roles = permission sets, configurable at runtime. Flexible and audit-friendly.
-
-### Authorization Behavior
-
-**Marker interface triggers behavior:**
-
-```csharp
-public sealed record CreateProductCommand(...) 
-    : ICommand<Guid>,
-      IRequirePermission
-{
-    public string Permission => "catalog.products.create";
-}
-
-// AuthorizationCommandBehavior checks before handler
-public async Task<Unit> HandleAsync(
-    ICommand request,
-    CommandHandlerDelegate next,
-    CancellationToken ct)
-{
-    if (request is IRequirePermission perms)
-    {
-        if (!_currentUser.HasPermission(perms.Permission))
-            throw new ForbiddenException($"Missing: {perms.Permission}");
-    }
+    // Act
+    user.Confirm();
     
-    return await next(request, ct);
+    // Assert
+    user.DomainEvents.Should().ContainItemsAssignableTo<UserConfirmedEvent>();
 }
-```
-
-### Tenant-Scoped Permissions
-
-When multitenancy enabled, permissions are tenant-scoped:
-
-```csharp
-// User "alice" has "orders.create" in Tenant A only
-_currentUser.HasPermission("orders.create");  // Only true in Tenant A context
-
-// Different tenant context = different permissions
-_tenantContext.TenantId = new Guid("tenant-b");
-_currentUser.HasPermission("orders.create");  // false (alice has no permission in B)
 ```
 
 ---
 
-## Module Communication
+## Performance Considerations
 
-Module defines contracts (interfaces in `Contracts/`), `Infrastructure/` folder implements them.
+### Lazy Loading
+- Queries return IEnumerable<T> (LINQ lazy evaluation)
+- Pagination for large result sets
+- Projection to DTOs (only needed columns)
 
-### 3 Patterns (by preference)
+### Caching Strategy (L1+)
+- Query-level: HybridCache wrapper (L1)
+- Result caching: By permission/tenant
+- Invalidation: Event-driven
 
-#### 1. Integration Events (PREFERRED)
-
-**Async, eventual consistency, loosest coupling:**
-
-```
-Module A publishes OrderCreatedIntegrationEvent
-    ↓
-Outbox table stores event
-    ↓
-Background worker publishes to broker
-    ↓
-Module B subscribed to OrderCreatedIntegrationEvent
-    ↓
-Handler processes independently
-```
-
-**When to use:** Whenever possible. Most flexible.
-
-#### 2. Module Contracts (Synchronous Query)
-
-**When immediate data needed (Orders asking Catalog for price):**
-
-```csharp
-// Catalog exposes contract interface (in Shared Contracts)
-namespace Shared.Contracts.Catalog
-{
-    public interface ICatalogModuleApi
-    {
-        Task<ProductPriceDto?> GetProductPriceAsync(Guid productId, CancellationToken ct);
-    }
-}
-
-// Catalog implementation in its module
-public sealed class CatalogModuleApi : ICatalogModuleApi
-{
-    public async Task<ProductPriceDto?> GetProductPriceAsync(Guid productId, CancellationToken ct)
-    {
-        var product = await _repository.GetByIdAsync(productId, ct);
-        return product == null ? null : new ProductPriceDto(product.Id, product.Price);
-    }
-}
-
-// Orders uses it
-public sealed class CalculateOrderTotalQueryHandler : IQueryHandler<CalculateOrderTotalQuery, decimal>
-{
-    private readonly ICatalogModuleApi _catalogApi;  // Injected interface
-    
-    public async Task<decimal> Handle(CalculateOrderTotalQuery query, CancellationToken ct)
-    {
-        var total = 0m;
-        foreach (var line in query.OrderLines)
-        {
-            var price = await _catalogApi.GetProductPriceAsync(line.ProductId, ct);
-            total += price.Value * line.Quantity;
-        }
-        return total;
-    }
-}
-```
-
-**When to use:** Sync data requirements, tightly coupled concepts. Prefer over queries across modules.
-
-#### 3. Shared Kernel
-
-**Minimal, stable types (Money, Address, enums):**
-
-```csharp
-// Shared/Domain/ValueObjects/Money.cs
-namespace Shared.Domain.ValueObjects
-{
-    public sealed class Money : ValueObject
-    {
-        public decimal Amount { get; }
-        public string Currency { get; }
-        // ...
-    }
-}
-
-// Every module can use Money without coupling
-namespace Catalog.Modules.Domain;
-public sealed class Product : AggregateRoot<Guid>
-{
-    public Money Price { get; init; }  // Shared type
-}
-```
-
-**When to use:** Only for domain concepts used by 3+ modules and unlikely to change.
-
-### Forbidden Patterns
-
-**None of these:**
-- Module A references Modules.Catalog project directly
-- Module A queries Module B's DbContext
-- Module A calls internal service in Module B
-- Circular dependencies between modules
-
-**Enforced by:** Code review and package dependency rules (see CLAUDE.md). `nac check architecture` is planned but not yet implemented.
-
----
-
-## Caching Architecture
-
-### Query-Level Caching
-
-**Marker interface enables caching behavior:**
-
-```csharp
-public sealed record GetProductByIdQuery(Guid Id) 
-    : IQuery<ProductDto>,
-      ICacheable
-{
-    public string CacheKey => $"product:{Id}";
-    public TimeSpan? Expiry => TimeSpan.FromMinutes(5);
-}
-
-// CachingQueryBehavior checks cache before handler
-public async Task<ProductDto?> Handle(GetProductByIdQuery query, CancellationToken ct)
-{
-    // Behavior checks IDistributedCache first
-    // If hit: return cached ProductDto
-    // If miss: run handler, store result
-}
-```
-
-### Cache Invalidation
-
-**Command-level cache invalidation:**
-
-```csharp
-public sealed record UpdateProductCommand(Guid Id, string Name) 
-    : ICommand,
-      ICacheInvalidator
-{
-    public IEnumerable<string> CacheKeysToInvalidate =>
-    [
-        $"product:{Id}",
-        "products:list",
-        "products:search:*"  // Pattern
-    ];
-}
-
-// CacheInvalidationBehavior runs post-command
-// Calls IDistributedCache.RemoveAsync for each key
-```
-
-### Cache Provider Abstraction
-
-**Uses ASP.NET Core's IDistributedCache—swap provider via DI:**
-
-```csharp
-// Development: In-memory
-services.AddDistributedMemoryCache();
-
-// Production: Redis
-services.AddStackExchangeRedisCache(opts => 
-{
-    opts.Configuration = "redis:6379";
-});
-```
-
----
-
-## Observability Architecture
-
-### Structured Logging
-
-**Behaviors log entry/exit/duration/errors with correlation ID:**
-
-```
-INFO | CatalogModule | GetProductByIdQueryHandler
-      Request={"Id":"abc123"} | Duration=15ms | CorrelationId=xyz789
-
-ERROR | OrderModule | CreateOrderCommandHandler
-      Exception=InsufficientInventoryException | Message=...
-      CorrelationId=xyz789
-```
-
-**Uses ILogger<T> structured logging:**
-```csharp
-_logger.LogInformation(
-    "Query {QueryName} completed in {Duration}ms",
-    nameof(GetProductByIdQuery),
-    stopwatch.ElapsedMilliseconds);
-```
-
-**Correlation ID:**
-- Generated per request (HttpContextAccessor)
-- Propagates to logs
-- Included in error responses for tracing
-
-### Metrics & Tracing (Future)
-
-- OpenTelemetry-ready
-- Per-module command/query counters
-- Request duration histograms
-- Distributed tracing (via correlation ID)
+### Batch Operations
+- Repository.AddRangeAsync() for bulk inserts
+- Bulk update patterns (L2 Persistence)
+- Transaction management (L2+)
 
 ---
 
 ## Deployment Architecture
 
-### Modular Monolith
-
-**Single deployment unit, but modules are independent:**
-
 ```
-Host Process
-  ├─ Nac.Framework (shared)
-  ├─ Modules.Catalog (independent DbContext, endpoints)
-  ├─ Modules.Orders (independent DbContext, endpoints)
-  └─ Modules.Inventory (independent DbContext, endpoints)
+[NuGet Package] Nac.Core v1.0.0
+    ↓
+[Consumer Project]
+├─ References: Nac.Core NuGet
+├─ References: Nac.Persistence NuGet
+├─ References: Nac.Identity NuGet
+└─ References: Nac.WebApi NuGet
+    ↓
+[Application Startup]
+├─ Load Nac.WebApi composition root
+├─ Discover modules via [DependsOn]
+├─ Wire all DI containers
+├─ Initialize application (seed data)
+└─ Start Kestrel server
 ```
-
-### Scaling Path
-
-```
-PHASE 1: Modular Monolith
-  └─ All modules in single process
-     
-PHASE 2: Async Messaging
-  ├─ Add RabbitMQ
-  ├─ Replace InMemoryEventBus with OutboxEventBus
-  └─ Background workers publish to broker
-     
-PHASE 3: Microservices
-  ├─ Extract Module.Orders to Orders.Service
-  ├─ Keep same IEventBus abstraction
-  ├─ Modules communicate via broker
-  └─ Zero architectural change (just config + deployment)
-```
-
-Each module's boundary is already clear—extraction is **mechanical, not architectural**.
 
 ---
 
-## API Layer
+## Security Architecture
 
-### Minimal APIs (Not Controllers)
+### Input Validation
+- Guard clauses at API boundary
+- Result pattern for validation errors
+- Type-safe strongly-typed IDs
 
-**Endpoints implement `IEndpointMapper`, auto-discovered by `UseNacFramework()`:**
+### Authorization
+- ICurrentUser abstraction
+- IPermissionChecker for permission gates
+- Claims-based authorization (L2 Identity)
 
+### Data Protection
+- Audit trail (IAuditableEntity)
+- Soft delete (ISoftDeletable)
+- RLS support (L2 MultiTenancy)
+- Encryption at rest (Application responsibility)
+
+---
+
+## 6. EventBus Layer (L2)
+
+### IEventPublisher
+**Purpose:** Publish integration events to the bus
+
+**Contract:**
 ```csharp
-public sealed class ProductEndpoints : IEndpointMapper
+public interface IEventPublisher
 {
-    public void MapEndpoints(IEndpointRouteBuilder routes)
+    Task PublishAsync(IIntegrationEvent @event, CancellationToken ct = default);
+    Task PublishAsync(IEnumerable<IIntegrationEvent> events, CancellationToken ct = default);
+}
+```
+
+### IEventHandler<TEvent>
+**Purpose:** Handle a specific integration event type
+
+**Contract:**
+```csharp
+public interface IEventHandler<in TEvent> where TEvent : IIntegrationEvent
+{
+    Task HandleAsync(TEvent @event, CancellationToken ct = default);
+}
+```
+
+### IEventDispatcher
+**Purpose:** Route events to all registered handlers for that event type
+
+**Dispatch Strategy:** 
+- FrozenDictionary<Type, FrozenSet<Type>> registry for O(1) lookup
+- Fan-out execution: all handlers invoked (errors logged, not rethrown)
+- Assembly scanning for automatic handler discovery
+
+### InMemoryEventBus
+**Transport:** System.Threading.Channels (bounded, 1000 capacity)
+
+**Characteristics:**
+- Lock-free channel-based publishing
+- Background worker (InMemoryEventBusWorker) processes events
+- Suitable for single-process deployments
+- Fail-safe: one failing handler doesn't block others
+
+### OutboxEventPublisher
+**Purpose:** Bridge Persistence Outbox to EventBus
+
+**Role:**
+- Implements IIntegrationEventPublisher (from Persistence layer)
+- Deserializes outbox payloads (string eventType + JSON)
+- Routes to IEventPublisher for in-memory or external transport
+- Allowlist-based event type validation
+
+### EventHandlerRegistry
+**Features:**
+- Assembly scanning via reflection
+- Handler discovery: `IEventHandler<T>` implementations
+- Multi-handler support (fan-out pattern)
+- Thread-safe registration
+
+### Usage Pattern
+```csharp
+// 1. Publish event (synchronous to bus)
+await _eventPublisher.PublishAsync(new UserRegisteredEvent(...));
+
+// 2. Background worker processes asynchronously
+// InMemoryEventBusWorker reads from channel
+
+// 3. Dispatcher routes to all handlers
+// All UserRegisteredEvent handlers invoked in parallel
+
+// 4. Handlers execute independently
+public class SendWelcomeEmailHandler : IEventHandler<UserRegisteredEvent>
+{
+    public async Task HandleAsync(UserRegisteredEvent @event, CancellationToken ct)
     {
-        var group = routes.MapGroup("/api/catalog/products")
-            .WithTags("Catalog")
-            .WithOpenApi();
-        
-        group.MapPost("/", CreateProduct)
-            .WithName("CreateProduct")
-            .Produces<ApiResponse<Guid>>(StatusCodes.Status201Created)
-            .Produces(StatusCodes.Status400BadRequest);
-        
-        group.MapGet("/{id}", GetProductById)
-            .WithName("GetProductById")
-            .Produces<ApiResponse<ProductDto>>(StatusCodes.Status200OK)
-            .Produces(StatusCodes.Status404NotFound);
+        await _emailService.SendWelcomeAsync(@event.Email, ct);
     }
+}
+```
+
+---
+
+## 7. Testing Layer (L2)
+
+### Fakes (7 In-Memory Implementations)
+
+**FakeCurrentUser** — ICurrentUser implementation
+- Settable Id, Name, IsAuthenticated
+- Mutable Roles collection
+- No external dependencies
+
+**FakeDateTimeProvider** — IDateTimeProvider implementation
+- Settable UtcNow property
+- Deterministic time for reproducible tests
+
+**FakePermissionChecker** — IPermissionChecker implementation
+- GrantAll() — grant all permissions
+- DenyAll() — deny all permissions
+- Custom grant/deny lists
+
+**FakeRepository<T>** — IRepository<T> implementation
+- In-memory item storage (List<T>)
+- Tracks Add/Update/Delete operations
+- Supports Specification<T> filtering
+- WithItems() fluent seed method
+
+**FakeEventPublisher** — IEventPublisher implementation
+- Collects published events (PublishedEvents list)
+- No actual dispatch (testing only)
+
+**FakeSender** — ISender implementation (CQRS)
+- Collects sent commands/queries (SentRequests list)
+- Optional result overrides
+
+**FakeNacCache** — INacCache implementation
+- In-memory cache store
+- Tag-based invalidation tracking
+
+### Builders
+
+**TestEntityBuilder<TEntity, TBuilder>** — Abstract fluent builder
+- Generic entity creation via reflection
+- WithProperty(name, value) fluent API
+- Customizable CreateEntity() for special construction
+
+**ResultBuilder** — Fluent builder for Result<T>
+- Success(value) — create success result
+- Failure(status, errors) — create failure result
+
+### Fixtures
+
+**NacTestFixture** — Pre-configured DI container
+- All 7 fakes pre-registered
+- Override ConfigureServices() to add custom services
+- GetService<T>() for dependency retrieval
+- Implements IDisposable for cleanup
+
+**InMemoryDbContextFixture<TContext>** — EF Core in-memory DB
+- Creates isolated in-memory databases (unique GUID names)
+- CreateContext() — factory for fresh DbContext instances
+- Suitable for integration tests with same DB state
+
+### Assertion Extensions
+
+**ResultAssertionExtensions** — FluentAssertions integration
+- Should().BeSuccess() — assert success status
+- Should().BeFailed() — assert failure
+- Should().HaveStatus(status) — specific status check
+- Error message assertions
+
+### AddNacTesting() Extension
+Registers all fakes in IServiceCollection:
+```csharp
+services.AddNacTesting();
+// Automatically registers all fakes with appropriate lifetimes
+```
+
+---
+
+## Summary Table
+
+| Concern | L0 | L1 | L2 | L3 |
+|---------|----|----|----|----|
+| **Primitives** | ✅ | | | |
+| **Results** | ✅ | | | |
+| **Repositories** | Interfaces ✅ | | Implementations ✅ | |
+| **Specifications** | ✅ | | Translation ✅ | |
+| **CQRS** | | ✅ COMPLETE | | |
+| **Caching** | | ✅ COMPLETE | | |
+| **Persistence** | | | ✅ COMPLETE | |
+| **Event Bus** | Abstractions ✅ | | ✅ COMPLETE | |
+| **Testing** | | | ✅ COMPLETE | |
+| **Identity** | Abstractions ✅ | | ✅ COMPLETE | |
+| **Multi-Tenancy** | | | ✅ COMPLETE | |
+| **Observability** | | | ✅ COMPLETE | |
+| **Jobs** | Abstractions ✅ | | ✅ COMPLETE | |
+| **Composition** | | | | ✅ COMPLETE |
+
+---
+
+## 8. MultiTenancy Layer (L2)
+
+### ITenantContext
+**Purpose:** Access and manage current tenant context within request scope
+
+**Contract:**
+```csharp
+public interface ITenantContext
+{
+    TenantInfo? Current { get; }
+    string? TenantId => Current?.Id;
+    void SetCurrentTenant(TenantInfo? tenant);
+}
+```
+
+### TenantInfo
+**Purpose:** Immutable tenant metadata holder
+
+**Properties:**
+- `Id`: Tenant unique identifier
+- `Name`: Display name
+- `Metadata`: Custom tenant attributes (Dictionary<string, object>)
+
+### ITenantStore
+**Purpose:** Persist and retrieve tenant metadata
+
+**Contract:**
+```csharp
+public interface ITenantStore
+{
+    Task<TenantInfo?> GetByIdAsync(string tenantId, CancellationToken ct = default);
+    Task<IReadOnlyList<TenantInfo>> GetAllAsync(CancellationToken ct = default);
+}
+```
+
+### Tenant Resolution Strategies (4 Built-In)
+
+**HeaderTenantStrategy** — Extract from HTTP header
+```csharp
+// Resolves from X-Tenant-Id header (configurable)
+// Usage: AddNacMultiTenancy().AddHeaderTenantStrategy("X-Tenant-Id")
+```
+
+**ClaimTenantStrategy** — Extract from JWT claim
+```csharp
+// Resolves from JWT claim (default: "tenant_id")
+// Usage: AddNacMultiTenancy().AddClaimTenantStrategy("tenant_id")
+```
+
+**RouteTenantStrategy** — Extract from route parameter
+```csharp
+// Resolves from route parameter (default: "{tenantId}")
+// Usage: AddNacMultiTenancy().AddRouteTenantStrategy("tenantId")
+```
+
+**SubdomainTenantStrategy** — Extract from subdomain
+```csharp
+// Resolves from subdomain (e.g., acme.app.com → "acme")
+// Usage: AddNacMultiTenancy().AddSubdomainTenantStrategy()
+```
+
+### TenantResolutionMiddleware
+**Purpose:** Resolve tenant from request and set in ITenantContext
+
+**Processing:**
+1. Run registered strategies in order
+2. Set ITenantContext.Current on first match
+3. Store in HttpContext.Items for downline access
+4. Pass to next middleware
+
+### MultiTenantDbContext
+**Purpose:** EF Core base with automatic RLS (Row-Level Security) filters
+
+**Features:**
+- Auto-adds query filter: `entity.TenantId == context.CurrentTenantId`
+- Stacks with soft-delete filters (composable)
+- Per-entity opt-in via `HasQueryFilter()`
+- Multi-tenancy scoped to IUnitOfWork
+
+**Usage:**
+```csharp
+public class MyDbContext : MultiTenantDbContext
+{
+    public DbSet<Customer> Customers { get; set; }
     
-    private static async Task<IResult> CreateProduct(
-        CreateProductRequest request,
-        IMediator mediator,
-        CancellationToken ct)
+    protected override void OnModelCreating(ModelBuilder builder)
     {
-        var command = new CreateProductCommand(request.Name, request.Price);
-        var productId = await mediator.Send(command, ct);
-        return Results.Created($"/api/catalog/products/{productId}", 
-            new ApiResponse<Guid>(productId));
+        base.OnModelCreating(builder);
+        // Auto-filters Customer by TenantId in all queries
     }
 }
 ```
 
-**Benefits:**
-- Auto-discovered — no manual registration needed
-- Grouped by concern
-- No controller bloat
-- Clear handler → endpoint mapping
+### TenantEntityInterceptor
+**Purpose:** EF Core SaveChanges interceptor to auto-set TenantId
+
+**Behavior:**
+- Before persisting entity, check ITenantEntity interface
+- If `TenantId` is unset, copy from ITenantContext.Current
+- Silent no-op if tenant is null (optional validation)
+
+### ITenantConnectionStringResolver
+**Purpose:** Per-tenant database isolation
+
+**Contract:**
+```csharp
+public interface ITenantConnectionStringResolver
+{
+    string Resolve(string tenantId);
+}
+```
+
+**Pattern:** Register custom implementation for sharded/isolated DB architectures
+
+### AddNacMultiTenancy() Extension
+**Registers:**
+- ITenantContext (scoped)
+- ITenantStore (InMemory by default; override for persistence)
+- Strategy resolvers (chain pattern)
+- TenantResolutionMiddleware
+- TenantEntityInterceptor
+- NacMultiTenancyModule
 
 ---
 
-## Security & Error Handling
+## 9. Identity Layer (L2)
 
-### Exception → HTTP Status Mapping
+### NacUser
+**Purpose:** Application user extending ASP.NET Core Identity
 
-| Exception | Status | Body |
-|-----------|--------|------|
-| ValidationException | 400 | ErrorResponse with violations |
-| UnauthorizedException | 401 | ErrorResponse (no details) |
-| ForbiddenException | 403 | ErrorResponse (no details) |
-| NotFoundException | 404 | ErrorResponse |
-| ConflictException | 409 | ErrorResponse |
-| DomainException | 422 | ErrorResponse with details |
-| Unhandled | 500 | ErrorResponse + CorrelationId |
+**Extends:** `IdentityUser<Guid>`
 
-### Response Envelope
+**Additional Properties:**
+- `TenantId`: Multi-tenancy support
+- `FullName`: Display name
+- `IsActive`: Account activation flag
+- `CreatedAt`, `UpdatedAt`, `CreatedBy`: Audit trail (IAuditableEntity)
+- `IsDeleted`, `DeletedAt`: Soft-delete (ISoftDeletable)
 
-**Consistent across all endpoints:**
+### NacRole
+**Purpose:** Application role extending ASP.NET Core Identity
 
-```json
-// Success (200)
+**Extends:** `IdentityRole<Guid>`
+
+**Supports:** Standard role-based authorization
+
+### NacIdentityDbContext
+**Purpose:** EF Core DbContext for identity and application entities
+
+**Generics:** `NacIdentityDbContext<TContext>` for custom app entities
+
+**Includes:**
+- ASP.NET Core Identity tables (Users, Roles, UserClaims, etc.)
+- Multi-tenancy support (TenantId on users)
+- Audit and soft-delete tracking
+
+### CurrentUserAccessor
+**Purpose:** Extract ICurrentUser from JWT claims
+
+**Implementation:**
+- Reads claim set from HttpContext.User
+- Populates ICurrentUser with Id, Name, IsAuthenticated, Roles
+- Registered as scoped; null-safe for unauthenticated requests
+
+**Usage:**
+```csharp
+var currentUser = context.ServiceProvider.GetRequiredService<ICurrentUser>();
+var userId = currentUser.Id; // From JWT subject claim
+var roles = currentUser.Roles; // From "role" claims
+```
+
+### IdentityService
+**Purpose:** Wrapper around UserManager for user queries
+
+**Methods:**
+- `GetUserInfoAsync(Guid userId)` → UserInfo with roles
+- `GetUsersAsync(IEnumerable<Guid> userIds)` → Bulk user info
+- `IsInRoleAsync(Guid userId, string role)` → Role check
+
+### JwtTokenService
+**Purpose:** Issue JWT tokens with configurable claims
+
+**Features:**
+- Configurable secret, issuer, audience
+- Auto-includes subject (UserId), roles, tenant
+- Expiration via JwtOptions
+- HMAC SHA-256 signature
+
+**Configuration (JwtOptions):**
+```csharp
+services.AddNacIdentity<MyContext>(options =>
 {
-  "data": {
-    "id": "abc123",
-    "name": "Laptop"
-  },
-  "meta": {
-    "timestamp": "2026-04-12T14:30:00Z",
-    "traceId": "xyz789"
-  }
-}
+    options.Jwt.SecretKey = config["Jwt:Secret"];
+    options.Jwt.Issuer = config["Jwt:Issuer"];
+    options.Jwt.Audience = config["Jwt:Audience"];
+    options.Jwt.ExpirationMinutes = 60;
+});
+```
 
-// Error (400+)
-{
-  "error": {
-    "code": "VALIDATION_FAILED",
-    "message": "Validation failed",
-    "details": [
-      { "field": "Name", "message": "Required" }
-    ]
-  },
-  "meta": {
-    "timestamp": "2026-04-12T14:30:00Z",
-    "traceId": "xyz789"
-  }
-}
+### PermissionDefinitionManager
+**Purpose:** Registry of all application permissions (FrozenDictionary)
 
-// Paged (200)
+**Features:**
+- Hierarchical permission groups
+- IsGrantedByDefault flag
+- Immutable after registration
+- Thread-safe access
+
+**Usage:**
+```csharp
+public class MyPermissions : IPermissionDefinitionProvider
 {
-  "data": [...],
-  "pagination": {
-    "page": 1,
-    "pageSize": 20,
-    "total": 100
-  },
-  "meta": {...}
+    public void Define(IPermissionDefinitionContext context)
+    {
+        var group = context.AddGroup("UserManagement");
+        group.AddPermission("Create", isGrantedByDefault: false);
+        group.AddPermission("Delete", isGrantedByDefault: false);
+    }
 }
+```
+
+### PermissionChecker
+**Purpose:** Check if user has permission via claims + hierarchical rules
+
+**Decision Logic:**
+1. Check JWT claims (role-based)
+2. Check hierarchical defaults (parent → child)
+3. Return boolean
+
+**Usage:**
+```csharp
+if (await _permissionChecker.IsGrantedAsync("Users.Create"))
+{
+    // User has permission
+}
+```
+
+### PermissionAuthorizationHandler
+**Purpose:** ASP.NET Core Authorization handler for permission gates
+
+**Requirement:** `PermissionRequirement(string permissionName)`
+
+**Usage (Controllers):**
+```csharp
+[Authorize(Policy = "Users.Delete")]
+public async Task<IActionResult> DeleteUser(Guid id)
+{
+    // Only users with "Users.Delete" permission
+}
+```
+
+### AddNacIdentity<TContext>() Extension
+**Registers:**
+- NacUser + NacRole via Identity
+- UserManager<NacUser>, RoleManager<NacRole>
+- IdentityService (IIdentityService)
+- CurrentUserAccessor (ICurrentUser)
+- JwtTokenService
+- PermissionDefinitionManager
+- PermissionChecker (IPermissionChecker)
+- PermissionAuthorizationHandler
+- NacIdentityModule
+
+---
+
+## 10. Observability Layer (L2)
+
+### LoggingEnricherMiddleware
+**Purpose:** Enrich HTTP request context with structured logging fields
+
+**Features:**
+- Automatic extraction of request/response metadata
+- TraceId and SpanId injection for distributed tracing
+- User identification (from ICurrentUser)
+- Tenant context (from ITenantContext)
+- Performance timing (elapsed milliseconds)
+
+**Integration:** Middleware pipeline (AddNacObservability extension)
+
+### Diagnostic Constants
+**Purpose:** Centralized ActivitySource and Meter names
+
+**NacActivitySources**
+- Defines activity source names for OpenTelemetry integration
+- Enables cross-process tracing
+
+**NacMeters**
+- Defines meter names for metrics collection
+- Structured naming for Prometheus/OpenTelemetry export
+
+### NacLoggingScope Extension
+**Purpose:** Fluent API for scoped logging context
+
+**Usage:**
+```csharp
+using var scope = NacLoggingScope.Create()
+    .WithUserId(userId)
+    .WithTenantId(tenantId)
+    .WithCustomField("operationId", operationId);
+
+// All logs within scope include context fields
+```
+
+### AddNacObservability() Extension
+**Registers:**
+- LoggingEnricherMiddleware
+- Serilog integration (if configured)
+- OpenTelemetry activity sources
+- NacObservabilityModule
+
+---
+
+## 11. Jobs Layer (L2)
+
+### IJobScheduler
+**Purpose:** Schedule one-time and delayed jobs
+
+**Contract:**
+```csharp
+public interface IJobScheduler
+{
+    Task<string> EnqueueAsync<TJob>(CancellationToken ct = default) 
+        where TJob : IJobHandler;
+    
+    Task<string> ScheduleAsync<TJob>(TimeSpan delay, CancellationToken ct = default) 
+        where TJob : IJobHandler;
+}
+```
+
+### IRecurringJobManager
+**Purpose:** Register and manage recurring job schedules
+
+**Contract:**
+```csharp
+public interface IRecurringJobManager
+{
+    Task AddOrUpdateAsync<TJob>(string jobId, string cronExpression, CancellationToken ct = default) 
+        where TJob : IJobHandler;
+    
+    Task RemoveAsync(string jobId, CancellationToken ct = default);
+}
+```
+
+### IJobHandler<TJob>
+**Purpose:** Define job business logic
+
+**Contract:**
+```csharp
+public interface IJobHandler<TJob> where TJob : JobDefinition
+{
+    Task ExecuteAsync(TJob job, CancellationToken ct = default);
+}
+```
+
+### JobDefinition
+**Purpose:** Immutable job metadata
+
+**Properties:**
+- `Id`: Unique job identifier
+- `Type`: Job class name
+- `Parameters`: Dictionary<string, object> for job arguments
+- `ScheduledAt`: Execution time
+- `RetryCount`: Number of retries allowed
+
+### FakeJobScheduler
+**Purpose:** Testing implementation of IJobScheduler
+
+**Features:**
+- Collects scheduled jobs (ScheduledJobs list)
+- No actual scheduling
+- Useful for unit tests
+
+### FakeRecurringJobManager
+**Purpose:** Testing implementation of IRecurringJobManager
+
+**Features:**
+- Collects registered recurring jobs
+- Tracks add/update/remove operations
+- Useful for configuration tests
+
+### AddNacJobs() Extension
+**Registers:**
+- IJobScheduler (configurable implementations)
+- IRecurringJobManager (configurable implementations)
+- FakeJobScheduler and FakeRecurringJobManager (for testing)
+- NacJobsModule
+
+---
+
+## 12. WebApi Layer (L3 Composition Root)
+
+### Module System Architecture
+
+#### NacModule
+**Purpose:** Base class for all modules with lifecycle hooks
+
+**Lifecycle (3 Phases):**
+1. **PreConfigureServices:** Pre-setup phase (optional override)
+2. **ConfigureServices:** Main service registration phase
+3. **PostConfigureServices:** Post-setup phase (optional override)
+
+#### DependsOnAttribute
+**Purpose:** Declarative module dependency declaration
+
+**Example:**
+```csharp
+[DependsOn(typeof(NacCoreModule))]
+[DependsOn(typeof(NacIdentityModule))]
+public sealed class NacWebApiModule : NacModule { }
+```
+
+#### NacModuleLoader
+**Purpose:** Discover and topologically sort modules via Kahn's algorithm
+
+**Algorithm:**
+1. **Discovery:** Walk DependsOn graph via BFS from startup module
+2. **Cycle Detection:** Detect if any circular dependencies exist
+3. **Topological Sort:** Order modules so dependencies come before dependents
+4. **Instantiation:** Create module instances in sorted order
+
+**Throws:** InvalidOperationException if circular dependency detected
+
+**Usage:**
+```csharp
+var modules = NacModuleLoader.LoadModules<AppModule>();
+// Result: [NacCoreModule, NacObservabilityModule, NacWebApiModule, AppModule]
+// Dependencies always before dependents
+```
+
+#### NacApplicationFactory
+**Purpose:** Orchestrate module lifecycle setup
+
+**Three-Phase Execution:**
+```
+1. PreConfigureServices()  ← All modules
+2. ConfigureServices()     ← All modules (service registration)
+3. PostConfigureServices() ← All modules
+```
+
+**Usage:**
+```csharp
+var factory = NacApplicationFactory.Create(
+    typeof(AppModule),
+    services,
+    configuration);
+
+// factory.Modules = ordered module list
+```
+
+#### NacApplicationLifetime
+**Purpose:** IHostedService for application initialization and shutdown
+
+**Lifecycle:**
+- **StartAsync:** Calls ApplicationInitializationAsync on all modules
+- **StopAsync:** Calls ApplicationShutdownAsync on all modules
+
+### WebApi Composition
+
+#### NacWebApiOptions
+**Configuration Toggles:**
+- `EnableApiVersioning` (default: true) — Asp.Versioning integration
+- `EnableOpenApi` (default: true) — OpenAPI/Swagger endpoint
+- `EnableCors` (default: true) — CORS middleware
+- `EnableRateLimiting` (default: false) — Rate limiting middleware
+- `EnableResponseCompression` (default: true) — Brotli + Gzip
+- `EnableHealthChecks` (default: true) — /healthz endpoint
+- `ConfigureApiVersioning` — Optional callback
+- `ConfigureCors` — Optional callback
+- `ConfigureRateLimiter` — Optional callback
+
+#### NacExceptionHandler
+**Purpose:** Global exception handling with RFC 9457 ProblemDetails
+
+**Catches:**
+- All unhandled exceptions
+- Maps to ProblemDetails response
+- Sets HTTP status code based on exception type
+
+#### ResultToHttpMapper
+**Purpose:** Map Result<T> status to HTTP response code
+
+**Mapping (6 statuses):**
+| ResultStatus | HTTP | Description |
+|---|---|---|
+| Ok | 200 | Success |
+| Invalid | 400 | Validation error |
+| NotFound | 404 | Resource not found |
+| Forbidden | 403 | Access denied |
+| Conflict | 409 | Business rule conflict |
+| Error | 500 | Server error |
+
+#### Middleware Pipeline (UseNacApplication)
+
+**13-Stage Ordered Pipeline:**
+```
+1. ExceptionHandler       [Always] - Global error handling
+2. HTTPS Redirection      [Always] - Force HTTPS
+3. Response Compression   [Conditional] - Brotli/Gzip
+4. Routing                [Always] - Route resolution
+5. Rate Limiter           [Conditional] - Request throttling
+6. CORS                   [Conditional] - Cross-origin
+7. MultiTenancy           [Conditional] - If NacMultiTenancyModule in DependsOn
+8. Authentication         [Always] - JWT/OAuth (no-op if unconfigured)
+9. Authorization          [Always] - Permission checks
+10. Observability         [Conditional] - If NacObservabilityModule in DependsOn
+11. Controllers           [Always] - Route to controller actions
+12. OpenAPI               [Conditional] - /openapi endpoint
+13. Health Checks         [Conditional] - /healthz endpoint
+```
+
+**Conditional Inclusion:**
+```csharp
+// Only included if module is in DependsOn graph
+if (HasModule<NacMultiTenancyModule>(factory))
+    app.UseNacMultiTenancy();
+if (HasModule<NacObservabilityModule>(factory))
+    app.UseNacObservability();
+```
+
+### Consumer API (4-Line Integration)
+
+**Program.cs:**
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+
+// 1. Configure WebApi options
+builder.Services.AddNacWebApi(opts =>
+{
+    opts.EnableApiVersioning = true;
+    opts.EnableOpenApi = true;
+    opts.EnableCors = true;
+    opts.EnableRateLimiting = false;
+    opts.EnableResponseCompression = true;
+    opts.EnableHealthChecks = true;
+});
+
+// 2. Add application module (which DependsOn required packages)
+builder.Services.AddNacApplication<AppModule>(builder.Configuration);
+
+// 3. Build and use application
+var app = builder.Build();
+app.UseNacApplication();
+app.Run();
+```
+
+Where `AppModule`:
+```csharp
+[DependsOn(typeof(NacWebApiModule))]
+[DependsOn(typeof(NacIdentityModule))]
+[DependsOn(typeof(NacMultiTenancyModule))]
+public class AppModule : NacModule
+{
+    public override void ConfigureServices(ServiceConfigurationContext context)
+    {
+        // Consumer's application-specific services
+    }
+}
+```
+
+### Integration Patterns
+
+**Services Automatically Wired:**
+- All NacModule instances registered in DI
+- NacModuleLoader output stored in NacApplicationFactory
+- NacApplicationFactory registered as singleton
+- NacApplicationLifetime registered as IHostedService
+
+**Exception Handler Flow:**
+```
+Unhandled Exception
+    ↓
+NacExceptionHandler catches
+    ↓
+Maps to ProblemDetails (RFC 9457)
+    ↓
+Sets HTTP status via ResultToHttpMapper
+    ↓
+Returns JSON response
 ```
 
 ---
 
-## Summary Diagram
+## Consumer Blueprint
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     HTTP Request                            │
-└────────────────────────┬────────────────────────────────────┘
-                         │
-                         ▼
-          ┌──────────────────────────────┐
-          │  TenantResolutionMiddleware  │
-          │  (Set ITenantContext)        │
-          └────────────┬─────────────────┘
-                       │
-                       ▼
-          ┌──────────────────────────────┐
-          │   Endpoint (Minimal API)     │
-          │   Mediator.Send(command)     │
-          └────────────┬─────────────────┘
-                       │
-        ┌──────────────┴──────────────┐
-        │                             │
-        ▼                             ▼
-   [COMMAND]                     [QUERY]
-        │                             │
-        ├─Exception Handling          ├─Exception Handling
-        ├─Logging                     ├─Logging
-        ├─Validation                  ├─Validation
-        ├─Authorization               ├─Authorization
-        ├─Tenant Enrichment           ├─Caching (check)
-        ├─UnitOfWork {                │
-        │  ├─Transaction {            │
-        │  │  ├─Handler               ├─Handler
-        │  │  └─SaveChanges           │
-        │  │}                          ├─Caching (store)
-        │  └─Domain Events            │
-        │}                             │
-        │                             │
-        └──────────────┬──────────────┘
-                       │
-                       ▼
-          ┌──────────────────────────────┐
-          │    Response (ApiResponse)    │
-          │    + CorrelationId + Status  │
-          └────────────┬─────────────────┘
-                       │
-                       ▼
-                  HTTP Response
-```
+**Reference Implementation:** `samples/ReferenceApp/` — Canonical consumer project blueprint demonstrating Orders + Billing modules with cross-module integration event flow, multi-tenancy, JWT authorization, and integration tests. Points `ConnectionStrings:Default` at an external user-managed Postgres 17 instance (no docker-compose bundled). Copy-rename as a starter template (replaces `dotnet new` in v1).
 
+Key patterns demonstrated:
+- Per-module DbContext with schema isolation
+- Outbox pattern for reliable event publication
+- Cross-module event handlers with tenant propagation
+- Permission-based authorization with dynamic policy provider
+- Multi-schema migrations per module
+
+---
+
+**Last Updated:** 2026-04-17 (Wave 3 + Consumer Reference Architecture)
+**Target Framework:** .NET 10.0 LTS  
+**Architecture Pattern:** Layered + DDD + Modular Monolith

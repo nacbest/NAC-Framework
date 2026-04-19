@@ -2,35 +2,43 @@
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
-
   <ItemGroup>
-    <!-- Core -->
-    <PackageVersion Include="Microsoft.Extensions.Caching.Abstractions" Version="10.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
-
-    <!-- EF Core -->
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.5" />
-    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.1" />
-
-    <!-- Identity & Auth -->
-    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.5" />
-    <PackageVersion Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.5" />
-
-    <!-- Infrastructure -->
-    <PackageVersion Include="StackExchange.Redis" Version="2.8.16" />
-    <PackageVersion Include="RabbitMQ.Client" Version="7.2.1" />
-
-    <!-- CLI Tooling -->
-    <PackageVersion Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
-    <PackageVersion Include="Scriban" Version="7.1.0" />
-
-    <!-- Testing -->
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.5" />
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
-    <PackageVersion Include="xunit" Version="2.9.2" />
-    <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
-    <PackageVersion Include="FluentAssertions" Version="7.0.0" />
+    <!-- BCL-level abstractions (NOT 3rd party) -->
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.6" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.6" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.6" />
+    <!-- L1: Nac.Cqrs -->
+    <PackageVersion Include="FluentValidation" Version="12.1.1" />
+    <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
+    <!-- L1: Nac.Caching -->
+    <PackageVersion Include="Microsoft.Extensions.Caching.Hybrid" Version="10.5.0" />
+    <!-- L3: Nac.Identity -->
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.6" />
+    <PackageVersion Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.6" />
+    <PackageVersion Include="Microsoft.IdentityModel.Tokens" Version="8.0.1" />
+    <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.0.1" />
+    <!-- L2: Nac.Persistence -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.6" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.6" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.6" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.6" />
+    <!-- L3: Nac.WebApi -->
+    <PackageVersion Include="Asp.Versioning.Http" Version="8.1.0" />
+    <PackageVersion Include="Asp.Versioning.Mvc.ApiExplorer" Version="8.1.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.6" />
+    <PackageVersion Include="Scalar.AspNetCore" Version="2.14.1" />
+    <!-- Test: EF Core InMemory -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.6" />
+    <PackageVersion Include="NSubstitute" Version="5.3.0" />
+    <!-- Test packages -->
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.4.0" />
+    <PackageVersion Include="xunit.v3" Version="3.2.2" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+    <PackageVersion Include="FluentAssertions" Version="8.9.0" />
+    <!-- Integration test packages (ReferenceApp.IntegrationTests) -->
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.6" />
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.4.0" />
+    <PackageVersion Include="Respawn" Version="6.2.1" />
+    <PackageVersion Include="Npgsql" Version="10.0.2" />
   </ItemGroup>
 </Project>

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- NAC Framework — ProjectReference (development mode, same repo commit) -->
+    <ProjectReference Include="$(NacFrameworkSrc)/Nac.Core/Nac.Core.csproj" />
+    <ProjectReference Include="$(NacFrameworkSrc)/Nac.Identity/Nac.Identity.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+  </ItemGroup>
+</Project>

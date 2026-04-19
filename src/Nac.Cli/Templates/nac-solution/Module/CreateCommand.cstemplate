@@ -1,7 +1,0 @@
-using Nac.Core.Modularity;
-using Nac.CQRS.Abstractions;
-
-namespace {{ project_name }}.Modules.{{ module_name }}.Application.Commands.Create{{ module_name }}Item;
-
-public sealed record Create{{ module_name }}ItemCommand(string Name, string? Description)
-    : ICommand<Guid>, ITransactional;

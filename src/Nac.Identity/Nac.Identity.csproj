@@ -1,25 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
-    <Description>[INFRA] ASP.NET Core Identity + JWT + Authorization + Multi-tenant permissions. Use in: Host only.</Description>
-    <PackageTags>nac;framework;identity;auth;authorization;jwt;multi-tenant</PackageTags>
+    <PackageId>Nac.Identity</PackageId>
+    <Version>$(NacFrameworkVersion)</Version>
+    <Description>NAC Framework Identity — ASP.NET Core Identity wrapper with JWT and permissions</Description>
   </PropertyGroup>
-
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
-
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
-    <PackageReference Include="StackExchange.Redis" />
+    <PackageReference Include="Microsoft.IdentityModel.Tokens" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
   </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\Nac.Core\Nac.Core.csproj" />
-    <ProjectReference Include="..\Nac.CQRS\Nac.CQRS.csproj" />
     <ProjectReference Include="..\Nac.Persistence\Nac.Persistence.csproj" />
-    <ProjectReference Include="..\Nac.MultiTenancy\Nac.MultiTenancy.csproj" />
   </ItemGroup>
-
 </Project>

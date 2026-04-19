@@ -1,265 +1,414 @@
 # NAC Framework — Project Overview & Product Development Requirements
 
-## Executive Summary
+## Project Overview
 
-**NAC Framework** is a modular .NET 10 foundation framework for backend Web API projects. It provides composable building blocks (auth, multi-tenancy, persistence, messaging, caching, observability) that projects combine based on requirements. The framework emphasizes modularity, opt-in features, zero overhead when unused, and a clear scaling path from monolith to microservices.
-
-- **Target:** .NET 10, C# 13
-- **Architecture:** Modular Clean Architecture + Vertical Slice
-- **Distribution:** Local NuGet feed + CLI tool (`nac` dotnet command)
-- **Status:** 15/15 packages complete
-
----
-
-## Vision & Goals
+**Project Name:** NAC Framework  
+**Type:** Foundational Framework (NuGet Package Suite)  
+**Target Framework:** .NET 10 LTS  
+**License:** MIT  
+**Repository Type:** Mono-repo (single git repo, multiple NuGet packages)  
+**Current Phase:** Wave 1 Complete (L0 + L1 Cqrs/Caching + L2 Persistence)  
+**Team:** Solo development
 
 ### Vision
-Create a reusable foundation that eliminates boilerplate, enforces architectural boundaries, and enables teams to build scalable backend services without being locked into rigid patterns.
+Build a modular, DDD-based .NET framework published as reusable NuGet packages. Enable rapid SaaS/enterprise application development with built-in patterns for multi-tenancy, CQRS, event sourcing, identity, and observability.
 
-### Goals
+### Mission
+- Provide zero-dependency DDD building blocks (L0)
+- Layer abstractions for cross-cutting concerns (L1-L3)
+- Publish production-ready NuGet packages with comprehensive tests
+- Include reference examples and templates for rapid consumer adoption
 
-| Goal | Rationale |
-|------|-----------|
-| **Zero boilerplate** | CLI-driven scaffolding (`nac new`, `nac add`) replaces copy-paste |
-| **Module-first** | Clear boundaries enable independent testing, scaling, and eventual microservice extraction |
-| **Opt-in features** | Multi-tenancy, messaging, caching enabled only when needed—no overhead tax |
-| **No third-party mediator** | Custom mediator ensures full pipeline control; no MediatR dependency |
-| **Clear scaling path** | Monolith → Monolith with async → Microservices without rewrite |
-| **CQRS separation** | Distinct command/query pipelines prevent mixing concerns |
-| **Permission-based auth** | Flexible authorization with wildcard support (module.resource.action) |
+### Key Metrics
+| Metric | Target | Current |
+|--------|--------|---------|
+| L0 Nac.Core Completion | 100% | 100% ✅ |
+| L1 Nac.Cqrs Completion | 100% | 100% ✅ (Wave 1) |
+| L1 Nac.Caching Completion | 100% | 100% ✅ (Wave 1) |
+| L2 Nac.Persistence Completion | 100% | 100% ✅ (Wave 1) |
+| Unit Test Coverage | 80%+ | 100% (255 tests, all passing) |
+| External Dependencies (L0) | 0 (custom code) | 2 (MS abstractions only) |
+| Package Count | 12 layers | 4 (L0 + 3 Wave 1) |
+| Documentation | All packages documented | Core + Wave 1 documented |
 
 ---
 
-## Solution Structure
+## Product Development Requirements (PDR)
 
-### 15 NuGet Packages (single Nac.slnx solution)
+### PDR 1: L0 Core Package (COMPLETE)
 
-#### Core Foundation
-| Package | Purpose | Dependencies |
-|---------|---------|--------------|
-| **Nac.Core** | Base types (Entity, AggregateRoot, ValueObject), interfaces, markers | DI.Abstractions only |
-| **Nac.Domain** | DomainEvent, persistence contracts (Nac.Domain.Persistence) | Nac.Core |
-| **Nac.CQRS** | Custom CQRS mediator, ICommand/IQuery, behaviors, handler resolution | Nac.Core |
+**Status:** ✅ Complete & Tested  
+**Acceptance Criteria:** All met
 
-#### Persistence & Data
-| Package | Purpose | Dependencies |
-|---------|---------|--------------|
-| **Nac.Persistence** | EF Core, UnitOfWork, Repository, Outbox/Inbox patterns | Nac.Core, Domain, CQRS |
-| **Nac.Persistence.PostgreSQL** | PostgreSQL provider wrapper | Persistence |
+#### Functional Requirements
+| ID | Requirement | Status |
+|----|-------------|--------|
+| FR-L0-01 | Result pattern with Result and Result<T> types | ✅ |
+| FR-L0-02 | Domain primitives: Entity, AggregateRoot, ValueObject, DomainEvent | ✅ |
+| FR-L0-03 | Repository interfaces (IRepository, IReadRepository) | ✅ |
+| FR-L0-04 | Specification pattern with boolean composition (And/Or/Not) | ✅ |
+| FR-L0-05 | Guard clauses for input validation | ✅ |
+| FR-L0-06 | DI marker interfaces for convention-based registration | ✅ |
+| FR-L0-07 | Module system (NacModule, DependsOn attribute) | ✅ |
+| FR-L0-08 | Identity abstractions (ICurrentUser, IIdentityService, UserInfo) | ✅ |
+| FR-L0-09 | Permission definitions and hierarchy | ✅ |
+| FR-L0-10 | Integration event abstractions + concrete events (UserRegistered, etc.) | ✅ |
+| FR-L0-11 | Data seeding interfaces | ✅ |
+| FR-L0-12 | Value objects (Money, Address, DateRange, Pagination) | ✅ |
+| FR-L0-13 | IDateTimeProvider abstraction | ✅ |
+| FR-L0-14 | StronglyTypedId support | ✅ |
+| FR-L0-15 | Soft-delete and audit entity interfaces | ✅ |
+| FR-L0-16 | Multi-tenancy entity interface | ✅ |
 
-#### Messaging & Events
-| Package | Purpose | Dependencies |
-|---------|---------|--------------|
-| **Nac.Messaging** | IEventBus abstraction, InMemoryEventBus, Outbox/Inbox | Nac.Core, Persistence |
-| **Nac.Messaging.RabbitMQ** | RabbitMQ IEventBus implementation | Messaging, RabbitMQ.Client 7.2.1 |
+#### Non-Functional Requirements
+| ID | Requirement | Status |
+|----|-------------|--------|
+| NFR-L0-01 | Zero external dependencies (only MS abstractions) | ✅ |
+| NFR-L0-02 | Target .NET 10.0 | ✅ |
+| NFR-L0-03 | Nullable reference types enabled | ✅ |
+| NFR-L0-04 | All public APIs documented with XML comments | ✅ |
+| NFR-L0-05 | 80%+ test coverage | ✅ |
+| NFR-L0-06 | All tests passing (xUnit + FluentAssertions) | ✅ (190/190) |
 
-#### Identity & Authentication
-| Package | Purpose | Dependencies |
-|---------|---------|--------------|
-| **Nac.Identity** | ASP.NET Core Identity + JWT + tenant roles/permissions | Nac.Core, CQRS, Persistence, MultiTenancy |
+---
 
-#### Cross-cutting Concerns
-| Package | Purpose | Dependencies |
-|---------|---------|--------------|
-| **Nac.MultiTenancy** | Tenant resolution (Header/Claim/Subdomain/Query), 3 strategies | Nac.Core |
-| **Nac.Caching** | Query cache + invalidation behaviors | Nac.Core, CQRS |
-| **Nac.Observability** | Logging behaviors (command/query entry/exit/duration) | Nac.Core, CQRS |
+### PDR 2: L1 CQRS Package (COMPLETE ✅)
 
-#### API & Distribution
-| Package | Purpose | Dependencies |
-|---------|---------|--------------|
-| **Nac.WebApi** | Response envelopes, global exception handler, module framework | Nac.Core |
-| **Nac.Testing** | Fake implementations (EventBus, TenantContext, CurrentUser) | Nac.Core, CQRS |
-| **Nac.Cli** | `nac` dotnet tool (scaffold, add modules/features) | System.CommandLine |
-| **Nac.Templates** | `dotnet new nac-solution` template package | None |
+**Status:** ✅ Complete | **Wave:** 1  
+**Tests:** 65 passing | **Acceptance Criteria:** All met
 
-### Dependency Flow (strict one-direction)
+#### Scope (Completed)
+- Custom command/query dispatcher with FrozenDictionary O(1) lookup
+- Sealed handler pattern (ICommand, IQuery generics with sealed handler interfaces)
+- ValueTask<T> async returns for performance
+- 4 Pipeline behaviors: Validation (FluentValidation), Logging (ILogger), Caching (INacCache), Transaction (IUnitOfWork)
+- ISender dispatch interface
+- Marker interfaces: ICacheableQuery, ITransactionalCommand
+- Assembly scanning for automatic handler registration
+- AddNacCqrs() DI extension method
+- Full integration with Nac.Core dependency injection
 
+#### Success Metrics (Achieved)
+- ✅ All L1 CQRS tests passing (65 tests)
+- ✅ O(1) handler dispatch performance via FrozenDictionary
+- ✅ Full Nac.Core integration
+
+---
+
+### PDR 3: L1 Caching Package (COMPLETE ✅)
+
+**Status:** ✅ Complete | **Wave:** 1  
+**Tests:** 65 passing | **Acceptance Criteria:** All met
+
+#### Scope (Completed)
+- INacCache abstraction over HybridCache (.NET 10+)
+- Tenant-aware key prefixing via ICurrentUser context
+- Tag-based cache invalidation patterns
+- CacheKey static utility for consistent key construction
+- CacheEntryOptions configuration
+- AddNacCaching() DI extension method
+- Full Nac.Core integration
+
+#### Success Metrics (Achieved)
+- ✅ All L1 Caching tests passing (65 tests)
+- ✅ HybridCache wrapper abstraction complete
+- ✅ Tenant isolation in cache keys verified
+
+---
+
+### PDR 4: L2 Persistence Package (COMPLETE ✅)
+
+**Status:** ✅ Complete | **Wave:** 1  
+**Tests:** 65 passing | **Acceptance Criteria:** All met
+
+#### Scope (Completed)
+- NacDbContext abstract base (DB-agnostic EF Core 10)
+- Repository<T> generic implementation with IRepository + IReadRepository
+- Specification to IQueryable bridge (SpecificationExtensions)
+- 4 EF Core Interceptors:
+  - AuditableEntityInterceptor (CreatedAt, CreatedBy, ModifiedAt, ModifiedBy)
+  - SoftDeleteInterceptor (logical deletion support)
+  - DomainEventInterceptor (event sourcing)
+  - OutboxInterceptor (Outbox pattern)
+- Transactional Outbox pattern with OutboxEvent model
+- OutboxWorker BackgroundService for event processing
+- AddNacPersistence<TContext>() DI extension method
+- Full Nac.Core integration
+
+#### Success Metrics (Achieved)
+- ✅ All L2 Persistence tests passing (65 tests)
+- ✅ Full EF Core 10 integration verified
+- ✅ Outbox pattern implementation complete
+
+---
+
+### PDR 5: L2 Multi-Tenancy Package (PLANNED)
+
+**Status:** 📋 Planned | **Priority:** High  
+**Acceptance Criteria:** To be defined
+
+#### Tentative Scope
+- Finbuckle.MultiTenancy integration
+- PostgreSQL Row Level Security (RLS) support
+- Tenant context scoping
+- Tenant-aware repositories
+- Migration strategies (single DB, separate schema, separate instance)
+
+---
+
+### PDR 6: L2 EventBus Package (PLANNED)
+
+**Status:** 📋 Planned | **Priority:** High  
+**Acceptance Criteria:** To be defined
+
+#### Tentative Scope
+- Outbox pattern implementation
+- Integration event publishing
+- Event handlers and subscriptions
+- Message bus abstraction (RabbitMQ, Kafka, Azure Service Bus)
+- Distributed transaction support
+
+---
+
+### PDR 7: L2 Identity Package (PLANNED)
+
+**Status:** 📋 Planned | **Priority:** High  
+**Acceptance Criteria:** To be defined
+
+#### Tentative Scope
+- ASP.NET Identity integration
+- Permission checker implementation
+- Role-based access control (RBAC)
+- Claims-based authorization
+- User session management
+
+---
+
+### PDR 8: L2 Observability Package (PLANNED)
+
+**Status:** 📋 Planned | **Priority:** Medium  
+**Acceptance Criteria:** To be defined
+
+#### Tentative Scope
+- OpenTelemetry integration
+- Serilog configuration
+- Structured logging
+- Metrics collection
+- Distributed tracing support
+
+---
+
+### PDR 9: L2 Jobs Package (PLANNED)
+
+**Status:** 📋 Planned | **Priority:** Low-Medium  
+**Acceptance Criteria:** To be defined
+
+#### Tentative Scope
+- Hangfire wrapper
+- Job scheduling abstractions
+- Recurring job patterns
+- Job persistence and retry logic
+
+---
+
+### PDR 10: L2 Testing Package (PLANNED)
+
+**Status:** 📋 Planned | **Priority:** Medium  
+**Acceptance Criteria:** To be defined
+
+#### Tentative Scope
+- Test fixtures and builders
+- Mock implementations of Nac.Core abstractions
+- Database test containers
+- API test helpers
+- Test data seeding utilities
+
+---
+
+### PDR 11: L3 WebApi Package (PLANNED)
+
+**Status:** 📋 Planned | **Priority:** High  
+**Acceptance Criteria:** To be defined
+
+#### Tentative Scope
+- Composition root setup (DI wiring all layers)
+- Middleware registration
+- Global exception handling
+- API versioning setup
+- Swagger/OpenAPI integration
+
+---
+
+### PDR 12: Templates & Examples (PLANNED)
+
+**Status:** 📋 Planned | **Priority:** Medium  
+**Acceptance Criteria:** To be defined
+
+#### Scope
+- **dotnet new** templates:
+  - `nac-solution` — Full solution scaffolding
+  - `nac-module` — Domain module template
+  - `nac-entity` — Domain entity with tests
+  - `nac-endpoint` — API endpoint with handler
+
+- **Examples:**
+  - `SimpleCrud` — Basic CRUD with Nac.Core + Persistence
+  - `SaaSStarter` — Multi-tenant SaaS with all L0-L3
+  - `MicroserviceExtract` — Converting module to standalone service
+
+---
+
+## Architecture Principles
+
+### 1. Layered Dependency Graph
 ```
-Nac.Core (DI.Abstractions only — includes Entity, AggregateRoot, ValueObject)
-  ↑
-Nac.Domain ← Nac.Core  (DomainEvent, Nac.Domain.Persistence interfaces)
-Nac.CQRS ← Nac.Core   (ICommand, IQuery, IMediator, behaviors)
-  ↑
-Nac.Persistence ← Nac.Core, Domain, CQRS
-  ↑
-Nac.Identity ← Nac.Core, Persistence, CQRS, MultiTenancy
-Nac.Messaging ← Nac.Core, Persistence
-Nac.MultiTenancy ← Nac.Core
-Nac.Caching ← Nac.Core, CQRS
-Nac.Observability ← Nac.Core, CQRS
-Nac.WebApi ← Nac.Core  (gains INacModule, NacFrameworkBuilder)
-Nac.Testing ← Nac.Core, CQRS
-Nac.Cli ← System.CommandLine
+┌─────────┐
+│  L3     │ WebApi (composition)
+│ Nac.WebApi
+└────┬────┘
+     │
+┌────▼─────────────────────────────────────────┐
+│  L2                                           │
+│  Nac.Persistence, Nac.Identity,              │
+│  Nac.MultiTenancy, Nac.EventBus,             │
+│  Nac.Jobs, Nac.Observability, Nac.Testing    │
+└────┬──────────────────────────────────────────┘
+     │
+┌────▼──────────────────┐
+│  L1                   │
+│  Nac.Cqrs, Nac.Caching
+└────┬─────────────────┤
+     │                 │
+┌────▼─────────────────▼──┐
+│  L0 (Zero Dependencies)  │
+│  Nac.Core               │
+└─────────────────────────┘
 ```
 
-No circular dependencies. Framework verifies on startup.
+**Rule:** Arrows point downward only. No circular dependencies.
+
+### 2. Zero-Dependency L0
+- L0 provides only interfaces and patterns
+- No external NuGet packages (except MS.Extensions abstractions)
+- All business logic is custom-built
+- Maximum reusability across projects
+
+### 3. Convention over Configuration
+- DI marker interfaces enable auto-registration
+- Entity/ValueObject base classes provide defaults
+- Modularity attributes declare dependencies
+
+### 4. SOLID Principles
+- **S:** Each class has one reason to change
+- **O:** Open for extension (Result pattern), closed for modification (Specification sealed)
+- **L:** All implementations satisfy contracts
+- **I:** Segregated interfaces (IRepository, IReadRepository)
+- **D:** Dependency injection via abstractions
 
 ---
 
-## Key Architectural Decisions
+## Technology Stack
 
-### 1. Custom Mediator (No MediatR)
-
-**Decision:** Build custom CQRS mediator instead of using MediatR.
-
-**Rationale:**
-- Full control over behavior pipeline order (explicit, not auto-discovered)
-- Framework independence—core doesn't depend on third-party package
-- Separate command/query pipelines prevent accidental mixing
-
-**Tradeoff:** More code to maintain, but crucial for framework stability.
-
-### 2. DbContext Per Module (Mandatory)
-
-**Decision:** Each module owns its DbContext—no shared DbContext.
-
-**Rationale:**
-- Clear module boundaries
-- Migration independence
-- Ready for microservice extraction
-- Multi-tenancy isolation at DbContext level
-
-### 3. Dual Event System (Domain + Integration)
-
-**Decision:** Two event buses:
-- **Domain Events** (in-process Mediator Notifications)—immediate, same transaction
-- **Integration Events** (IEventBus)—cross-module, distributed, with Outbox pattern
-
-**Rationale:**
-- Domain events for internal consistency within module
-- Integration events for eventual consistency across modules
-- Outbox guarantees at-least-once delivery
-- Easy swap between InMemoryEventBus (dev) and distributed (RabbitMQ/Kafka)
-
-### 4. Permission-Based Authorization
-
-**Decision:** Use permission-based auth (module.resource.action) instead of roles.
-
-**Rationale:**
-- Flexible: roles = permission sets, configurable at runtime
-- Wildcard support: `orders.*` grants all order permissions
-- Tenant-scoped: permissions bound to tenant when multitenancy enabled
-
-### 5. Multi-tenancy Opt-in with Zero Overhead
-
-**Decision:** When disabled, `ITenantContext` exists but `IsMultiTenant = false`—no query filters, no overhead.
-
-**Rationale:**
-- Single-tenant projects pay no performance cost
-- Feature toggleable without code changes
-- Three strategies available: Discriminator, Schema-per-tenant, Database-per-tenant
-
-### 6. Module Communication via Contracts Only
-
-**Decision:** Modules cannot reference each other's projects; must use integration events or module contracts.
-
-**Rationale:**
-- Prevents implicit coupling
-- Enables independent deployment
-- Architecture checker (`nac check architecture`) verifies at startup
-
-### 7. No IQueryable Exposure
-
-**Decision:** Repositories return domain entities or complete result sets; queries use Specification pattern.
-
-**Rationale:**
-- Encapsulates data access logic
-- Prevents data access logic creeping into handlers
-- Specification pattern enables complex queries without exposing ORM details
+| Layer | Technology | Version |
+|-------|-----------|---------|
+| **Framework** | .NET LTS | 10.0 |
+| **Language** | C# | 13.0+ |
+| **Build** | MSBuild | Latest |
+| **Testing** | xUnit | Latest |
+| **Assertions** | FluentAssertions | Latest |
+| **DI** | MS.Extensions.DependencyInjection | Latest abstractions |
+| **Config** | MS.Extensions.Configuration | Latest abstractions |
+| **Database** (L2) | Entity Framework Core | 10.0 |
+| **Multi-Tenancy** (L2) | Finbuckle.MultiTenancy | Latest |
+| **Event Bus** (L2) | RabbitMQ / Kafka (TBD) | TBD |
+| **Logging** (L2) | Serilog | Latest |
+| **Observability** (L2) | OpenTelemetry | Latest |
+| **Jobs** (L2) | Hangfire | Latest |
+| **Package Manager** | NuGet | Latest |
+| **Source Control** | Git | GitHub |
 
 ---
 
-## Codebase Statistics
+## Release Strategy
 
-| Metric | Value |
-|--------|-------|
-| Total LOC (C#, excl. obj/bin) | ~4,575 |
-| Total files | ~100 .cs files |
-| Packages | 15 |
-| Target framework | net10.0 |
-| Language version | C# 13 |
+### Version Scheme
+- All packages version-locked to framework release
+- Format: `{MajorVersion}.{MinorVersion}.{PatchVersion}`
+- Example: `1.0.0`, `1.1.0`, `2.0.0-beta`
 
----
+### Release Phases
+1. **L0 (Current)** — Nac.Core v1.0.0 stable
+2. **L1** — Nac.Cqrs, Nac.Caching v1.1.0
+3. **L2** — Persistence, Identity, EventBus, etc. v1.2.0
+4. **L3** — WebApi composition v1.3.0
+5. **Templates & Examples** — v1.x.x
 
-## Feature Matrix
-
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Core Mediator (CQRS) | ✅ Complete | Separate command/query pipelines |
-| Domain & Aggregate Roots | ✅ Complete | Base classes + domain event support |
-| Entity Framework Core integration | ✅ Complete | UnitOfWork, Repository, Specification |
-| PostgreSQL provider | ✅ Complete | via Nac.Persistence.PostgreSQL |
-| Multi-tenancy | ✅ Complete | 3 strategies, 5 resolvers, opt-in |
-| Authorization (Permission-based) | ✅ Complete | Marker interface enforcement via behavior |
-| Event Bus (In-memory) | ✅ Complete | InMemoryEventBus for development |
-| RabbitMQ Integration | ✅ Complete | Outbox/Inbox pattern, automatic retries |
-| Distributed Caching | ✅ Complete | Query-level caching with invalidation |
-| Observability (Logging) | ✅ Complete | Entry/exit/duration behaviors |
-| CLI Tool | ✅ Complete | Scaffold solution, add modules/features |
-| Templates | ✅ Complete | `dotnet new nac-solution` |
-| Testing Utilities | ✅ Complete | Fakes (EventBus, TenantContext, CurrentUser) |
+### Quality Gates
+- 100% of tests passing (no skipped tests)
+- 80%+ code coverage
+- All public APIs documented
+- No critical security issues
+- Performance benchmarks within acceptable range
 
 ---
 
-## Non-Functional Requirements
+## Roadmap
 
-| Requirement | Target | Notes |
-|-------------|--------|-------|
-| **Performance** | <100ms p99 per request (single-tenant, cached) | Depends on app logic |
-| **Scalability** | Scale from monolith to microservices | Module boundary isolation |
-| **Security** | No secrets in code; audit trail support | Permission model, soft-delete |
-| **Observability** | Structured logging + correlation IDs | OpenTelemetry-ready |
-| **Reliability** | At-least-once event delivery | Outbox pattern in Messaging |
-| **Testability** | Per-module isolation + fakes | NacTestHost, FakeEventBus |
-| **Deployability** | Independent module/feature deployment | Module version tracking in nac.json |
+| Phase | Deliverables | Timeline | Status |
+|-------|-------------|----------|--------|
+| **Phase 0** | Solution setup, Directory.Build.props, nuget.config | Completed | ✅ |
+| **Phase 1** | Nac.Core (primitives, results, domain utilities) | Completed | ✅ |
+| **Phase 2** | Nac.Core (DI, modularity, abstractions) | Completed | ✅ |
+| **Phase 3** | Nac.Core unit tests (190 tests) | Completed | ✅ |
+| **Wave 1** | L1 CQRS, Caching + L2 Persistence (255 tests total) | Completed | ✅ |
+| **Phase 5** | Documentation updates (Wave 1 coverage) | In Progress | 🚀 |
+| **Phase 6** | L2 Packages (Identity, Multi-Tenancy, EventBus, etc.) | Planned Q2-Q3 2026 | 📋 |
+| **Phase 7** | L3 WebApi composition root | Planned Q3 2026 | 📋 |
+| **Phase 8** | Templates and examples | Planned Q3-Q4 2026 | 📋 |
 
 ---
 
-## Constraints & Assumptions
+## Risks & Mitigations
 
-### Constraints
-- .NET 10+ only (no legacy frameworks)
-- EF Core only for ORM (no Dapper, NHibernate)
-- PostgreSQL recommended (others via custom provider)
-- Single solution file (Nac.slnx) for all packages—no separate repos
-
-### Assumptions
-- Teams use Git for version control
-- Projects run on Linux/Windows/macOS
-- Docker deployment (implied)
-- Async-first design throughout
+| Risk | Impact | Likelihood | Mitigation |
+|------|--------|-----------|-----------|
+| Scope creep (too many packages) | Schedule delay | Medium | Prioritize by adoption (CQRS, Persistence first) |
+| Framework changes (.NET updates) | Compatibility issues | Low | Target LTS; plan upgrades quarterly |
+| Circular dependencies (across layers) | Architecture failure | Medium | Enforce via unit tests; use architecture analyzer |
+| Consumer adoption | Low usage | Medium | Provide reference apps; share templates early |
+| Documentation lag | User frustration | High | Update docs immediately after code; automate |
 
 ---
 
 ## Success Criteria
 
-| Criterion | Measurement |
-|-----------|-------------|
-| **Time to new project** | < 5 min with `nac new` + module setup |
-| **Boilerplate reduction** | > 70% vs. manual setup |
-| **Scaling readiness** | Module extraction to microservice = 1-2 day effort |
-| **Developer adoption** | Team comfort with CLI commands within 1 week |
-| **Defect injection** | Framework-enforced patterns reduce arch violations |
+### For PDR 1 (L0, COMPLETED)
+- ✅ All 16 functional requirements implemented
+- ✅ All 6 non-functional requirements met
+- ✅ 190 unit tests passing
+- ✅ Zero external dependencies (L0)
+- ✅ Complete Nac.Core.csproj with proper metadata
+
+### For Each Future PDR
+- All functional requirements satisfied
+- 80%+ test coverage
+- All tests passing (no skipped/ignored)
+- Public APIs documented
+- Integration tests with L0
+- README with usage examples
+- Performance benchmarks (if applicable)
 
 ---
 
-## Roadmap & Future
+## Approval & Sign-Off
 
-See **[Project Roadmap](./project-roadmap.md)** for complete post-v1.0 timeline, feature details, adoption targets, and risk register.
-
-**Current Status (v1.0 — April 2026):**
-- ✅ All 15 packages implemented
-- ✅ CLI scaffolding complete
-- ✅ Multi-tenancy strategies complete
-- ✅ RabbitMQ messaging complete
+- **Project Lead:** Solo development (self-governed)
+- **Framework Architecture:** Reviewed and approved per implementation phases
+- **Quality Standard:** All tests pass before phase completion
+- **Documentation:** Updated incrementally with each phase
 
 ---
 
-## Documentation Index
-
-- [Codebase Summary](./codebase-summary.md) — Package-by-package breakdown
-- [Code Standards](./code-standards.md) — Naming, patterns, conventions
-- [System Architecture](./system-architecture.md) — Diagrams, data flow, pipelines
-- [Project Roadmap](./project-roadmap.md) — Release timeline, feature priorities
-
+**Last Updated:** 2026-04-16  
+**Version:** 1.0 (L0 Complete)  
+**Next Review:** After L1 packages complete

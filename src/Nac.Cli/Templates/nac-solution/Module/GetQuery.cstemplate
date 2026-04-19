@@ -1,7 +1,0 @@
-using Nac.CQRS.Abstractions;
-
-namespace {{ project_name }}.Modules.{{ module_name }}.Application.Queries.Get{{ module_name }}ItemById;
-
-public sealed record {{ module_name }}ItemDto(Guid Id, string Name, string? Description);
-
-public sealed record Get{{ module_name }}ItemByIdQuery(Guid Id) : IQuery<{{ module_name }}ItemDto?>;

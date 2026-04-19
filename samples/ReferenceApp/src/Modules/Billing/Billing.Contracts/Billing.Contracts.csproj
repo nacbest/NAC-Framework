@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <!-- Core primitives: IIntegrationEvent, Result<T>, etc. -->
+    <ProjectReference Include="$(NacFrameworkSrc)/Nac.Core/Nac.Core.csproj" />
+  </ItemGroup>
+</Project>

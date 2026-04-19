@@ -1,18 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
-    <Description>[INFRA] EF Core DbContext, UnitOfWork, Repository. Use in: Host only.</Description>
-    <PackageTags>nac;framework;persistence;efcore;repository;unitofwork</PackageTags>
+    <PackageId>Nac.Persistence</PackageId>
+    <Version>$(NacFrameworkVersion)</Version>
+    <Description>NAC Framework Persistence — EF Core base, repository, interceptors, outbox</Description>
   </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
-  </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\Nac.Core\Nac.Core.csproj" />
-    <ProjectReference Include="..\Nac.Domain\Nac.Domain.csproj" />
-    <ProjectReference Include="..\Nac.CQRS\Nac.CQRS.csproj" />
   </ItemGroup>
-
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+  </ItemGroup>
 </Project>

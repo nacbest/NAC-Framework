@@ -1,17 +1,30 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
-    <Description>[INFRA] Exception handler, endpoint helpers, module framework. Use in: Host only.</Description>
-    <PackageTags>nac;framework;webapi;envelope;exception-handler;modules</PackageTags>
+    <PackageId>Nac.WebApi</PackageId>
+    <Version>$(NacFrameworkVersion)</Version>
+    <Description>NAC Framework WebApi — Composition root with module auto-discovery, exception handling, and middleware pipeline</Description>
   </PropertyGroup>
-
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\Nac.Core\Nac.Core.csproj" />
-    <ProjectReference Include="..\Nac.CQRS\Nac.CQRS.csproj" />
+    <ProjectReference Include="..\Nac.Caching\Nac.Caching.csproj" />
+    <ProjectReference Include="..\Nac.Cqrs\Nac.Cqrs.csproj" />
+    <ProjectReference Include="..\Nac.Persistence\Nac.Persistence.csproj" />
+    <ProjectReference Include="..\Nac.EventBus\Nac.EventBus.csproj" />
+    <ProjectReference Include="..\Nac.Identity\Nac.Identity.csproj" />
+    <ProjectReference Include="..\Nac.MultiTenancy\Nac.MultiTenancy.csproj" />
+    <ProjectReference Include="..\Nac.Observability\Nac.Observability.csproj" />
+    <ProjectReference Include="..\Nac.Jobs\Nac.Jobs.csproj" />
   </ItemGroup>
-
+  <ItemGroup>
+    <PackageReference Include="Asp.Versioning.Http" />
+    <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Scalar.AspNetCore" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Nac.WebApi.Tests" />
+  </ItemGroup>
 </Project>

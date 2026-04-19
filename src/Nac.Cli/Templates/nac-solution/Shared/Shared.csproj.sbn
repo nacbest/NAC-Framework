@@ -1,9 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <ItemGroup>
-  {{ if is_local }}
-    <ProjectReference Include="{{ local_path }}/src/Nac.Core/Nac.Core.csproj" />
-  {{ else }}
-    <PackageReference Include="Nac.Core" />
-  {{ end }}
-  </ItemGroup>
-</Project>

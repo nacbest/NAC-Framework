@@ -1,0 +1,28 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Nac.Core/Nac.Core.csproj" />
+    <Project Path="src/Nac.Cqrs/Nac.Cqrs.csproj" />
+    <Project Path="src/Nac.Caching/Nac.Caching.csproj" />
+    <Project Path="src/Nac.Persistence/Nac.Persistence.csproj" />
+    <Project Path="src/Nac.EventBus/Nac.EventBus.csproj" />
+    <Project Path="src/Nac.Testing/Nac.Testing.csproj" />
+    <Project Path="src/Nac.Identity/Nac.Identity.csproj" />
+    <Project Path="src/Nac.MultiTenancy/Nac.MultiTenancy.csproj" />
+    <Project Path="src/Nac.Observability/Nac.Observability.csproj" />
+    <Project Path="src/Nac.Jobs/Nac.Jobs.csproj" />
+    <Project Path="src/Nac.WebApi/Nac.WebApi.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Nac.Core.Tests/Nac.Core.Tests.csproj" />
+    <Project Path="tests/Nac.Cqrs.Tests/Nac.Cqrs.Tests.csproj" />
+    <Project Path="tests/Nac.Caching.Tests/Nac.Caching.Tests.csproj" />
+    <Project Path="tests/Nac.Persistence.Tests/Nac.Persistence.Tests.csproj" />
+    <Project Path="tests/Nac.EventBus.Tests/Nac.EventBus.Tests.csproj" />
+    <Project Path="tests/Nac.Testing.Tests/Nac.Testing.Tests.csproj" />
+    <Project Path="tests/Nac.Identity.Tests/Nac.Identity.Tests.csproj" />
+    <Project Path="tests/Nac.MultiTenancy.Tests/Nac.MultiTenancy.Tests.csproj" />
+    <Project Path="tests/Nac.Observability.Tests/Nac.Observability.Tests.csproj" />
+    <Project Path="tests/Nac.Jobs.Tests/Nac.Jobs.Tests.csproj" />
+    <Project Path="tests/Nac.WebApi.Tests/Nac.WebApi.Tests.csproj" />
+  </Folder>
+</Solution>

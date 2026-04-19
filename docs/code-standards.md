@@ -1,924 +1,805 @@
-# NAC Framework — Code Standards & Conventions
+# NAC Framework — Code Standards & Codebase Structure
 
-Guidelines for writing code within the NAC Framework and projects built on it.
+## Codebase Organization
+
+### Directory Structure (src/Nac.Core)
+
+```
+Nac.Core/
+├── Primitives/              # DDD core types
+│   ├── Entity.cs            # Base generic entity
+│   ├── AggregateRoot.cs     # Aggregate with event sourcing
+│   ├── ValueObject.cs       # Immutable value types
+│   ├── IDomainEvent.cs      # Domain event marker
+│   ├── IStronglyTypedId.cs  # Strongly-typed ID support
+│   ├── IAuditableEntity.cs  # Created/Modified tracking
+│   └── ISoftDeletable.cs    # Logical deletion marker
+│
+├── Results/                 # Error handling pattern
+│   ├── Result.cs            # Non-generic result
+│   ├── ResultT.cs           # Generic Result<T>
+│   ├── ResultStatus.cs      # Ok, Invalid, NotFound, etc.
+│   └── ValidationError.cs   # Field-level validation
+│
+├── Domain/                  # Domain services & utilities
+│   ├── IRepository.cs       # Write operations contract
+│   ├── IReadRepository.cs   # Query operations contract
+│   ├── Specification.cs     # Composable query spec (And/Or/Not)
+│   ├── Guard.cs             # Input validation utility
+│   ├── DomainError.cs       # Domain error marker
+│   └── ITenantEntity.cs     # Multi-tenancy marker
+│
+├── Modularity/              # Module system
+│   ├── NacModule.cs         # Base module class
+│   ├── DependsOnAttribute.cs  # Module dependency declaration
+│   ├── ServiceConfigurationContext.cs  # DI context
+│   ├── ApplicationInitializationContext.cs
+│   └── ApplicationShutdownContext.cs
+│
+├── DependencyInjection/     # DI conventions
+│   ├── ITransientDependency.cs
+│   ├── IScopedDependency.cs
+│   ├── ISingletonDependency.cs
+│   └── DependencyAttribute.cs
+│
+├── Abstractions/            # Cross-cutting abstractions
+│   ├── Identity/
+│   │   ├── ICurrentUser.cs
+│   │   ├── IIdentityService.cs
+│   │   └── UserInfo.cs
+│   ├── Permissions/
+│   │   ├── PermissionDefinition.cs
+│   │   ├── PermissionGroup.cs
+│   │   ├── IPermissionChecker.cs
+│   │   ├── IPermissionDefinitionProvider.cs
+│   │   └── IPermissionDefinitionContext.cs
+│   ├── Events/
+│   │   ├── IIntegrationEvent.cs
+│   │   ├── UserRegisteredEvent.cs
+│   │   ├── UserEmailConfirmedEvent.cs
+│   │   └── PasswordResetEvent.cs
+│   └── IDateTimeProvider.cs
+│
+├── DataSeeding/             # Data seeding contracts
+│   ├── IDataSeeder.cs
+│   └── DataSeedContext.cs
+│
+├── ValueObjects/            # Pre-built value objects
+│   ├── Money.cs
+│   ├── Address.cs
+│   ├── DateRange.cs
+│   └── Pagination.cs
+│
+└── Nac.Core.csproj
+```
+
+### Test Structure (tests/Nac.Core.Tests)
+
+```
+Nac.Core.Tests/
+├── Primitives/
+│   ├── ValueObjectTests.cs
+│   ├── EntityTests.cs
+│   └── AggregateRootTests.cs
+├── Results/
+│   ├── ResultTests.cs
+│   └── ResultTTests.cs
+├── Domain/
+│   ├── GuardTests.cs
+│   └── SpecificationTests.cs
+├── Abstractions/
+│   └── Permissions/
+│       └── PermissionDefinitionTests.cs
+├── ValueObjects/
+│   ├── MoneyTests.cs
+│   ├── DateRangeTests.cs
+│   └── PaginationTests.cs
+└── Nac.Core.Tests.csproj
+```
 
 ---
 
 ## Naming Conventions
 
-### Namespaces
+### Files & Directories
+| Element | Convention | Example |
+|---------|-----------|---------|
+| Namespace | PascalCase | `Nac.Core.Primitives` |
+| File | Match class name | `Entity.cs`, `Result.cs` |
+| Directory | PascalCase, plural | `Primitives/`, `Results/`, `Abstractions/` |
+| Test class | {Class}Tests | `EntityTests.cs` |
+| Test method | {Scenario}_{Expected} | `Create_WithValidId_SetsIdProperty()` |
 
-**Pattern:** `Nac.{Package}.{Logical.Category}`
-
-```csharp
-// ✓ Correct
-namespace Nac.Persistence.Repository;
-namespace Nac.Messaging.Outbox;
-namespace Nac.CQRS.Internal;
-
-// ✗ Incorrect
-namespace Persistence;  // Missing Nac prefix
-namespace Nac.Persistence.Repositories;  // Plural
-```
-
-**Module Projects:** `{Solution}.Modules.{ModuleName}`
-
-```csharp
-namespace EShop.Modules.Catalog.Application.Commands;
-namespace EShop.Modules.Orders.Domain;
-```
-
-### Classes & Records
-
-**PascalCase.** Use **records** for value objects, DTOs, responses; **classes** for entities, services, behaviors.
-
-```csharp
-// ✓ Correct
-public record CreateProductCommand(string Name, decimal Price) : ICommand<Guid>;
-public class EfRepository<TEntity> { }
-public class AuthorizationCommandBehavior { }
-public sealed record ProductDto(Guid Id, string Name);
-
-// ✗ Incorrect
-public record create_product_command() { }  // snake_case
-public record CreateProductCommand : ICommand  // unsealed record
-public class ProductDTO { }  // Inconsistent casing (DTO not Dto)
-```
-
-**Sealed by default** (for records and classes):
-
-```csharp
-// ✓ Preferred
-public sealed record ProductCreatedDomainEvent(Guid ProductId) : DomainEvent;
-public sealed class CatalogModule : INacModule;
-
-// ✗ Only if inheritance needed
-public class Product : AggregateRoot<Guid> { }  // Open base class for extension
-```
-
-### Methods & Properties
-
-**PascalCase**, concise, verb-driven for methods.
-
-```csharp
-// ✓ Correct
-public async Task<bool> ExecuteAsync();
-public IEnumerable<T> Filter(Specification<T> spec);
-public string CacheKey { get; }
-public void SetTenantContext(Guid tenantId);
-
-// ✗ Incorrect
-public async Task<bool> execute_async();  // snake_case
-public IEnumerable<T> GetAll();  // Vague, no specification
-public string get_cache_key();  // Method-like property
-```
-
-### Parameters
-
-**camelCase**, align with type name.
-
-```csharp
-// ✓ Correct
-public void Configure(IServiceCollection services, IConfiguration configuration);
-public async Task<OrderDto> GetOrderAsync(Guid orderId, CancellationToken cancellationToken);
-
-// ✗ Incorrect
-public void Configure(IServiceCollection Services, IConfiguration config);  // PascalCase, abbreviation
-public Task<OrderDto> GetOrder(Guid id);  // Too vague
-```
-
-### Private Fields
-
-**camelCase with underscore prefix** (or **readonly without prefix** if no mutation).
-
-```csharp
-// ✓ Correct
-private readonly IMediator _mediator;
-private readonly ILogger<CatalogService> _logger;
-private int _retryCount;
-
-// ✗ Incorrect
-private IMediator mediator;  // No underscore
-private static IMediator _mediator;  // Static (use constructor injection instead)
-```
-
-### Constants
-
-**UPPER_SNAKE_CASE**:
-
-```csharp
-// ✓ Correct
-private const int MAX_RETRIES = 3;
-private const string DEFAULT_CACHE_KEY_PREFIX = "nac:";
-public const string ORDERS_PERMISSION = "orders.manage";
-
-// ✗ Incorrect
-private const int maxRetries = 3;
-public const string Orders_Manage = "orders.manage";
-```
-
-### Interfaces
-
-**I-prefix, PascalCase** (C# convention).
-
-```csharp
-// ✓ Correct
-public interface IRepository<T> { }
-public interface ICacheable { }
-public interface ITenantContext { }
-
-// ✗ Incorrect
-public interface Repository<T> { }  // No I-prefix
-public interface IRepositoryBase { }  // "Base" suffix (use abstract class instead)
-```
+### Code Elements
+| Element | Convention | Example |
+|---------|-----------|---------|
+| Class/Record | PascalCase | `class Entity`, `record UserInfo` |
+| Interface | PascalCase, `I` prefix | `interface IRepository`, `ICurrentUser` |
+| Method | PascalCase | `public Result Success()` |
+| Property | PascalCase | `public bool IsSuccess { get; }` |
+| Parameter | camelCase | `public Result(string id)` |
+| Local variable | camelCase | `var result = Success();` |
+| Constant | UPPER_CASE | `private const string DefaultCurrency = "USD";` |
+| Private field | _camelCase | `private readonly List<T> _items;` |
 
 ---
 
-## Language Features (C# 13)
+## Code Style & Formatting
 
-### Records for Immutability
+### C# Language Features
+- **Version:** C# 13.0+
+- **Nullable Reference Types:** Enabled globally (see Directory.Build.props)
+- **Records:** Use for immutable data (e.g., ValueObject, PermissionDefinition)
+- **Init-Only Properties:** Use for immutable state initialization
+- **Pattern Matching:** Prefer over traditional conditionals
+- **LINQ:** Favor over loops for collections
 
-Use **records** (not classes) for DTOs, events, requests, responses:
-
-```csharp
-// ✓ Correct
-public sealed record CreateProductCommand(string Name, decimal Price, string Description) 
-    : ICommand<Guid>;
-
-public sealed record ProductDto(Guid Id, string Name, decimal Price);
-
-public sealed record OutboxMessage(
-    Guid Id, 
-    string EventType, 
-    string EventData, 
-    DateTime CreatedAt
-);
-
-// ✗ Incorrect
-public class CreateProductCommand {  // Class for simple data holder
-    public string Name { get; set; }
-    public decimal Price { get; set; }
-}
-```
-
-### Primary Constructors
-
-Use **primary constructors** (record or class):
+### File Structure Template
 
 ```csharp
-// ✓ Correct
-public sealed class OrderService(
-    IRepository<Order> orderRepository,
-    IEventBus eventBus,
-    ILogger<OrderService> logger)
+namespace Nac.Core.{Layer};
+
+/// <summary>
+/// Brief description of the type.
+/// </summary>
+/// <remarks>
+/// Detailed behavior, usage notes, or design rationale.
+/// </remarks>
+public abstract class BaseType
 {
-    public async Task PlaceOrderAsync(CreateOrderCommand command)
+    /// <summary>
+    /// Property description.
+    /// </summary>
+    public string Name { get; private set; }
+
+    /// <summary>
+    /// Constructor description.
+    /// </summary>
+    /// <param name="name">Parameter description.</param>
+    public BaseType(string name)
     {
-        _orderRepository.Add(order);  // Use param name with underscore prefix (auto-field)
+        Name = name;
     }
-}
 
-// ✗ Incorrect
-public class OrderService {
-    private readonly IRepository<Order> _orderRepository;
-    public OrderService(IRepository<Order> orderRepository) 
-    {
-        _orderRepository = orderRepository;  // Manual field assignment
-    }
+    /// <summary>
+    /// Method description.
+    /// </summary>
+    /// <returns>Return value description.</returns>
+    public abstract void Method();
 }
 ```
 
-### Init Properties
+### Line Length & Spacing
+- **Max Line Length:** 120 characters (soft limit, hard at 150)
+- **Blank Lines:** 1 between methods, 2 between logical sections
+- **Indentation:** 4 spaces (no tabs)
+- **Brace Style:** Allman (opening brace on new line for classes/methods)
 
-Use **init** for immutable property setting:
+### Null Handling Pattern
 
 ```csharp
-// ✓ Correct
-public class Product : AggregateRoot<Guid>
-{
-    public required string Name { get; init; }
-    public required decimal Price { get; init; }
-    public string Description { get; init; } = string.Empty;
-}
+// DO: Explicit null checks with Guard
+Guard.NotNull(value, nameof(value));
+Guard.NotEmpty(text, nameof(text));
 
-// ✗ Incorrect
-public class Product {
-    public string Name { get; set; }  // Public setter (mutable)
-    public decimal Price { get; set; }
-}
+// DO: Nullable reference types
+public string? OptionalValue { get; set; }
+public required string RequiredValue { get; init; }
+
+// AVOID: Implicit null coalescing
+// var x = value ?? default;
 ```
 
-### Required Members
-
-Enforce initialization:
+### Error Handling Pattern
 
 ```csharp
-// ✓ Correct
-public sealed class CreateProductRequest
+// DO: Use Result pattern for business errors
+public Result Validate()
 {
-    public required string Name { get; init; }
-    public required decimal Price { get; init; }
-    public string? Description { get; init; }
-}
-
-// ✗ Incorrect
-public class CreateProductRequest
-{
-    public string Name { get; set; }  // Nullable danger
-    public decimal Price { get; set; }
-}
-```
-
-### Nullable Reference Types
-
-**Always enabled.** Use `?` for optional, omit for required.
-
-```csharp
-// ✓ Correct
-public sealed record ProductDto(
-    Guid Id,
-    string Name,          // Required
-    string? Description   // Optional
-);
-
-public async Task<ProductDto?> GetByIdAsync(Guid id);  // Can return null
-
-// ✗ Incorrect
-#nullable disable  // Never disable
-public string? Name { get; set; }  // Unclear intent
-public ProductDto GetByIdAsync(Guid id);  // Null possible but not indicated
-```
-
----
-
-## Pattern: Marker Interfaces & Behaviors
-
-Framework uses **marker interfaces** for opt-in behaviors. Commands/queries declare capability via inheritance.
-
-### Behavioral Markers
-
-```csharp
-// ✓ Correct
-public sealed record CreateProductCommand(string Name, decimal Price)
-    : ICommand<Guid>,
-      ITransactional,           // Enable transaction
-      IRequirePermission,        // Require auth
-      IAuditable                 // Log audit trail
-{
-    public string Permission => "products.create";
-}
-
-public sealed record GetProductsQuery(int Page = 1)
-    : IQuery<PaginatedResponse<ProductDto>>,
-      ICacheable  // Enable caching
-{
-    public string CacheKey => $"products:page:{Page}";
-    public TimeSpan? Expiry => TimeSpan.FromMinutes(5);
-}
-
-// ✗ Incorrect
-public record CreateProductCommand(...) : ICommand<Guid>
-{
-    // No marker interfaces = no behaviors applied
-}
-```
-
-### Custom Behavior Implementation
-
-```csharp
-// Handler implements behavior for a specific command
-public sealed class MyCustomBehavior<T> : ICommandBehavior<T> where T : ICommand
-{
-    private readonly ILogger<MyCustomBehavior<T>> _logger;
+    if (string.IsNullOrEmpty(Name))
+        return Result.Invalid(new ValidationError("Name", "Name is required"));
     
-    public MyCustomBehavior(ILogger<MyCustomBehavior<T>> logger)
-    {
-        _logger = logger;
-    }
+    return Result.Success();
+}
+
+// DO: Use exceptions for programming errors
+public class Entity<TId>
+{
+    public TId Id { get; }
     
-    public async Task<Unit> HandleAsync(
-        T request,
-        CommandHandlerDelegate next,
-        CancellationToken cancellationToken)
+    public Entity(TId id)
     {
-        try
-        {
-            _logger.LogInformation("Starting {CommandName}", typeof(T).Name);
-            var result = await next(request, cancellationToken);
-            _logger.LogInformation("Completed {CommandName}", typeof(T).Name);
-            return result;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed {CommandName}", typeof(T).Name);
-            throw;
-        }
+        if (id == null)
+            throw new ArgumentNullException(nameof(id)); // Programming error
     }
 }
+
+// AVOID: Returning null for business logic failures
+// if (condition) return null; // Bad pattern
 ```
 
 ---
 
-## CQRS Separation
+## Design Patterns & Conventions
 
-### Commands (Write)
-
-**Always async, always return result or Unit.**
+### 1. Entity & Aggregate Root
 
 ```csharp
-// ✓ Correct
-public sealed record CreateProductCommand(string Name, decimal Price, string? Description)
-    : ICommand<Guid>;  // Returns product ID
-
-public sealed record UpdateProductCommand(Guid Id, string Name, decimal Price)
-    : ICommand;  // Returns nothing
-
-// Handler
-public sealed class CreateProductCommandHandler : ICommandHandler<CreateProductCommand, Guid>
+// Generic Entity with type-safe ID
+public abstract class Entity<TId> where TId : notnull
 {
-    public async Task<Guid> HandleAsync(CreateProductCommand request, CancellationToken ct)
-    {
-        var product = new Product { Name = request.Name, Price = request.Price };
-        _repository.Add(product);
-        // UnitOfWork behavior calls SaveChanges — handler must NOT call it
-        return product.Id;
-    }
-}
-
-// ✗ Incorrect
-public record CreateProductCommand(...) : ICommand;  // No return type
-public record DeleteProductCommand(...);  // Missing interface
-```
-
-### Queries (Read)
-
-**Always async, always return specific type (not IEnumerable).**
-
-```csharp
-// ✓ Correct
-public sealed record GetProductByIdQuery(Guid Id) : IQuery<ProductDto>;
-
-public sealed record SearchProductsQuery(string? Search, int Page = 1)
-    : IQuery<PaginatedResponse<ProductDto>>;
-
-public sealed class GetProductByIdQueryHandler : IQueryHandler<GetProductByIdQuery, ProductDto>
-{
-    public async Task<ProductDto?> HandleAsync(GetProductByIdQuery request, CancellationToken ct)
-    {
-        var product = await _readRepository.GetByIdAsync(request.Id, ct);
-        return product == null ? null : MapToDto(product);
-    }
-}
-
-// ✗ Incorrect
-public record GetAllProductsQuery() : IQuery<IEnumerable<ProductDto>>;  // Too vague
-public class GetProductsQueryHandler { }  // Missing IQueryHandler interface
-```
-
-### Domain Events (In-process)
-
-**Inherit from DomainEvent, publish from aggregates, handle via INotificationHandler.**
-
-```csharp
-// ✓ Correct
-public sealed record ProductCreatedDomainEvent(Guid ProductId, string Name) 
-    : DomainEvent;
-
-public sealed class ProductCreatedDomainEventHandler 
-    : INotificationHandler<ProductCreatedDomainEvent>
-{
-    public async Task HandleAsync(ProductCreatedDomainEvent notification, CancellationToken ct)
-    {
-        await _mediator.PublishAsync(new ProductCreatedIntegrationEvent(
-            notification.ProductId,
-            notification.Name
-        ), ct);
-    }
-}
-
-// ✗ Incorrect
-public record ProductCreated : INotification;  // Inheritance broken
-public class ProductCreatedHandler { }  // Missing interface
-```
-
----
-
-## Entity & Aggregate Design
-
-### Aggregate Roots
-
-**Inherit from AggregateRoot<TId>, manage domain events, implement optimistic concurrency.**
-
-```csharp
-// ✓ Correct
-public sealed class Product : AggregateRoot<Guid>
-{
-    public required string Name { get; init; }
-    public required decimal Price { get; init; }
-    public string Description { get; init; } = string.Empty;
-    public bool IsActive { get; private set; }
+    public TId Id { get; protected set; }
     
-    // Factory method
-    public static Product Create(string name, decimal price, string? description = null)
+    // Domain events
+    private readonly List<IDomainEvent> _domainEvents = [];
+    public IReadOnlyList<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();
+    
+    protected void RaiseDomainEvent(IDomainEvent @event) => _domainEvents.Add(@event);
+    protected void ClearDomainEvents() => _domainEvents.Clear();
+}
+
+// Aggregate root adds transactional boundary
+public abstract class AggregateRoot<TId> : Entity<TId> where TId : notnull
+{
+    // No additional methods; just marks transactional boundary
+}
+```
+
+### 2. Value Objects
+
+```csharp
+// Record-based immutable value object
+public abstract record ValueObject
+{
+    public static bool operator ==(ValueObject? left, ValueObject? right)
     {
-        var product = new Product
-        {
-            Id = Guid.NewGuid(),
-            Name = name,
-            Price = price,
-            Description = description ?? string.Empty,
-            IsActive = true
-        };
+        if (left is null && right is null) return true;
+        if (left is null || right is null) return false;
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(ValueObject? left, ValueObject? right)
+        => !(left == right);
+}
+
+// Concrete value object
+public record Money(decimal Amount, string CurrencyCode) : ValueObject
+{
+    public Money(decimal amount, string currencyCode) 
+        : this(
+            amount > 0 ? amount : throw new ArgumentException("Amount must be positive"),
+            !string.IsNullOrEmpty(currencyCode) ? currencyCode : throw new ArgumentException("Currency required")
+        ) { }
+}
+```
+
+### 3. Result Pattern
+
+```csharp
+// Non-generic result
+public class Result
+{
+    public ResultStatus Status { get; }
+    public bool IsSuccess => Status == ResultStatus.Ok;
+    public IReadOnlyList<string> Errors { get; }
+    public IReadOnlyList<ValidationError> ValidationErrors { get; }
+
+    public static Result Success() => new(ResultStatus.Ok);
+    public static Result Invalid(params ValidationError[] errors) => new(ResultStatus.Invalid, validationErrors: errors);
+    public static Result<T> Success<T>(T value) => Result<T>.Success(value);
+}
+
+// Generic result
+public class Result<T> : Result
+{
+    public T? Value { get; }
+    public static Result<T> Success(T value) => new(value, ResultStatus.Ok);
+}
+
+// Usage
+var result = await _repository.GetAsync(id);
+if (!result.IsSuccess)
+    return Result.NotFound($"Entity {id} not found");
+
+return Result.Success(result.Value);
+```
+
+### 4. Specification Pattern
+
+```csharp
+// Composable query specification
+public abstract class Specification<T>
+{
+    protected Specification(Func<T, bool> criteria)
+    {
+        Criteria = criteria;
+    }
+
+    public Func<T, bool> Criteria { get; }
+
+    // Boolean logic operators
+    public static Specification<T> operator &(Specification<T> left, Specification<T> right)
+        => new CompositeSpecification(t => left.Criteria(t) && right.Criteria(t));
+
+    public static Specification<T> operator |(Specification<T> left, Specification<T> right)
+        => new CompositeSpecification(t => left.Criteria(t) || right.Criteria(t));
+
+    public static Specification<T> operator !(Specification<T> spec)
+        => new CompositeSpecification(t => !spec.Criteria(t));
+}
+
+// Usage
+var activeOrAdmins = new ActiveUserSpec() | new AdminUserSpec();
+var filtered = users.Where(activeOrAdmins.Criteria).ToList();
+```
+
+### 5. Guard Clauses
+
+```csharp
+// Input validation utility
+public static class Guard
+{
+    public static void NotNull<T>(T? value, string paramName) where T : class
+    {
+        if (value is null)
+            throw new ArgumentNullException(paramName);
+    }
+
+    public static void NotEmpty(string? value, string paramName)
+    {
+        if (string.IsNullOrEmpty(value))
+            throw new ArgumentException("Value cannot be empty", paramName);
+    }
+
+    public static void GreaterThanOrEqual(int value, int minimum, string paramName)
+    {
+        if (value < minimum)
+            throw new ArgumentOutOfRangeException(paramName, $"Value must be >= {minimum}");
+    }
+}
+
+// Usage
+public class User
+{
+    public User(string email, string name)
+    {
+        Guard.NotEmpty(email, nameof(email));
+        Guard.NotEmpty(name, nameof(name));
         
-        product.RaiseDomainEvent(new ProductCreatedDomainEvent(product.Id, name));
-        return product;
+        Email = email;
+        Name = name;
     }
-    
-    public void Deactivate()
-    {
-        IsActive = false;
-        RaiseDomainEvent(new ProductDeactivatedDomainEvent(Id));
-    }
-}
-
-// ✗ Incorrect
-public class Product : AggregateRoot<Guid> {
-    public string Name { get; set; }  // Mutable property
-    public decimal Price { get; set; }
 }
 ```
 
-### Value Objects
-
-**Inherit from ValueObject, immutable, component-based equality.**
+### 6. Module System
 
 ```csharp
-// ✓ Correct
-public sealed class Money : ValueObject
+// Module dependency declaration
+[DependsOn(typeof(CoreModule))]
+public class ApplicationModule : NacModule
 {
-    public decimal Amount { get; }
-    public string Currency { get; }
-    
-    private Money() { }  // EF Core
-    
-    public Money(decimal amount, string currency)
+    public override void ConfigureServices(ServiceConfigurationContext context)
     {
-        if (amount < 0) throw new ArgumentException("Amount must be positive");
-        if (string.IsNullOrWhiteSpace(currency)) throw new ArgumentException("Currency required");
+        var services = context.Services;
         
-        Amount = amount;
-        Currency = currency;
+        // Register module services
+        services.AddScoped<IMyService, MyService>();
     }
-    
-    protected override IEnumerable<object?> GetEqualityComponents()
+
+    public override Task OnApplicationInitializationAsync(ApplicationInitializationContext context)
     {
-        yield return Amount;
-        yield return Currency;
+        // Initialization logic (seed data, warming caches, etc.)
+        return Task.CompletedTask;
     }
 }
 
-// ✗ Incorrect
-public class Money {
-    public decimal Amount { get; set; }  // Mutable
-    public string Currency { get; set; }
-}
+// Usage: Dependency injection framework auto-resolves and wires modules
 ```
 
 ---
 
-## Repository & Data Access
+## Documentation Standards
 
-### Repository Pattern (No IQueryable)
-
-**Repository returns complete results, never IQueryable. Use Specification for complex queries.**
+### XML Comments
+- **Required For:** All public types, methods, and properties
+- **Format:** Follow standard C# XML comment syntax
+- **Content:** Brief description + detailed remarks for complex behavior
 
 ```csharp
-// ✓ Correct
-public interface IProductRepository : IRepository<Product>
+/// <summary>
+/// Represents a domain entity with a unique identifier.
+/// </summary>
+/// <typeparam name="TId">The type of the entity's ID.</typeparam>
+/// <remarks>
+/// This base class provides common entity behavior including domain event tracking.
+/// Entities are reference types identified by their ID, not their property values.
+/// </remarks>
+public abstract class Entity<TId> where TId : notnull
 {
-    Task<Product?> GetByIdAsync(Guid id, CancellationToken ct = default);
-    Task<IEnumerable<Product>> ListByNameAsync(string name, CancellationToken ct = default);
-    Task<int> CountActiveAsync(CancellationToken ct = default);
-}
+    /// <summary>
+    /// Gets the unique identifier for this entity.
+    /// </summary>
+    public TId Id { get; protected set; }
 
-// In {Ns}.Modules.Catalog/Infrastructure/Repositories/ProductRepository.cs
-public sealed class ProductRepository : EfRepository<Product>, IProductRepository
-{
-    public ProductRepository(CatalogDbContext context) : base(context) { }
-
-    public async Task<Product?> GetByIdAsync(Guid id, CancellationToken ct)
-    {
-        var spec = new GetProductByIdSpec(id);
-        return await GetAsync(spec, ct);
-    }
-}
-
-// ✗ Incorrect
-public interface IProductRepository : IRepository<Product>
-{
-    IQueryable<Product> GetAll();  // Exposed IQueryable
+    /// <summary>
+    /// Raises a domain event to be processed by event handlers.
+    /// </summary>
+    /// <param name="event">The domain event to raise.</param>
+    /// <remarks>
+    /// Domain events are stored and cleared after being published.
+    /// </remarks>
+    protected void RaiseDomainEvent(IDomainEvent @event);
 }
 ```
 
-### Specifications
-
-**Encapsulate query logic in Specification objects.**
+### Inline Comments
+- **Keep minimal:** Code should be self-documenting
+- **When needed:** Explain "why," not "what"
+- **Mark special cases:** TODOs, workarounds, known issues
 
 ```csharp
-// ✓ Correct
-public sealed class GetProductsByNameSpec : Specification<Product>
-{
-    public GetProductsByNameSpec(string name)
-    {
-        Query
-            .Where(p => p.Name.Contains(name))
-            .OrderBy(p => p.Name)
-            .Take(100);
-    }
-}
+// Good: Explains the why
+// ReSharper disable once UseObjectInitializer
+var entity = new Entity<int>(1);
+entity.Name = "Test"; // Must use property setter for event tracking
 
-public sealed class GetActiveProductsSpec : Specification<Product>
-{
-    public GetActiveProductsSpec()
-    {
-        Query.Where(p => p.IsActive);
-    }
-}
-
-// ✗ Incorrect
-var products = _dbContext.Products
-    .Where(p => p.Name.Contains(search))
-    .ToListAsync();  // Query scattered in handler
+// Avoid: Explains the obvious
+var count = items.Count; // Get the count of items
 ```
 
 ---
 
-## Dependency Injection & Registration
+## Testing Standards
 
-### Service Registration
+### Test Organization
+- **Framework:** xUnit.v3 (v3.2.2+)
+- **Assertions:** FluentAssertions
+- **Naming:** `{MethodName}_{Scenario}_{Expected}` or `{MethodName}When{Condition}Then{Expected}`
+- **Structure:** Arrange-Act-Assert (AAA)
 
-**Each module provides a DI extension in `Infrastructure/`. Module class calls it from `ConfigureServices`.**
-
-```csharp
-// ✓ Correct — In {Ns}.Modules.Catalog/Infrastructure/CatalogServiceCollectionExtensions.cs
-public static class CatalogServiceCollectionExtensions
-{
-    public static IServiceCollection AddCatalogModule(
-        this IServiceCollection services,
-        string connectionString)
-    {
-        services.AddNacPostgreSQL<CatalogDbContext>(connectionString);
-        services.AddNacRepositoriesFromAssembly<CatalogDbContext>(
-            typeof(CatalogModule).Assembly);
-        services.AddScoped<IProductRepository, ProductRepository>();
-        return services;
-    }
-}
-
-// Module class wires its own infrastructure
-public sealed class CatalogModule : INacModule
-{
-    public string Name => "Catalog";
-
-    public void ConfigureServices(IServiceCollection services, IConfiguration configuration)
-    {
-        var connStr = configuration.GetConnectionString("DefaultConnection")!;
-        services.AddCatalogModule(connStr);
-    }
-}
-
-// Host (Program.cs) — registers modules via framework builder
-builder.AddNacFramework(nac =>
-{
-    nac.AddModule<CatalogModule>();
-});
-
-// ✗ Incorrect
-services.AddScoped<IProductRepository, ProductRepository>();  // In Program.cs directly
-services.AddTransient<CatalogService>();  // Transient (should be scoped)
+### xUnit v3 Requirements
+Test projects must declare `OutputType=Exe` in the project file (xUnit v3 requirement):
+```xml
+<PropertyGroup>
+  <OutputType>Exe</OutputType>
+  <IsPackable>false</IsPackable>
+  <IsTestProject>true</IsTestProject>
+</PropertyGroup>
 ```
 
----
-
-## Error Handling
-
-### Framework Exceptions
-
-**Throw NacException subtypes. Never throw base Exception.**
-
-```csharp
-// ✓ Correct
-public async Task<Product> GetProductAsync(Guid id)
-{
-    var product = await _repository.GetByIdAsync(id);
-    if (product == null)
-        throw new NotFoundException($"Product {id} not found");
-    
-    if (!product.IsActive)
-        throw new NacException("Product is inactive");
-    
-    return product;
-}
-
-// Handler with permission check
-if (!_currentUser.HasPermission("products.view"))
-    throw new ForbiddenException("You don't have permission to view products");
-
-// ✗ Incorrect
-throw new Exception("Product not found");  // Generic exception
-throw new InvalidOperationException(...);  // Not mapped to HTTP status
-if (product == null) return null;  // Silent failure
+For suppressing xUnit analyzer warnings (e.g., CancellationToken usage in unit tests):
+```xml
+<PropertyGroup>
+  <NoWarn>$(NoWarn);xUnit1051</NoWarn>
+</PropertyGroup>
 ```
 
----
-
-## Logging
-
-### Structured Logging
-
-**Use ILogger<T> with structured data, not string interpolation.**
+### Test File Template
 
 ```csharp
-// ✓ Correct
-_logger.LogInformation(
-    "Product created: ProductId={ProductId}, Name={ProductName}",
-    productId,
-    productName);
+namespace Nac.Core.Tests.Primitives;
 
-_logger.LogError(
-    ex,
-    "Failed to process order: OrderId={OrderId}, UserId={UserId}",
-    orderId,
-    userId);
+using FluentAssertions;
+using Xunit;
+using Nac.Core.Primitives;
 
-// ✗ Incorrect
-_logger.LogInformation($"Product created: {productId}");  // No structure
-Console.WriteLine("Product created");  // Console output (no context)
-```
-
----
-
-## Testing
-
-### Handler Tests
-
-**Use FakeEventBus, FakeTenantContext, FakeCurrentUser for isolation.**
-
-```csharp
-// ✓ Correct
-public class CreateProductCommandHandlerTests
+public class EntityTests
 {
     [Fact]
-    public async Task Handle_ValidRequest_CreatesProduct()
+    public void Create_WithValidId_SetsIdProperty()
     {
         // Arrange
-        var handler = new CreateProductCommandHandler(
-            _fakeRepository,
-            _fakeUnitOfWork);
-        
-        var command = new CreateProductCommand("Laptop", 1000m);
+        var expectedId = 1;
         
         // Act
-        var productId = await handler.HandleAsync(command, CancellationToken.None);
+        var entity = new TestEntity(expectedId);
         
         // Assert
-        Assert.NotEqual(Guid.Empty, productId);
-        var created = await _fakeRepository.GetByIdAsync(productId);
-        Assert.NotNull(created);
+        entity.Id.Should().Be(expectedId);
     }
-}
 
-// ✗ Incorrect
-var product = await _service.CreateAsync(...);  // No isolation
-var dbContext = new TestDbContext();  // Real database
-```
-
----
-
-## File Organization
-
-### Folder Structure (per Module — 1-Project Pattern)
-
-Each module is a single project with clean architecture enforced by folders.
-
-```
-Modules/
-  {Ns}.Modules.Catalog/
-    Domain/
-      Entities/
-        Product.cs              # Aggregate root
-        Category.cs
-      Events/
-        ProductCreatedDomainEvent.cs
-      Specifications/
-        GetProductByIdSpec.cs
-    Application/
-      Commands/
-        CreateProduct/
-          CreateProductCommand.cs
-          CreateProductCommandHandler.cs
-          CreateProductCommandValidator.cs
-      Queries/
-        GetProductById/
-          GetProductByIdQuery.cs
-          GetProductByIdQueryHandler.cs
-      EventHandlers/
-        ProductCreatedDomainEventHandler.cs
-    Contracts/
-      IProductRepository.cs     # Custom repo interface (optional)
-    Infrastructure/
-      CatalogDbContext.cs
-      CatalogServiceCollectionExtensions.cs
-      Configurations/
-        ProductConfiguration.cs
-      Repositories/
-        ProductRepository.cs
-    Endpoints/
-      ProductEndpoints.cs         # implements IEndpointMapper
-    CatalogModule.cs              # : INacModule
-```
-
-### File Naming
-
-- **Commands:** `{CommandName}Command.cs` + `{CommandName}CommandHandler.cs` + `{CommandName}CommandValidator.cs`
-- **Queries:** `{QueryName}Query.cs` + `{QueryName}QueryHandler.cs`
-- **Entities:** `{EntityName}.cs`
-- **Specifications:** `{SpecName}Spec.cs` or `Get{EntityName}Spec.cs`
-- **Events:** `{EventName}DomainEvent.cs` or `{EventName}IntegrationEvent.cs`
-- **Module class:** `{ModuleName}Module.cs` (implements `INacModule`)
-- **Endpoint mapper:** `{FeatureName}Endpoints.cs` (implements `IEndpointMapper`, group by feature)
-- **Service extensions:** `{ModuleName}ServiceCollectionExtensions.cs` (in `Infrastructure/`)
-- **DbContext:** `{ModuleName}DbContext.cs` (in `Infrastructure/`)
-- **Configurations:** `{EntityName}Configuration.cs` (in `Infrastructure/Configurations/`)
-- **Repositories:** `{EntityName}Repository.cs` (in `Infrastructure/Repositories/`)
-- **Contracts:** `I{EntityName}Repository.cs` (in `Contracts/`)
-
----
-
-## Documentation Comments
-
-### XML Documentation
-
-**Required on public types and members.**
-
-```csharp
-// ✓ Correct
-/// <summary>
-/// Creates a new product with the specified name and price.
-/// </summary>
-/// <param name="name">Product name (required, max 255 chars)</param>
-/// <param name="price">Product price (must be > 0)</param>
-/// <param name="description">Optional product description</param>
-/// <returns>Created product aggregate root</returns>
-/// <exception cref="ArgumentException">Thrown if name is empty or price is negative</exception>
-public static Product Create(string name, decimal price, string? description = null)
-{
-    if (string.IsNullOrWhiteSpace(name))
-        throw new ArgumentException("Name is required", nameof(name));
-    // ...
-}
-
-// ✗ Incorrect
-public static Product Create(string name, decimal price) { }  // No documentation
-/// <summary>Create</summary>  // Vague
-```
-
----
-
-## Identity Integration
-
-### Using IIdentityService (Business Modules)
-
-Query user info from Nac.Identity without tight coupling:
-
-```csharp
-// In handler (module core)
-public sealed class GetStaffByUserIdQueryHandler : IQueryHandler<GetStaffByUserIdQuery, StaffDto?>
-{
-    private readonly IIdentityService _identityService;
-    private readonly IStaffRepository _staffRepository;
-
-    public async Task<StaffDto?> HandleAsync(GetStaffByUserIdQuery query, CancellationToken ct)
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public void Create_WithInvalidName_ThrowsArgumentException(string name)
     {
-        // Get user info from identity service
-        var userInfo = await _identityService.GetUserInfoAsync(query.UserId, ct);
-        if (userInfo is null)
-            return null;
-
-        // Fetch staff by user ID
-        var staff = await _staffRepository.GetByUserIdAsync(query.UserId, ct);
-        if (staff is null)
-            return null;
-
-        return new StaffDto(staff.Id, staff.EmployeeCode, userInfo.DisplayName ?? userInfo.Email);
+        // Arrange & Act & Assert
+        var action = () => new TestEntity(1) { Name = name };
+        action.Should().Throw<ArgumentException>();
     }
-}
-```
-
-### Publishing Identity Events
-
-When `Nac.Messaging` is configured, publish events via `IdentityEventPublisher`:
-
-```csharp
-// In identity registration endpoint or command handler
-public sealed class RegisterUserCommandHandler : ICommandHandler<RegisterUserCommand, Guid>
-{
-    private readonly UserManager<NacIdentityUser> _userManager;
-    private readonly IdentityEventPublisher _eventPublisher;
-
-    public async Task<Guid> HandleAsync(RegisterUserCommand cmd, CancellationToken ct)
+    
+    // Private helper class for testing abstract Entity
+    private class TestEntity : Entity<int>
     {
-        var user = new NacIdentityUser { Email = cmd.Email, UserName = cmd.Email };
-        var result = await _userManager.CreateAsync(user, cmd.Password);
+        public string? Name { get; set; }
         
-        if (result.Succeeded)
+        public TestEntity(int id)
         {
-            // Publish event (safe even if IEventBus not configured)
-            await _eventPublisher.PublishUserRegisteredAsync(user, tenantId: null, ct);
-            return user.Id;
+            Id = id;
         }
-
-        throw new InvalidOperationException("Registration failed");
-    }
-}
-
-// Subscribers listen for events in other modules
-public sealed class UserRegisteredIntegrationEventHandler 
-    : IIntegrationEventHandler<UserRegisteredEvent>
-{
-    private readonly IStaffRepository _staffRepository;
-    private readonly IUnitOfWork _unitOfWork;
-
-    public async Task Handle(UserRegisteredEvent evt, CancellationToken ct)
-    {
-        // Example: auto-create staff record for new user
-        var staff = new Staff { UserId = evt.UserId, ... };
-        _staffRepository.Add(staff);
-        await _unitOfWork.SaveChangesAsync(ct);
     }
 }
 ```
 
-### Linking Business Entities to Users
+### Coverage Goals
+- **Target:** 80%+ line coverage
+- **Focus:** Happy path + edge cases
+- **Ignore:** Generated code, trivial getters
 
-Use **Guid FK only** (no navigation to NacIdentityUser) to keep modules decoupled from Infrastructure:
+---
+
+## Performance Considerations
+
+### Memory Efficiency
+- **Value objects:** Immutable, stack-allocated when possible
+- **Collections:** Use IEnumerable<T> for lazy evaluation
+- **Large results:** Stream or paginate
+
+### Execution Speed
+- **Specifications:** Pre-compile expensive predicates
+- **Repositories:** Batch operations; use bulk insert
+- **Async:** Use async/await for I/O-bound operations
+
+### Benchmarking
+- Run benchmarks before optimizing
+- Document assumptions in code
+- Include performance regressions in CI
+
+---
+
+## Dependency Management
+
+### External Dependencies (L0 Only)
+```xml
+<ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+</ItemGroup>
+```
+
+- **Only abstractions:** No implementations
+- **No business logic dependencies:** All core logic is custom
+- **Version management:** Centralized in Directory.Packages.props
+
+---
+
+## Security Standards
+
+### Input Validation
+- Validate all public inputs (Guard clauses)
+- Reject null for non-nullable parameters
+- Bounds-check numeric values
+
+### Data Protection
+- Immutable entities and value objects
+- No sensitive data in logs
+- Encrypt at rest (L2+ responsibility)
+
+### Example
+```csharp
+public class User
+{
+    public string Email { get; }
+    
+    public User(string email)
+    {
+        Guard.NotEmpty(email, nameof(email));
+        
+        // Validate email format (basic check)
+        if (!email.Contains("@"))
+            throw new ArgumentException("Invalid email format");
+        
+        Email = email;
+    }
+}
+```
+
+---
+
+## Versioning & Compatibility
+
+### Breaking Changes
+- Mark deprecated APIs with `[Obsolete]`
+- Major version bump for breaking changes
+- Provide migration guide in release notes
+
+### Example
+```csharp
+[Obsolete("Use NewMethod() instead. Will be removed in v2.0.0.", false)]
+public void OldMethod()
+{
+    NewMethod();
+}
+
+public void NewMethod()
+{
+    // Improved implementation
+}
+```
+
+---
+
+## Build & Compilation
+
+### Directory.Build.props (Shared Settings)
+```xml
+<PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TargetFramework>net10.0</TargetFramework>
+    <NacFrameworkVersion>1.0.0</NacFrameworkVersion>
+</PropertyGroup>
+```
+
+### Directory.Packages.props (Centralized Versions)
+```xml
+<ItemGroup>
+    <!-- BCL Abstractions -->
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.6" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.6" />
+    
+    <!-- CQRS & Caching -->
+    <PackageVersion Include="FluentValidation" Version="12.1.1" />
+    <PackageVersion Include="Microsoft.Extensions.Caching.Hybrid" Version="10.5.0" />
+    
+    <!-- Persistence -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.6" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.6" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.6" />
+    
+    <!-- Identity & JWT (Wave 2B) -->
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.6" />
+    <PackageVersion Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.6" />
+    <PackageVersion Include="Microsoft.IdentityModel.Tokens" Version="8.0.1" />
+    <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.0.1" />
+    
+    <!-- Event Bus -->
+    <PackageVersion Include="System.Threading.Channels" Version="8.0.0" />
+    
+    <!-- Testing -->
+    <PackageVersion Include="xunit.v3" Version="3.2.2" />
+    <PackageVersion Include="FluentAssertions" Version="8.9.0" />
+    <PackageVersion Include="NSubstitute" Version="5.3.0" />
+</ItemGroup>
+```
+
+---
+
+## Multi-Tenancy Patterns (Wave 2B)
+
+### Multi-Tenant Entity Pattern
 
 ```csharp
-// ✓ CORRECT — In module core
-public sealed class Staff : AggregateRoot<Guid>
+// Entities implementing ITenantEntity are automatically filtered
+public class Customer : Entity<CustomerId>, ITenantEntity
 {
-    public Guid UserId { get; set; }  // FK to NacIdentityUser, no navigation property
-    public required string EmployeeCode { get; init; }
-    public required string Department { get; set; }
+    public string TenantId { get; set; } = default!;
+    public string Name { get; set; }
+    
+    // DbContext automatically filters: .Where(c => c.TenantId == currentTenantId)
 }
+```
 
-// ✓ Query user info via IIdentityService
-public async Task<StaffWithUserInfoDto?> GetStaffWithUserAsync(Guid staffId, CancellationToken ct)
+### Tenant Resolution Pattern
+
+```csharp
+// Middleware resolves tenant from multiple sources
+app.UseNacMultiTenancy()
+    .AddHeaderTenantStrategy("X-Tenant-Id")
+    .AddClaimTenantStrategy("tenant_id")
+    .AddRouteTenantStrategy("tenantId");
+
+// First matching strategy wins
+// Usage in controller: [Route("/api/{tenantId}/customers")]
+```
+
+### Per-Tenant Database Pattern
+
+```csharp
+// Register custom connection string resolver
+services.AddScoped<ITenantConnectionStringResolver, MyTenantConnectionStringResolver>();
+
+public class MyTenantConnectionStringResolver : ITenantConnectionStringResolver
 {
-    var staff = await _repository.GetByIdAsync(staffId, ct);
-    if (staff is null)
-        return null;
-
-    var userInfo = await _identityService.GetUserInfoAsync(staff.UserId, ct);
-    return new StaffWithUserInfoDto(staff.Id, staff.EmployeeCode, userInfo?.Email);
-}
-
-// ❌ WRONG — Navigation property couples to Infrastructure
-public sealed class Staff : AggregateRoot<Guid>
-{
-    public NacIdentityUser User { get; set; }  // FORBIDDEN! Couples to Nac.Identity
+    public string Resolve(string tenantId)
+    {
+        // Return tenant-specific connection string
+        // E.g., "Server=db-tenant-{tenantId};Database=AppDb"
+    }
 }
 ```
 
 ---
 
-## Testing & Performance
+## Identity & Authorization Patterns (Wave 2B)
 
-Comprehensive testing and performance optimization guidelines are covered in **[Testing & Performance](./testing-and-performance.md)** (separate document).
+### Permission Definition Pattern
 
-**Key references:**
-- Unit testing with Fakes (not Mocks)
-- Integration testing with NacTestHost
-- N+1 query prevention via Specifications
-- Pagination best practices
-- Caching rules and invalidation
-- Async/await patterns
-- Batch operations
+```csharp
+// Define permissions as IPermissionDefinitionProvider
+public class MyPermissions : IPermissionDefinitionProvider
+{
+    public void Define(IPermissionDefinitionContext context)
+    {
+        var users = context.AddGroup("Users");
+        users.AddPermission("Create", displayName: "Create Users");
+        users.AddPermission("Edit", displayName: "Edit Users");
+        users.AddPermission("Delete", displayName: "Delete Users", isGrantedByDefault: false);
+        
+        var reports = context.AddGroup("Reports");
+        reports.AddPermission("View");
+        reports.AddPermission("Export", isGrantedByDefault: false);
+    }
+}
+
+// Register in DI
+services.AddNacIdentity<MyDbContext>()
+    .AddPermissionDefinitionProvider<MyPermissions>();
+```
+
+### Permission-Based Authorization Pattern
+
+```csharp
+// In controller: require specific permission
+[Authorize(Policy = "Users.Delete")]
+public async Task<IActionResult> DeleteUser(Guid id)
+{
+    // Only users with "Users.Delete" permission
+    return Ok();
+}
+
+// Programmatic check
+if (await _permissionChecker.IsGrantedAsync("Reports.Export"))
+{
+    // User can export reports
+}
+```
+
+### JWT Token Claim Pattern
+
+```csharp
+// JwtTokenService adds standard claims
+var token = await _jwtTokenService.GenerateAsync(user);
+
+// Token includes:
+// - sub: user.Id
+// - name: user.FullName
+// - email: user.Email
+// - tenant_id: user.TenantId
+// - role: user roles (repeating claim)
+```
+
+### User Info Retrieval Pattern
+
+```csharp
+// IdentityService provides user queries
+var userInfo = await _identityService.GetUserInfoAsync(userId);
+// Returns: UserInfo(Id, Email, FullName, TenantId, Roles)
+
+var users = await _identityService.GetUsersAsync(userIds);
+// Bulk user info retrieval
+```
 
 ---
 
-## Summary: Key Takeaways
+## Checklist Before Commit
 
-1. **Naming:** PascalCase classes/methods, camelCase parameters, UPPER_SNAKE_CASE constants
-2. **Records:** DTOs, events, requests—use records (not classes)
-3. **Sealed:** Default to sealed classes/records
-4. **Init:** Immutable properties use `init`, required members use `required`
-5. **Nullable:** Always enabled; use `?` for optional
-6. **Markers:** Behavioral capability via marker interfaces
-7. **CQRS:** Separate command/query handlers, no mixing
-8. **Repositories:** No IQueryable exposure; use Specifications
-9. **Exceptions:** Throw NacException subtypes only
-10. **Logging:** Structured logging with ILogger<T>, not Console
-11. **Testing:** Fakes for unit tests, isolation matters
-12. **Async:** All I/O is async; use Task/ValueTask
+- [ ] Code compiles without warnings
+- [ ] All tests pass (no skipped tests)
+- [ ] New public APIs have XML comments
+- [ ] No TODO/FIXME comments without context
+- [ ] File naming follows conventions
+- [ ] Namespace matches directory structure
+- [ ] No hardcoded values; use constants
+- [ ] Guard clauses for all public inputs
+- [ ] Result pattern used for business errors
+- [ ] Multi-tenant entities implement ITenantEntity
+- [ ] Permissions follow hierarchy and naming conventions
 
+---
+
+**Last Updated:** 2026-04-16 (Wave 2B)
+**C# Version:** 13.0+  
+**Target Framework:** .NET 10.0 LTS

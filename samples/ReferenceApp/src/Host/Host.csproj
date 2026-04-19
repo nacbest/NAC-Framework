@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <!-- Required for `dotnet ef` tooling — PrivateAssets=all keeps it out of published output -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- NAC Framework — ProjectReference (development mode, same repo commit) -->
+    <ProjectReference Include="$(NacFrameworkSrc)/Nac.WebApi/Nac.WebApi.csproj" />
+    <ProjectReference Include="$(NacFrameworkSrc)/Nac.Identity/Nac.Identity.csproj" />
+    <ProjectReference Include="$(NacFrameworkSrc)/Nac.MultiTenancy/Nac.MultiTenancy.csproj" />
+    <ProjectReference Include="$(NacFrameworkSrc)/Nac.Cqrs/Nac.Cqrs.csproj" />
+    <ProjectReference Include="$(NacFrameworkSrc)/Nac.Persistence/Nac.Persistence.csproj" />
+    <ProjectReference Include="$(NacFrameworkSrc)/Nac.EventBus/Nac.EventBus.csproj" />
+    <ProjectReference Include="$(NacFrameworkSrc)/Nac.Caching/Nac.Caching.csproj" />
+    <!-- Internal building blocks -->
+    <ProjectReference Include="../BuildingBlocks/ReferenceApp.SharedKernel/ReferenceApp.SharedKernel.csproj" />
+    <!-- Orders module — Phase 03 -->
+    <ProjectReference Include="../Modules/Orders/Orders/Orders.csproj" />
+    <!-- Billing module — Phase 04 -->
+    <ProjectReference Include="../Modules/Billing/Billing/Billing.csproj" />
+  </ItemGroup>
+</Project>

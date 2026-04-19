@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Host/Host.csproj" />
+    <Project Path="src/BuildingBlocks/ReferenceApp.SharedKernel/ReferenceApp.SharedKernel.csproj" />
+  </Folder>
+  <Folder Name="/modules/">
+    <Project Path="src/Modules/Orders/Orders.Contracts/Orders.Contracts.csproj" />
+    <Project Path="src/Modules/Orders/Orders/Orders.csproj" />
+    <Project Path="src/Modules/Billing/Billing.Contracts/Billing.Contracts.csproj" />
+    <Project Path="src/Modules/Billing/Billing/Billing.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="../../tests/ReferenceApp.IntegrationTests/ReferenceApp.IntegrationTests.csproj" />
+  </Folder>
+</Solution>

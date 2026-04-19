@@ -1,8 +1,0 @@
-{
-  "framework": { "name": "nac", "version": "{{ nac_version }}" },
-  "solution": { "name": "{{ project_name }}", "namespace": "{{ project_name }}" },
-  "database": { "provider": "postgresql", "connectionStringKey": "DefaultConnection" },
-  "modules": {
-    "{{ module_name }}": { "version": "1.0.0", "dependencies": [] }
-  }
-}

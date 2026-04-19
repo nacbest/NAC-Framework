@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Nac.EventBus</PackageId>
+    <Version>$(NacFrameworkVersion)</Version>
+    <Description>NAC Framework EventBus — Custom event bus with InMemory transport and outbox bridge</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Nac.Core\Nac.Core.csproj" />
+    <ProjectReference Include="..\Nac.Persistence\Nac.Persistence.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+  </ItemGroup>
+</Project>
