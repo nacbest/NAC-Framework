@@ -6,9 +6,9 @@ Strategic roadmap for NAC Framework development through Q4 2026 and beyond.
 
 ## Current State
 
-**Completed:** L0 Nac.Core + Wave 1 (L1 CQRS/Caching + L2 Persistence) + Wave 2A (Nac.EventBus, Nac.Testing) + Wave 2B (Nac.Identity, Nac.MultiTenancy) + Wave 2C (Nac.Observability, Nac.Jobs) + Wave 3 (L3 Nac.WebApi)  
-**Tests:** 577 unit tests, all passing  
-**Packages:** 11 (Nac.Core, Nac.Cqrs, Nac.Caching, Nac.Persistence, Nac.EventBus, Nac.Testing, Nac.Identity, Nac.MultiTenancy, Nac.Observability, Nac.Jobs, Nac.WebApi)
+**Completed:** L0 Nac.Core + Wave 1 (L1 CQRS/Caching + L2 Persistence) + Wave 2A (Nac.EventBus, Nac.Testing) + Wave 2B (Nac.Identity, Nac.MultiTenancy) + Wave 2B-Enhancement (Nac.MultiTenancy.Management) + Wave 2C (Nac.Observability, Nac.Jobs) + Wave 3 (L3 Nac.WebApi) + Wave 4A (Consumer Reference Architecture)  
+**Tests:** 615 unit tests + 11 integration tests, all passing  
+**Packages:** 12 (Nac.Core, Nac.Cqrs, Nac.Caching, Nac.Persistence, Nac.EventBus, Nac.Testing, Nac.MultiTenancy, Nac.MultiTenancy.Management, Nac.Identity, Nac.Observability, Nac.Jobs, Nac.WebApi)
 
 ---
 
@@ -73,6 +73,30 @@ Strategic roadmap for NAC Framework development through Q4 2026 and beyond.
 3. ✅ **Consumer doc rewrite:** NAC-Consumer-Project-Architecture.md (938→972 LOC, 17 sections, real API surface)
 
 **Tests Added:** 11 integration tests, all passing
+
+### Phase 8A-Ext: Tenant Management Module (COMPLETE ✅)
+
+**Completed (2026-04-19):**
+1. ✅ **Nac.MultiTenancy.Management** — Admin-facing tenant lifecycle on top of Nac.MultiTenancy
+   - Tenant aggregate (AggregateRoot<Guid>) with audit + soft-delete
+   - 5 domain events emitted to Outbox (Created, Updated, Deleted, Activated, Deactivated)
+   - TenantManagementDbContext (centralized registry, not multi-tenant)
+   - EfCoreTenantStore override with 10-minute sliding cache
+   - EncryptedConnectionStringResolver using Microsoft.AspNetCore.DataProtection
+   - 11 REST endpoints (/api/admin/tenants) with host-admin authorization
+   - Bulk operations (activate, deactivate, delete) with 207 Multi-Status support
+   - DI extension: AddNacTenantManagement(opts => opts.UseDbContext(...))
+2. ✅ **Module README:** Installation, quickstart, API reference, DataProtection key persistence guidance
+3. ✅ **Framework docs updated:** project-overview-pdr.md, codebase-summary.md, system-architecture.md, project-changelog.md, project-roadmap.md
+
+**Tests Added:** 38 unit tests, all passing
+
+**Key Design Decisions:**
+- Registry DB separate from multi-tenant application DBs (centralized tenant metadata)
+- Encryption at rest via DataProtection (purpose: `Nac.MultiTenancy.Management.ConnectionString`)
+- Cache invalidation on all mutations; manual API via ITenantCacheInvalidator
+- Host-realm only (non-null TenantId rejected); ICurrentUser enforcement
+- Outbox integration for reliable domain event publication
 
 ### Phase 8B: Framework Enhancements (Pending)
 

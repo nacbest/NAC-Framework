@@ -52,6 +52,11 @@ Foundation layer with DDD primitives, modularity, and result patterns.
 - **Nac.MultiTenancy:** TenantInfo/ITenantContext/ITenantStore abstractions, 4 resolution strategies (Header, Claim, Route, Subdomain), TenantResolutionMiddleware, MultiTenantDbContext with RLS query filters, TenantEntityInterceptor, ITenantConnectionStringResolver, AddNacMultiTenancy() + UseNacMultiTenancy() extensions
 - **Nac.Identity:** NacUser (extends IdentityUser<Guid>), NacRole, NacIdentityDbContext<TContext>, CurrentUserAccessor (ICurrentUser from JWT), IdentityService (IIdentityService wrapping UserManager), JwtTokenService (JWT token generation), PermissionDefinitionManager (FrozenDictionary registry), PermissionChecker (claims + hierarchical rules), PermissionAuthorizationHandler (ASP.NET Core Authorization), AddNacIdentity<TContext>() extension
 
+### L2 — Feature Layers (Wave 2B-Enhancement COMPLETE)
+**Tests:** 38 new tests (all passing)
+
+- **Nac.MultiTenancy.Management:** Tenant aggregate (AggregateRoot<Guid> with audit/soft-delete), 5 domain events (Created, Updated, Deleted, Activated, Deactivated), TenantManagementDbContext registry DB, EfCoreTenantStore with 10-min sliding cache, EncryptedConnectionStringResolver (Microsoft.AspNetCore.DataProtection), 11 REST endpoints (/api/admin/tenants), HostAdminOnlyFilter authorization, bulk operations (activate/deactivate/delete), outbox-emitted domain events, AddNacTenantManagement() extension
+
 ### L2 — Feature Layers (Wave 2C COMPLETE)
 **Tests:** 49 new tests (all passing) = 28 Observability + 21 Jobs
 
@@ -129,6 +134,16 @@ NACFramework/
 │   │   ├── Factory/              [ITenantConnectionStringResolver]
 │   │   ├── Extensions/           [AddNacMultiTenancy(), UseNacMultiTenancy()]
 │   │   └── NacMultiTenancyModule/[Modular registration]
+│   ├── Nac.MultiTenancy.Management/ [L2 - Tenant management & admin API]
+│   │   ├── Domain/               [Tenant aggregate, 5 domain events]
+│   │   ├── Persistence/          [TenantManagementDbContext, EfCoreTenantStore, EncryptedResolver]
+│   │   ├── Services/             [TenantManagementService, TenantMapper]
+│   │   ├── Controllers/          [TenantsController - 11 REST endpoints]
+│   │   ├── Dtos/                 [CreateTenantRequest, UpdateTenantRequest, TenantResponse, etc.]
+│   │   ├── Authorization/        [HostAdminOnlyFilter]
+│   │   ├── Validators/           [TenantRequestValidators]
+│   │   ├── Extensions/           [AddNacTenantManagement()]
+│   │   └── NacTenantManagementModule/ [Modular registration]
 │   ├── Nac.Identity/             [L2 - Identity & authentication]
 │   │   ├── Users/                [NacUser, NacRole]
 │   │   ├── Context/              [NacIdentityDbContext, NacIdentityDbContext<TUser>]
@@ -166,6 +181,7 @@ NACFramework/
 │   ├── Nac.EventBus.Tests/       [34 tests]
 │   ├── Nac.Testing.Tests/        [47 tests]
 │   ├── Nac.MultiTenancy.Tests/   [61 tests - Wave 2B]
+│   ├── Nac.MultiTenancy.Management.Tests/ [38 tests - Wave 2B-Enhancement]
 │   ├── Nac.Identity.Tests/       [89 tests - Wave 2B]
 │   ├── Nac.Observability.Tests/  [28 tests - Wave 2C]
 │   ├── Nac.Jobs.Tests/           [21 tests - Wave 2C]

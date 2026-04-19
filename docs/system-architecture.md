@@ -58,6 +58,16 @@ NAC Framework is a **layered, modular architecture** for building .NET applicati
       │ │ └─ Migration support │         │
       │ └──────┬───────────────┘         │
       │        │                         │
+      │ ┌──────▼────────────────────────┐│
+      │ │ Nac.MultiTenancy.Management (✅)
+      │ │ ├─ Tenant aggregate + events  ││
+      │ │ ├─ Registry DB (TenantMgmtCtx)││
+      │ │ ├─ EfCoreTenantStore (cache)  ││
+      │ │ ├─ Encrypted connection str.  ││
+      │ │ ├─ 11 REST admin endpoints    ││
+      │ │ └─ Outbox-emitted events      ││
+      │ └──────┬──────────────────────┘ │
+      │        │                         │
       │ ┌──────▼─────────────────┐      │
       │ │ Nac.EventBus (✅)     │      │
       │ │ ├─ Event publishing   │      │
@@ -588,6 +598,59 @@ ITenantEntity interface marks tenant-scoped entities
     ↓
 Repository queries filtered automatically
 ```
+
+---
+
+## Tenant Management Registry Architecture
+
+**Nac.MultiTenancy.Management** adds admin-facing tenant lifecycle management with a centralized registry database separate from application databases.
+
+### Admin Flow (Tenant CRUD)
+```
+[Admin API Call] POST /api/admin/tenants
+    ↓
+[Authorization] HostAdminOnlyFilter + "Tenants.Manage" policy
+    ↓
+[Service] TenantManagementService.CreateAsync()
+    ↓
+[Aggregate] Tenant.Create() → TenantCreatedEvent
+    ↓
+[DbContext] TenantManagementDbContext (registry DB)
+    ↓
+[Encryption] ConnectionString encrypted via DataProtection
+    ↓
+[Outbox] DomainEventInterceptor → OutboxEvent
+    ↓
+[Publishing] OutboxWorker processes → IIntegrationEvent published
+```
+
+### Runtime Lookup (Tenant Resolution)
+```
+[Runtime] ITenantStore needed for tenant resolution
+    ↓
+[Cache] EfCoreTenantStore (10-min sliding window)
+    ↓
+[Query] TenantManagementDbContext (cache miss)
+    ↓
+[Return] TenantInfo with encrypted ConnectionString
+    ↓
+[Decrypt] EncryptedConnectionStringResolver (DataProtection)
+    ↓
+[Apply] Use plaintext to create per-tenant DbContext
+```
+
+### Key Components
+- **TenantManagementDbContext:** Host-realm registry (not multi-tenant)
+- **Tenant Aggregate:** AggregateRoot<Guid> with audit/soft-delete; emits 5 domain events
+- **EfCoreTenantStore:** Caching override with 10-minute invalidation windows
+- **EncryptedConnectionStringResolver:** Microsoft.AspNetCore.DataProtection with purpose `Nac.MultiTenancy.Management.ConnectionString`
+- **Cache Invalidation:** Explicit per-mutation via ITenantCacheInvalidator
+
+### Security Considerations
+- All endpoints require host-admin context (non-null TenantId rejected)
+- Authorization policy `"Tenants.Manage"` enforced via claims
+- Connection strings encrypted at rest; keys must persist across restarts
+- Bulk operations support partial failure (207 Multi-Status responses)
 
 ---
 

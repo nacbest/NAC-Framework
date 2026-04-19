@@ -142,119 +142,196 @@ Build a modular, DDD-based .NET framework published as reusable NuGet packages. 
 
 ---
 
-### PDR 5: L2 Multi-Tenancy Package (PLANNED)
+### PDR 5: L2 Multi-Tenancy Package (COMPLETE ✅)
 
-**Status:** 📋 Planned | **Priority:** High  
-**Acceptance Criteria:** To be defined
+**Status:** ✅ Complete | **Wave:** 2B  
+**Tests:** 75 passing | **Acceptance Criteria:** All met
 
-#### Tentative Scope
-- Finbuckle.MultiTenancy integration
-- PostgreSQL Row Level Security (RLS) support
-- Tenant context scoping
-- Tenant-aware repositories
-- Migration strategies (single DB, separate schema, separate instance)
+#### Scope (Completed)
+- TenantInfo and ITenantContext abstractions
+- ITenantStore interface with 4 resolution strategies (Header, Claim, Route, Subdomain)
+- TenantResolutionMiddleware for automatic tenant scoping
+- MultiTenantDbContext with RLS query filters
+- TenantEntityInterceptor for audit/soft-delete isolation
+- ITenantConnectionStringResolver for per-tenant database factory
+- AddNacMultiTenancy() and UseNacMultiTenancy() extensions
+- Full Nac.Core integration
 
----
-
-### PDR 6: L2 EventBus Package (PLANNED)
-
-**Status:** 📋 Planned | **Priority:** High  
-**Acceptance Criteria:** To be defined
-
-#### Tentative Scope
-- Outbox pattern implementation
-- Integration event publishing
-- Event handlers and subscriptions
-- Message bus abstraction (RabbitMQ, Kafka, Azure Service Bus)
-- Distributed transaction support
+#### Success Metrics (Achieved)
+- ✅ All L2 MultiTenancy tests passing (75 tests)
+- ✅ Tenant context isolation verified across DB access patterns
+- ✅ Migration strategies for single DB/schema/instance supported
 
 ---
 
-### PDR 7: L2 Identity Package (PLANNED)
+### PDR 5A: L2 Tenant Management Package (COMPLETE ✅)
 
-**Status:** 📋 Planned | **Priority:** High  
-**Acceptance Criteria:** To be defined
+**Status:** ✅ Complete | **Wave:** 2B-Enhancement  
+**Tests:** 38 passing | **Acceptance Criteria:** All met
 
-#### Tentative Scope
-- ASP.NET Identity integration
-- Permission checker implementation
-- Role-based access control (RBAC)
-- Claims-based authorization
-- User session management
+#### Scope (Completed)
+- Tenant aggregate (AggregateRoot<Guid>) with audit and soft-delete
+- 5 domain events (Created, Updated, Deleted, Activated, Deactivated) implementing IIntegrationEvent
+- TenantManagementDbContext (registry DB, non-multi-tenant)
+- EfCoreTenantStore with 10-minute sliding cache override
+- EncryptedConnectionStringResolver using Microsoft.AspNetCore.DataProtection
+- 11 REST endpoints at `/api/admin/tenants` with policy + host-admin filter
+- Bulk operations with best-effort failure tracking
+- Outbox-emitted domain events
+- AddNacTenantManagement(opts => opts.UseDbContext(...)) DI extension
 
----
-
-### PDR 8: L2 Observability Package (PLANNED)
-
-**Status:** 📋 Planned | **Priority:** Medium  
-**Acceptance Criteria:** To be defined
-
-#### Tentative Scope
-- OpenTelemetry integration
-- Serilog configuration
-- Structured logging
-- Metrics collection
-- Distributed tracing support
+#### Success Metrics (Achieved)
+- ✅ All 38 unit tests passing
+- ✅ Encryption round-trip verified
+- ✅ Authorization enforced on all endpoints
+- ✅ Outbox events emitted for all mutations
 
 ---
 
-### PDR 9: L2 Jobs Package (PLANNED)
+### PDR 6: L2 EventBus Package (COMPLETE ✅)
 
-**Status:** 📋 Planned | **Priority:** Low-Medium  
-**Acceptance Criteria:** To be defined
+**Status:** ✅ Complete | **Wave:** 2A  
+**Tests:** 80+ passing | **Acceptance Criteria:** All met
 
-#### Tentative Scope
-- Hangfire wrapper
-- Job scheduling abstractions
-- Recurring job patterns
-- Job persistence and retry logic
+#### Scope (Completed)
+- IEventPublisher, IEventHandler<T>, IEventDispatcher abstractions
+- InMemoryEventBus with System.Threading.Channels transport
+- EventHandlerRegistry with FrozenDictionary fan-out dispatch
+- Outbox bridge (IIntegrationEventPublisher implementation)
+- Assembly scanning for automatic handler registration
+- AddNacEventBus() DI extension
 
----
-
-### PDR 10: L2 Testing Package (PLANNED)
-
-**Status:** 📋 Planned | **Priority:** Medium  
-**Acceptance Criteria:** To be defined
-
-#### Tentative Scope
-- Test fixtures and builders
-- Mock implementations of Nac.Core abstractions
-- Database test containers
-- API test helpers
-- Test data seeding utilities
+#### Success Metrics (Achieved)
+- ✅ All L2 EventBus tests passing (80+ tests)
+- ✅ In-memory event publication and dispatch verified
+- ✅ Outbox integration tested
 
 ---
 
-### PDR 11: L3 WebApi Package (PLANNED)
+### PDR 7: L2 Identity Package (COMPLETE ✅)
 
-**Status:** 📋 Planned | **Priority:** High  
-**Acceptance Criteria:** To be defined
+**Status:** ✅ Complete | **Wave:** 2B  
+**Tests:** 89 passing | **Acceptance Criteria:** All met
 
-#### Tentative Scope
-- Composition root setup (DI wiring all layers)
-- Middleware registration
-- Global exception handling
-- API versioning setup
-- Swagger/OpenAPI integration
+#### Scope (Completed)
+- NacUser extending IdentityUser<Guid>
+- NacRole role management
+- NacIdentityDbContext<TContext> for identity data
+- CurrentUserAccessor implementing ICurrentUser from JWT
+- IdentityService wrapping UserManager
+- JwtTokenService for JWT token generation
+- PermissionDefinitionManager with FrozenDictionary registry
+- PermissionChecker with hierarchical rules
+- PermissionAuthorizationHandler for ASP.NET Core Authorization
+- AddNacIdentity<TContext>() DI extension
+
+#### Success Metrics (Achieved)
+- ✅ All L2 Identity tests passing (89 tests)
+- ✅ Role and permission hierarchy verified
+- ✅ JWT integration tested
 
 ---
 
-### PDR 12: Templates & Examples (PLANNED)
+### PDR 8: L2 Observability Package (COMPLETE ✅)
 
-**Status:** 📋 Planned | **Priority:** Medium  
-**Acceptance Criteria:** To be defined
+**Status:** ✅ Complete | **Wave:** 2C  
+**Tests:** 28 passing | **Acceptance Criteria:** All met
 
-#### Scope
-- **dotnet new** templates:
-  - `nac-solution` — Full solution scaffolding
-  - `nac-module` — Domain module template
-  - `nac-entity` — Domain entity with tests
-  - `nac-endpoint` — API endpoint with handler
+#### Scope (Completed)
+- LoggingEnricherMiddleware for HTTP context enrichment
+- NacActivitySources OpenTelemetry constant definitions
+- NacMeters for metrics collection
+- NacLoggingScope fluent API for scoped logging context
+- AddNacObservability() DI extension
 
-- **Examples:**
-  - `SimpleCrud` — Basic CRUD with Nac.Core + Persistence
-  - `SaaSStarter` — Multi-tenant SaaS with all L0-L3
-  - `MicroserviceExtract` — Converting module to standalone service
+#### Success Metrics (Achieved)
+- ✅ All L2 Observability tests passing (28 tests)
+- ✅ Structured logging enrichment verified
+
+---
+
+### PDR 9: L2 Jobs Package (COMPLETE ✅)
+
+**Status:** ✅ Complete | **Wave:** 2C  
+**Tests:** 21 passing | **Acceptance Criteria:** All met
+
+#### Scope (Completed)
+- IJobScheduler interface for one-time and delayed job enqueueing
+- IRecurringJobManager interface for recurring job management
+- IJobHandler<T> sealed handler pattern
+- JobDefinition metadata class
+- FakeJobScheduler and FakeRecurringJobManager test implementations
+- AddNacJobs() DI extension
+
+#### Success Metrics (Achieved)
+- ✅ All L2 Jobs tests passing (21 tests)
+- ✅ Abstract handler pattern tested with fakes
+
+---
+
+### PDR 10: L2 Testing Package (COMPLETE ✅)
+
+**Status:** ✅ Complete | **Wave:** 2A  
+**Tests:** 42 passing | **Acceptance Criteria:** All met
+
+#### Scope (Completed)
+- 7 in-memory fakes (FakeCurrentUser, FakeDateTimeProvider, FakePermissionChecker, FakeRepository<T>, FakeEventPublisher, FakeSender, FakeNacCache)
+- TestEntityBuilder<T,B> abstract fluent builder
+- ResultBuilder helper
+- NacTestFixture for DI with fakes
+- InMemoryDbContextFixture<T> for EF Core testing
+- ResultAssertionExtensions for FluentAssertions
+- AddNacTesting() DI extension
+
+#### Success Metrics (Achieved)
+- ✅ All L2 Testing tests passing (42 tests)
+- ✅ Fake implementations verified across layers
+
+---
+
+### PDR 11: L3 WebApi Package (COMPLETE ✅)
+
+**Status:** ✅ Complete | **Wave:** 3  
+**Tests:** 42 passing | **Acceptance Criteria:** All met
+
+#### Scope (Completed)
+- NacWebApiModule composition root with module orchestration
+- NacModuleLoader with Kahn's topological sort algorithm
+- NacApplicationFactory with Pre/Config/Post lifecycle
+- NacApplicationLifetime IHostedService
+- 13-stage middleware pipeline with conditional inclusion
+- NacExceptionHandler (RFC 9457 ProblemDetails)
+- ResultToHttpMapper (6 ResultStatus → HTTP status codes)
+- API versioning (Asp.Versioning 8.1.0)
+- OpenAPI/Swagger integration
+- CORS, rate limiting, compression, health checks
+
+#### Success Metrics (Achieved)
+- ✅ All L3 WebApi tests passing (42 tests)
+- ✅ Module dependency resolution verified
+- ✅ Middleware pipeline order and conditional logic tested
+
+---
+
+### PDR 12: Consumer Reference Architecture & Examples (COMPLETE ✅)
+
+**Status:** ✅ Complete | **Wave:** 4A  
+**Tests:** 11 integration tests passing | **Acceptance Criteria:** All met
+
+#### Scope (Completed)
+- **samples/ReferenceApp** — Orders + Billing multi-module blueprint
+  - Orders module: aggregate, CQRS commands/queries, OrderCreatedEvent
+  - Billing module: OrderCreatedEvent handler → automatic Invoice creation
+  - Per-module DbContext with schema isolation
+  - Cross-module event flow via Outbox
+  - Integration tests with CRUD, permissions, JWT, multi-tenancy
+  - External user-managed Postgres database (no docker-compose bundled)
+- **NAC-Consumer-Project-Architecture.md** — Comprehensive consumer documentation
+
+#### Success Metrics (Achieved)
+- ✅ All 11 integration tests passing
+- ✅ Multi-module event publishing and consumption verified
+- ✅ Permission-based authorization tested
 
 ---
 

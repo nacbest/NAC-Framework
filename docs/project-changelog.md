@@ -4,6 +4,46 @@ All significant changes to the NAC Framework are documented here. Format follows
 
 ---
 
+## [1.6.0] — Tenant Management Module (2026-04-19)
+
+### Added
+
+#### Nac.MultiTenancy.Management (L2)
+- **Tenant Aggregate:** AggregateRoot<Guid> with IAuditableEntity + ISoftDeletable
+- **Domain Events:** 5 events (TenantCreatedEvent, TenantUpdatedEvent, TenantDeletedEvent, TenantActivatedEvent, TenantDeactivatedEvent) implementing both IDomainEvent and IIntegrationEvent
+- **Registry Database:** TenantManagementDbContext (central registry, not multi-tenant)
+- **Tenant Store Implementation:** EfCoreTenantStore with 10-minute sliding cache override for ITenantStore
+- **Encrypted Connection Strings:** EncryptedConnectionStringResolver using Microsoft.AspNetCore.DataProtection (purpose: `Nac.MultiTenancy.Management.ConnectionString`)
+- **REST API:** 11 endpoints at `/api/admin/tenants`:
+  - POST / GET / GET{id} / GET by-identifier / PUT / DELETE
+  - POST {id}/activate, {id}/deactivate
+  - POST bulk/activate, bulk/deactivate, bulk/delete
+- **Authorization:** All endpoints require `[Authorize(Policy = "Tenants.Manage")]` + `HostAdminOnlyFilter` (rejects non-host callers)
+- **Bulk Operations:** Best-effort with 207 Multi-Status on partial failure (max 100 IDs per request)
+- **DI Entry Point:** `services.AddNacTenantManagement(opts => opts.UseDbContext(...))`
+- **Cache Invalidation:** Manual via ITenantCacheInvalidator; automatic on all mutations
+- **Outbox Integration:** All mutations emit domain events → Outbox → IntegrationEventPublisher
+
+### Tests
+- 38 unit tests covering domain aggregate, EF-backed store, encryption round-trip, all 11 REST endpoints, bulk operations, authorization, outbox emission
+- All tests passing
+
+### Documentation
+- Created src/Nac.MultiTenancy.Management/README.md with installation, quickstart, API reference, key features, and DataProtection key persistence warnings
+- Updated docs/project-overview-pdr.md: Marked PDR 5 (Nac.MultiTenancy) as complete; added PDR 5A for Nac.MultiTenancy.Management
+- Updated docs/codebase-summary.md: Added L2 row + codebase structure entry
+- Updated docs/system-architecture.md: Added Tenant Management Registry section with admin/runtime flows
+- Updated docs/project-changelog.md (this file)
+- Updated docs/project-roadmap.md: Marked tenant-management phase as completed
+
+### Dependencies (New)
+- Microsoft.AspNetCore.DataProtection (framework API)
+
+### Breaking Changes
+- None. Full backward compatibility maintained. Nac.MultiTenancy remains functional without this module.
+
+---
+
 ## [1.5.1] — Consumer Reference Architecture & Framework Fixes (2026-04-17)
 
 ### Added
