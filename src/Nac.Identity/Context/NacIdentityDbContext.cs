@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Nac.Identity.Memberships;
+using Nac.Identity.Permissions.Grants;
 using Nac.Identity.Users;
 using Nac.Persistence.Context;
 
@@ -8,7 +10,9 @@ namespace Nac.Identity.Context;
 /// <summary>
 /// Abstract EF Core <see cref="DbContext"/> for Identity-based NAC applications.
 /// Inherits soft-delete query filters from <see cref="NacDbContext"/> and maps all
-/// ASP.NET Core Identity tables to prefixed NAC table names.
+/// ASP.NET Core Identity tables to prefixed NAC table names. Pattern A: users are
+/// global (no <c>TenantId</c>); tenant access is expressed via
+/// <see cref="UserTenantMembership"/> and permissions via <see cref="PermissionGrant"/>.
 /// </summary>
 public abstract class NacIdentityDbContext : NacDbContext
 {
@@ -18,21 +22,35 @@ public abstract class NacIdentityDbContext : NacDbContext
     /// <summary>Roles stored in the identity store.</summary>
     public DbSet<NacRole> Roles => Set<NacRole>();
 
+    /// <summary>User ↔ tenant membership rows.</summary>
+    public DbSet<UserTenantMembership> Memberships => Set<UserTenantMembership>();
+
+    /// <summary>Role assignments within a membership.</summary>
+    public DbSet<MembershipRole> MembershipRoles => Set<MembershipRole>();
+
+    /// <summary>Flat permission grant table (ABP-style, provider-based).</summary>
+    public DbSet<PermissionGrant> PermissionGrants => Set<PermissionGrant>();
+
     /// <inheritdoc cref="NacDbContext(DbContextOptions)"/>
     protected NacIdentityDbContext(DbContextOptions options) : base(options) { }
 
     /// <inheritdoc/>
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        // Applies soft-delete filters and assembly configurations from NacDbContext.
+        // Applies soft-delete filters and configurations from the concrete context's assembly.
         base.OnModelCreating(modelBuilder);
+
+        // Always apply configurations shipped with Nac.Identity even when the concrete
+        // DbContext lives in a consumer assembly.
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(NacIdentityDbContext).Assembly);
 
         ConfigureIdentityTables(modelBuilder);
     }
 
     /// <summary>
-    /// Maps all Identity entity types to NAC-prefixed table names and applies
-    /// column constraints for <see cref="NacUser"/> and <see cref="NacRole"/>.
+    /// Maps ASP.NET Core Identity entity types to NAC-prefixed table names and applies
+    /// the minimal column constraints for <see cref="NacUser"/> not covered by a
+    /// dedicated <c>IEntityTypeConfiguration</c> class.
     /// </summary>
     private static void ConfigureIdentityTables(ModelBuilder modelBuilder)
     {
@@ -48,6 +66,9 @@ public abstract class NacIdentityDbContext : NacDbContext
             b.HasMany<IdentityUserLogin<Guid>>().WithOne().HasForeignKey(ul => ul.UserId).IsRequired();
             b.HasMany<IdentityUserToken<Guid>>().WithOne().HasForeignKey(ut => ut.UserId).IsRequired();
             b.HasMany<IdentityUserRole<Guid>>().WithOne().HasForeignKey(ur => ur.UserId).IsRequired();
+
+            b.Property(u => u.FullName).HasMaxLength(200);
+            b.HasIndex(u => u.Email).IsUnique();
         });
 
         modelBuilder.Entity<NacRole>(b =>
@@ -86,33 +107,6 @@ public abstract class NacIdentityDbContext : NacDbContext
         {
             b.ToTable("NacUserTokens");
             b.HasKey(t => new { t.UserId, t.LoginProvider, t.Name });
-        });
-
-        // ── NacUser constraints ───────────────────────────────────────────────
-
-        modelBuilder.Entity<NacUser>(user =>
-        {
-            user.Property(u => u.FullName)
-                .HasMaxLength(200);
-
-            user.Property(u => u.TenantId)
-                .HasMaxLength(64)
-                .IsRequired();
-
-            // Unique index on Email (already non-null in IdentityUser).
-            user.HasIndex(u => u.Email)
-                .IsUnique();
-
-            // Index for efficient tenant-scoped queries.
-            user.HasIndex(u => u.TenantId);
-        });
-
-        // ── NacRole constraints ───────────────────────────────────────────────
-
-        modelBuilder.Entity<NacRole>(role =>
-        {
-            role.Property(r => r.Description)
-                .HasMaxLength(500);
         });
     }
 }

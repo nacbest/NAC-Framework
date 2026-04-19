@@ -17,7 +17,7 @@ internal sealed class IdentityService(UserManager<NacUser> userManager) : IIdent
         if (user is null) return null;
 
         var roles = await userManager.GetRolesAsync(user);
-        return new UserInfo(user.Id, user.Email ?? string.Empty, user.FullName, user.TenantId, roles.ToList());
+        return new UserInfo(user.Id, user.Email ?? string.Empty, user.FullName, roles.ToList());
     }
 
     /// <inheritdoc/>
@@ -30,7 +30,7 @@ internal sealed class IdentityService(UserManager<NacUser> userManager) : IIdent
         foreach (var user in users)
         {
             var roles = await userManager.GetRolesAsync(user);
-            results.Add(new UserInfo(user.Id, user.Email ?? string.Empty, user.FullName, user.TenantId, roles.ToList()));
+            results.Add(new UserInfo(user.Id, user.Email ?? string.Empty, user.FullName, roles.ToList()));
         }
         return results;
     }

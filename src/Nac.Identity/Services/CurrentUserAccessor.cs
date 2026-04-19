@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Nac.Core.Abstractions.Identity;
 
@@ -20,12 +21,34 @@ internal sealed class CurrentUserAccessor(IHttpContextAccessor httpContextAccess
     public string? Email => User?.FindFirst(ClaimTypes.Email)?.Value;
 
     /// <inheritdoc/>
-    public string TenantId => User?.FindFirst(NacIdentityClaims.TenantId)?.Value ?? string.Empty;
+    public string? Name => User?.FindFirst(ClaimTypes.Name)?.Value;
 
     /// <inheritdoc/>
-    public IReadOnlyList<string> Roles => User?.FindAll(ClaimTypes.Role)
-        .Select(c => c.Value).ToList() ?? [];
+    public string? TenantId
+    {
+        get
+        {
+            var v = User?.FindFirst(NacIdentityClaims.TenantId)?.Value;
+            return string.IsNullOrEmpty(v) ? null : v;
+        }
+    }
+
+    /// <inheritdoc/>
+    public IReadOnlyList<Guid> RoleIds
+    {
+        get
+        {
+            var raw = User?.FindFirst(NacIdentityClaims.RoleIds)?.Value;
+            if (string.IsNullOrEmpty(raw)) return Array.Empty<Guid>();
+            try { return JsonSerializer.Deserialize<Guid[]>(raw) ?? Array.Empty<Guid>(); }
+            catch (JsonException) { return Array.Empty<Guid>(); }
+        }
+    }
 
     /// <inheritdoc/>
     public bool IsAuthenticated => User?.Identity?.IsAuthenticated ?? false;
+
+    /// <inheritdoc/>
+    public bool IsHost => string.Equals(
+        User?.FindFirst(NacIdentityClaims.IsHost)?.Value, "true", StringComparison.OrdinalIgnoreCase);
 }

@@ -8,7 +8,11 @@ using Nac.Core.Abstractions.Identity;
 using Nac.Core.Abstractions.Permissions;
 using Nac.Identity.Context;
 using Nac.Identity.Jwt;
+using Nac.Identity.Memberships;
 using Nac.Identity.Permissions;
+using Nac.Identity.Permissions.Cache;
+using Nac.Identity.Permissions.Grants;
+using Nac.Identity.Roles;
 using Nac.Identity.Services;
 using Nac.Identity.Users;
 
@@ -82,10 +86,21 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICurrentUser, CurrentUserAccessor>();
         services.AddScoped<IIdentityService, IdentityService>();
         services.AddScoped<JwtTokenService>();
+        services.AddScoped<ITenantSwitchService, TenantSwitchService>();
+
+        // ── Membership + roles ────────────────────────────────────────────────
+
+        services.AddScoped<IMembershipService, MembershipService>();
+        services.AddScoped<IRoleService, RoleService>();
 
         // ── Permission system ─────────────────────────────────────────────────
 
+        // MemoryDistributedCache default — hosts may replace with Redis impl via DI.
+        services.AddDistributedMemoryCache();
+
         services.AddSingleton<PermissionDefinitionManager>();
+        services.AddSingleton<IPermissionGrantCache, DistributedPermissionGrantCache>();
+        services.AddScoped<IPermissionGrantRepository, EfCorePermissionGrantRepository>();
         services.AddScoped<IPermissionChecker, PermissionChecker>();
         services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
 
