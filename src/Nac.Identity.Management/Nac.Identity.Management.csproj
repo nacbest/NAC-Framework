@@ -14,8 +14,10 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Nac.Core\Nac.Core.csproj" />
+    <ProjectReference Include="..\Nac.EventBus\Nac.EventBus.csproj" />
     <ProjectReference Include="..\Nac.Identity\Nac.Identity.csproj" />
     <ProjectReference Include="..\Nac.MultiTenancy\Nac.MultiTenancy.csproj" />
+    <ProjectReference Include="..\Nac.MultiTenancy.Management\Nac.MultiTenancy.Management.csproj" />
     <ProjectReference Include="..\Nac.Persistence\Nac.Persistence.csproj" />
   </ItemGroup>
   <ItemGroup>

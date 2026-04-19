@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.Extensions.DependencyInjection;
 using Nac.Core.Abstractions.Permissions;
+using Nac.EventBus.Extensions;
 using Nac.Identity.Management.Authorization;
+using Nac.Identity.Management.Onboarding;
 using Nac.Identity.Management.Services;
 using Nac.Identity.Permissions;
 
@@ -35,6 +37,13 @@ public static class ServiceCollectionExtensions
         services.AddScoped<MembershipManagementService>();
         services.AddScoped<RoleManagementService>();
         services.AddScoped<UserGrantManagementService>();
+
+        // Tenant onboarding — idempotent role seeding triggered by TenantCreatedEvent.
+        services.AddScoped<ITenantOnboardingService, TenantOnboardingService>();
+
+        // Register event handlers from this assembly so AddNacEventBus discovers them.
+        services.AddNacEventBus(opts =>
+            opts.RegisterHandlersFromAssembly(typeof(NacIdentityManagementModule).Assembly));
 
         // Authorization policies — one per permission constant, each backed by
         // PermissionRequirement which PermissionAuthorizationHandler resolves via

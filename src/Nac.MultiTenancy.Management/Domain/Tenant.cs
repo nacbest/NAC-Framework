@@ -63,7 +63,8 @@ public sealed class Tenant : AggregateRoot<Guid>, IAuditableEntity, ISoftDeletab
         string name,
         TenantIsolationMode mode,
         string? encryptedConnectionString,
-        IDictionary<string, string?>? properties)
+        IDictionary<string, string?>? properties,
+        Guid? createdByUserId = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(identifier);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
@@ -83,7 +84,7 @@ public sealed class Tenant : AggregateRoot<Guid>, IAuditableEntity, ISoftDeletab
             foreach (var kv in properties)
                 tenant.Properties[kv.Key] = kv.Value;
         }
-        tenant.AddDomainEvent(new TenantCreatedEvent(id, identifier, name, mode));
+        tenant.AddDomainEvent(new TenantCreatedEvent(id, identifier, name, mode, createdByUserId));
         return tenant;
     }
 

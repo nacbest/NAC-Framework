@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Nac.Core.Abstractions.Identity;
 using Nac.Core.Results;
 using Nac.MultiTenancy.Management.Abstractions;
 using Nac.MultiTenancy.Management.Domain;
@@ -27,6 +28,7 @@ internal sealed class TenantManagementService : ITenantManagementService
     private readonly ITenantCacheInvalidator _cache;
     private readonly TenantManagementOptions _options;
     private readonly ILogger<TenantManagementService> _logger;
+    private readonly ICurrentUser _currentUser;
 
     public TenantManagementService(
         TenantManagementDbContext db,
@@ -35,7 +37,8 @@ internal sealed class TenantManagementService : ITenantManagementService
         IDataProtectionProvider dataProtectionProvider,
         ITenantCacheInvalidator cache,
         IOptions<TenantManagementOptions> options,
-        ILogger<TenantManagementService> logger)
+        ILogger<TenantManagementService> logger,
+        ICurrentUser currentUser)
     {
         _db = db;
         _createValidator = createValidator;
@@ -45,6 +48,7 @@ internal sealed class TenantManagementService : ITenantManagementService
         _cache = cache;
         _options = options.Value;
         _logger = logger;
+        _currentUser = currentUser;
     }
 
     /// <inheritdoc />
@@ -59,8 +63,13 @@ internal sealed class TenantManagementService : ITenantManagementService
             return Result<TenantDto>.Conflict($"Tenant identifier '{req.Identifier}' already exists.");
 
         var cipher = Protect(req.ConnectionString);
+        // Pass current user id so TenantCreatedEvent carries CreatedByUserId for onboarding.
+        // Id is Guid.Empty when unauthenticated (system/seeder path) — treat as null.
+        var creatorId = _currentUser.IsAuthenticated && _currentUser.Id != Guid.Empty
+            ? _currentUser.Id
+            : (Guid?)null;
         var tenant = Tenant.Create(
-            Guid.NewGuid(), req.Identifier, req.Name, req.IsolationMode, cipher, req.Properties);
+            Guid.NewGuid(), req.Identifier, req.Name, req.IsolationMode, cipher, req.Properties, creatorId);
 
         _db.Tenants.Add(tenant);
         try

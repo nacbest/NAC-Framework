@@ -3,10 +3,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Nac.Core.Abstractions.Identity;
 using Nac.MultiTenancy.Management.Abstractions;
 using Nac.MultiTenancy.Management.Persistence;
 using Nac.MultiTenancy.Management.Services;
 using Nac.MultiTenancy.Management.Validators;
+using NSubstitute;
 
 namespace Nac.MultiTenancy.Management.Tests.TestHelpers;
 
@@ -39,6 +41,10 @@ internal static class TestDbContextFactory
             MaxBulkSize = 100,
         });
 
+        // Unauthenticated stub: CreatedByUserId will be null in TenantCreatedEvent (no owner membership seeded).
+        var currentUser = Substitute.For<ICurrentUser>();
+        currentUser.IsAuthenticated.Returns(false);
+
         var service = new TenantManagementService(
             db,
             new CreateTenantRequestValidator(),
@@ -46,7 +52,8 @@ internal static class TestDbContextFactory
             dp,
             invalidator,
             options,
-            NullLogger<TenantManagementService>.Instance);
+            NullLogger<TenantManagementService>.Instance,
+            currentUser);
 
         return (service, db, cache, dp);
     }

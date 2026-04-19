@@ -21,6 +21,13 @@ public static class IdentityManagementPermissions
 
     public const string Permissions_View = "Identity.Management.Permissions.View";
 
+    /// <summary>
+    /// Host-only permission to trigger tenant onboarding retry.
+    /// Phase 07 registers this as a full permission policy; until then the
+    /// controller gates on <c>ICurrentUser.IsHost</c> inline.
+    /// </summary>
+    public const string Tenants_Onboard = "Identity.Management.Tenants.Onboard";
+
     /// <summary>All permission names — used by <c>AddNacIdentityManagement</c> to register policies.</summary>
     public static readonly IReadOnlyList<string> All =
     [
@@ -29,5 +36,6 @@ public static class IdentityManagementPermissions
         Roles_View, Roles_Manage,
         Grants_View, Grants_Manage,
         Permissions_View,
+        Tenants_Onboard,
     ];
 }

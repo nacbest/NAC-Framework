@@ -14,7 +14,8 @@ public sealed record TenantCreatedEvent(
     Guid Id,
     string Identifier,
     string Name,
-    TenantIsolationMode IsolationMode) : IDomainEvent, IIntegrationEvent
+    TenantIsolationMode IsolationMode,
+    Guid? CreatedByUserId = null) : IDomainEvent, IIntegrationEvent
 {
     /// <inheritdoc />
     public Guid EventId { get; init; } = Guid.NewGuid();
