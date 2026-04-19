@@ -4,6 +4,79 @@ All significant changes to the NAC Framework are documented here. Format follows
 
 ---
 
+## [Unreleased] — Pattern A Identity Migration Phases 01–04 (2026-04-19)
+
+### Added (In Development)
+
+#### Phase 01: Domain Model Refactor
+- **NacUser** refactored: removed `TenantId`, added `IsHost` flag; global scope
+- **UserTenantMembership** M:N join table: `UserTenantMembership(Id, UserId, TenantId, Status, JoinedAt, InvitedBy?, IsDefault)`
+- **MembershipRole** join table: `MembershipRole(MembershipId, RoleId)` for tenant-scoped role assignment
+- **NacRole** expanded: nullable `TenantId`, `IsTemplate` flag, `Description`, `BaseTemplateId` for lineage
+- **PermissionGrant** table: ABP-style `(ProviderName="U"|"R", ProviderKey, PermissionName, TenantId?)` replacing `RolePermission` + claim-based storage + `PermissionSet` concept
+- **PermissionProviderNames** constants: `User="U"`, `Role="R"`
+- EF configurations for all new entities with composite unique indices (PG NULL-distinct)
+- Schema migration support: `Initial_PatternA` migration
+
+#### Phase 02: Identity Services Refactor
+- **JwtTokenService** pure method signature: no DB reads; minimal claims (`sub`, `email`, `name`, `tenant_id?`, `role_ids[]`, `is_host?`); no permission claims
+- **IPermissionGrantRepository** + **EfCorePermissionGrantRepository**: direct `PermissionGrant` queries (U/R providers)
+- **IPermissionGrantCache** + **DistributedPermissionGrantCache**: wraps `IDistributedCache`; supports pattern-based invalidation
+- **PermissionChecker** rewrite: ABP-style resolution (user + role grants union) + tree-walk ancestry + 10min TTL + instant invalidation
+- **IMembershipService** + **MembershipService**: Invite (token generation), Accept, List, ChangeRoles (invalidates cache), CreateActiveMembershipAsync (onboarding)
+- **ITenantSwitchService** + **TenantSwitchService**: validates Active membership; re-issues tenant-scoped JWT
+- **IRoleService** shell (Phase 04 completes): CRUD, grant/revoke, clone, list
+- **ICurrentUser** shape change: `TenantId` (current selection from JWT), `RoleIds` (Guid[]), `IsHost`
+- **NacIdentityClaims** constants: `TenantId="tenant_id"`, `RoleIds="role_ids"`, `IsHost="is_host"`
+- DI: default `MemoryDistributedCache`; prod swaps Redis via DI
+
+#### Phase 03: Auth Endpoints
+- **AllowTenantlessAttribute** marker for tenantless endpoints (login, switch, memberships)
+- **ClaimTenantStrategy** reads `tenant_id` claim; optional fallback (Header/Route/Default)
+- **TenantRequiredGateMiddleware** gates tenant-scoped endpoints; 403 if tenant null
+- **AuthEndpoints** (Minimal API, 7 routes):
+  - `POST /auth/login` → tenantless token + memberships list (client picks tenant)
+  - `POST /auth/switch-tenant` → tenant-scoped token + roleIds
+  - `POST /auth/refresh` → preserves tenant scope (v3 stub: 501)
+  - `POST /auth/logout` → (refresh-token revocation placeholder)
+  - `GET /auth/me` → current user snapshot + claims
+  - `GET /auth/memberships` → tenantless list of user's tenant memberships
+  - `POST /auth/accept-invitation` → flip Invited→Active
+- **Contracts**: LoginRequest/Response, SwitchTenantRequest/Response, MembershipListItem, MeResponse, AcceptInvitationRequest
+- Problem+json error shapes for 401/403/501
+- Wire-up: services registered; middleware registered; host calls `MapNacAuthEndpoints()`
+
+#### Phase 04: Role Template System
+- **IRoleTemplateProvider** DSL for registration; idempotent seeder at startup
+- **RoleTemplateDefinition** record: `(Key, Name, Description, PermissionNames[])`
+- **RoleTemplateDefinitionManager** FrozenDictionary registry; lookup by key
+- **RoleTemplateBuilder** fluent API: `.AddTemplate(...).Grants(...)` 
+- **RoleTemplateKeyHasher** deterministic Guid from key (MD5 hash) — idempotent seeding
+- **DefaultRoleTemplateProvider** ships: `owner`, `admin`, `member`, `guest` templates with default permission sets
+- **RoleTemplateSeeder** (IHostedService) idempotent upsert:
+  - Insert `NacRole(Id=hashedGuid, IsTemplate=true, TenantId=null)` per template
+  - Upsert `PermissionGrant(ProviderName="R", TenantId=null)` for template permissions
+  - Diff + remove stale grants (template evolution)
+  - DB-ready wait (retry with backoff)
+- **IRoleService** full implementation:
+  - `CloneFromTemplateAsync(tenantId, templateRoleId, name)` → creates tenant role + copies grants + sets `BaseTemplateId`
+  - `CreateAsync(tenantId, name)` → custom role with no grants
+  - `GrantPermissionAsync/RevokePermissionAsync` → mutate grants + invalidate cache
+  - `ListGrantsAsync, ListTemplatesAsync, DeleteAsync` (soft-delete if unreferenced)
+- Wire-up: `AddNacRoleTemplates()` extension; registered in `ServiceCollectionExtensions`
+
+### Status
+- **Phases 01–04:** COMPLETE (implementation + code review APPROVED_WITH_FIXES)
+- **Phases 05–09:** PENDING
+- **Test coverage:** Phase 08 deferred (pre-existing compile errors from Phase 01/02 builder changes; risk R10)
+- **Code review:** 8/10 score; 1 critical fixed (NormalizedName on role clone), 1 major fixed (error-code casing NAC_INVALID_CREDENTIALS)
+
+### Known Issues / Deferred
+- **M2/M3/M4 + 11 minor review items** → Phase 07 cleanup OR Phase 05 follow-ups (see plans/reports/code-reviewer-260419-1520-phase-03-04.md)
+- **R10 (test builders)** → Phase 08 responsibility; 52 pre-existing compile errors in `tests/Nac.Identity.Tests`
+
+---
+
 ## [1.6.0] — Tenant Management Module (2026-04-19)
 
 ### Added

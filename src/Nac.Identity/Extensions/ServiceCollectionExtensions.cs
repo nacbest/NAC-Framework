@@ -104,6 +104,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPermissionChecker, PermissionChecker>();
         services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
 
+        // ── Auth HTTP surface + role templates ────────────────────────────────
+
+        services.AddNacAuthHttp();
+        services.AddNacRoleTemplates();
+
         return services;
     }
 }

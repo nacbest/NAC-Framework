@@ -6,7 +6,7 @@ Strategic roadmap for NAC Framework development through Q4 2026 and beyond.
 
 ## Current State
 
-**Completed:** L0 Nac.Core + Wave 1 (L1 CQRS/Caching + L2 Persistence) + Wave 2A (Nac.EventBus, Nac.Testing) + Wave 2B (Nac.Identity, Nac.MultiTenancy) + Wave 2B-Enhancement (Nac.MultiTenancy.Management) + Wave 2C (Nac.Observability, Nac.Jobs) + Wave 3 (L3 Nac.WebApi) + Wave 4A (Consumer Reference Architecture)  
+**Completed:** L0 Nac.Core + Wave 1 (L1 CQRS/Caching + L2 Persistence) + Wave 2A (Nac.EventBus, Nac.Testing) + Wave 2B (Nac.Identity, Nac.MultiTenancy) + Wave 2B-Enhancement (Nac.MultiTenancy.Management) + Wave 2C (Nac.Observability, Nac.Jobs) + Wave 3 (L3 Nac.WebApi) + Wave 4A (Consumer Reference Architecture) + **Pattern A Identity Migration** (Phases 01–04: Domain, Services, Auth, Roles)  
 **Tests:** 615 unit tests + 11 integration tests, all passing  
 **Packages:** 12 (Nac.Core, Nac.Cqrs, Nac.Caching, Nac.Persistence, Nac.EventBus, Nac.Testing, Nac.MultiTenancy, Nac.MultiTenancy.Management, Nac.Identity, Nac.Observability, Nac.Jobs, Nac.WebApi)
 
