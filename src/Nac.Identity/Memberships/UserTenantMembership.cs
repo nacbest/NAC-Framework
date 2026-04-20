@@ -44,6 +44,12 @@ public sealed class UserTenantMembership : IAuditableEntity, ISoftDeletable
     /// <inheritdoc/>
     public string? CreatedBy { get; set; }
 
+    /// <inheritdoc/>
+    public string? UpdatedBy { get; set; }
+
+    /// <inheritdoc/>
+    public string? ImpersonatorId { get; set; }
+
     // ── ISoftDeletable ────────────────────────────────────────────────────────
 
     /// <inheritdoc/>

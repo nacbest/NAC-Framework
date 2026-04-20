@@ -6,7 +6,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Nac.Core.Abstractions.Identity;
 using Nac.Core.Abstractions.Permissions;
+using Nac.Identity.Authentication;
 using Nac.Identity.Context;
+using Nac.Identity.Impersonation;
 using Nac.Identity.Jwt;
 using Nac.Identity.Memberships;
 using Nac.Identity.Permissions;
@@ -79,6 +81,10 @@ public static class ServiceCollectionExtensions
                     IssuerSigningKey = new SymmetricSecurityKey(
                         Encoding.UTF8.GetBytes(options.Jwt.SecretKey)),
                 };
+                jwt.Events = new JwtBearerEvents
+                {
+                    OnTokenValidated = JtiRevocationValidator.ValidateAsync,
+                };
             });
 
         // ── NAC services ──────────────────────────────────────────────────────
@@ -103,6 +109,11 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<PermissionDefinitionManager>();
         services.AddSingleton<IPermissionGrantCache, DistributedPermissionGrantCache>();
         services.AddScoped<IPermissionGrantRepository, EfCorePermissionGrantRepository>();
+        services.AddScoped<IImpersonationSessionRepository, EfCoreImpersonationSessionRepository>();
+        services.AddSingleton<IJtiBlacklist, RedisJtiBlacklist>();
+        services.AddScoped<IImpersonationRateLimiter, RedisImpersonationRateLimiter>();
+        services.AddScoped<IImpersonationService, ImpersonationService>();
+        services.AddHostedService<ImpersonationStartupValidator>();
         services.AddScoped<IPermissionChecker, PermissionChecker>();
         services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
 

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Nac.Identity.Impersonation;
 using Nac.Identity.Memberships;
 using Nac.Identity.Permissions.Grants;
 using Nac.Identity.Users;
@@ -30,6 +31,9 @@ public abstract class NacIdentityDbContext : NacDbContext
 
     /// <summary>Flat permission grant table (ABP-style, provider-based).</summary>
     public DbSet<PermissionGrant> PermissionGrants => Set<PermissionGrant>();
+
+    /// <summary>Host → tenant impersonation audit sessions.</summary>
+    public DbSet<ImpersonationSession> ImpersonationSessions => Set<ImpersonationSession>();
 
     /// <inheritdoc cref="NacDbContext(DbContextOptions)"/>
     protected NacIdentityDbContext(DbContextOptions options) : base(options) { }

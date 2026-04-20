@@ -36,4 +36,28 @@ public sealed class OutboxEvent
     /// Gets or sets the error message from the last failed publish attempt, if any.
     /// </summary>
     public string? Error { get; set; }
+
+    // ── Audit / impersonation context ────────────────────────────────────────
+
+    /// <summary>
+    /// Gets or sets the tenant slug active at the time the event was enqueued.
+    /// Null on tenantless (host-level) operations.
+    /// </summary>
+    public string? TenantId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the id of the user who performed the action that raised this event
+    /// (the effective actor — may be a tenant user or, during impersonation, a host user
+    /// acting on behalf of a tenant). Null for system-initiated events (background jobs,
+    /// seeding) that run without a request-scoped <c>ICurrentUser</c>.
+    /// </summary>
+    public Guid? ActorUserId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the id of the host user who initiated an impersonation session when
+    /// this event was raised. Non-null only when the request was authenticated with a
+    /// host-minted impersonation token (RFC 8693 <c>act.sub</c> claim).
+    /// Null on normal (non-impersonated) requests.
+    /// </summary>
+    public Guid? ImpersonatorUserId { get; set; }
 }

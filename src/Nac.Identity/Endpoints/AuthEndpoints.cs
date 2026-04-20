@@ -150,7 +150,8 @@ public static class AuthEndpoints
             FullName: currentUser.Name,
             TenantId: currentUser.TenantId,
             RoleIds: currentUser.RoleIds,
-            IsHost: currentUser.IsHost);
+            IsHost: currentUser.IsHost,
+            ImpersonatorId: currentUser.ImpersonatorId);
 
         return Task.FromResult(Results.Ok(response));
     }

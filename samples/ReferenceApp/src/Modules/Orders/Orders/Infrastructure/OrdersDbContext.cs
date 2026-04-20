@@ -37,6 +37,10 @@ internal sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options)
             outbox.Property(o => o.EventType).IsRequired().HasMaxLength(512);
             outbox.Property(o => o.Payload).IsRequired();
             outbox.Property(o => o.Error).HasMaxLength(4000);
+            // ── Audit / impersonation context (nullable — non-breaking) ──────
+            outbox.Property(o => o.TenantId).HasMaxLength(256).IsRequired(false);
+            outbox.Property(o => o.ActorUserId).IsRequired(false);
+            outbox.Property(o => o.ImpersonatorUserId).IsRequired(false);
             // Composite index for OutboxWorker polling: WHERE ProcessedAt IS NULL ORDER BY CreatedAt
             outbox.HasIndex(o => new { o.ProcessedAt, o.CreatedAt });
         });

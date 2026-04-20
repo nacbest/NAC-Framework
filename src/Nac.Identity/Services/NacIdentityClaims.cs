@@ -19,4 +19,7 @@ public static class NacIdentityClaims
 
     /// <summary>Claim type for a permission entry (legacy — retained for compatibility).</summary>
     public const string Permission = "permission";
+
+    /// <summary>RFC 8693 actor claim. Nested JSON: <c>{"sub":"&lt;impersonatorId&gt;"}</c>.</summary>
+    public const string ActClaim = "act";
 }

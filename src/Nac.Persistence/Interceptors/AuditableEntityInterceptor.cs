@@ -43,6 +43,7 @@ internal sealed class AuditableEntityInterceptor : SaveChangesInterceptor
         var now = _dateTimeProvider.UtcNow;
         var currentUser = _serviceProvider.GetService<ICurrentUser>();
         var userId = currentUser?.Id.ToString();
+        var impersonatorId = currentUser?.ImpersonatorId?.ToString();
 
         foreach (var entry in eventData.Context.ChangeTracker.Entries<IAuditableEntity>())
         {
@@ -50,10 +51,15 @@ internal sealed class AuditableEntityInterceptor : SaveChangesInterceptor
             {
                 entry.Entity.CreatedAt = now;
                 entry.Entity.CreatedBy = userId;
+                entry.Entity.UpdatedAt = now;
+                entry.Entity.UpdatedBy = userId;
+                entry.Entity.ImpersonatorId = impersonatorId;
             }
             else if (entry.State == EntityState.Modified)
             {
                 entry.Entity.UpdatedAt = now;
+                entry.Entity.UpdatedBy = userId;
+                entry.Entity.ImpersonatorId = impersonatorId;
             }
         }
 

@@ -9,4 +9,5 @@ public sealed record MeResponse(
     string? FullName,
     string? TenantId,
     IReadOnlyList<Guid> RoleIds,
-    bool IsHost);
+    bool IsHost,
+    Guid? ImpersonatorId);

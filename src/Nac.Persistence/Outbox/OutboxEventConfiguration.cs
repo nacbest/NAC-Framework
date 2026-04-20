@@ -27,6 +27,17 @@ internal sealed class OutboxEventConfiguration : IEntityTypeConfiguration<Outbox
         builder.Property(o => o.Error)
             .HasMaxLength(4000);
 
+        // ── Audit / impersonation context ────────────────────────────────────
+        builder.Property(o => o.TenantId)
+            .HasMaxLength(256)
+            .IsRequired(false);
+
+        builder.Property(o => o.ActorUserId)
+            .IsRequired(false);
+
+        builder.Property(o => o.ImpersonatorUserId)
+            .IsRequired(false);
+
         // Composite index for polling query: WHERE ProcessedAt IS NULL ORDER BY CreatedAt
         builder.HasIndex(o => new { o.ProcessedAt, o.CreatedAt });
     }

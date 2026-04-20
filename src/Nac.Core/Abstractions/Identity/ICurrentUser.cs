@@ -27,4 +27,10 @@ public interface ICurrentUser
 
     /// <summary>Host (platform) account flag — see <c>Host.AccessAllTenants</c>.</summary>
     bool IsHost { get; }
+
+    /// <summary>
+    /// Impersonator id parsed from the RFC 8693 <c>act.sub</c> claim. Non-null only
+    /// when the current request runs under a host-minted impersonation token.
+    /// </summary>
+    Guid? ImpersonatorId { get; }
 }

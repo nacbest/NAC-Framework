@@ -45,6 +45,12 @@ public sealed class Tenant : AggregateRoot<Guid>, IAuditableEntity, ISoftDeletab
     public string? CreatedBy { get; set; }
 
     /// <inheritdoc />
+    public string? UpdatedBy { get; set; }
+
+    /// <inheritdoc />
+    public string? ImpersonatorId { get; set; }
+
+    /// <inheritdoc />
     public bool IsDeleted { get; set; }
 
     /// <inheritdoc />

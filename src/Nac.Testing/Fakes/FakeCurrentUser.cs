@@ -17,6 +17,7 @@ public sealed class FakeCurrentUser : ICurrentUser
 
     public bool IsAuthenticated { get; set; } = true;
     public bool IsHost { get; set; }
+    public Guid? ImpersonatorId { get; set; }
 
     public static FakeCurrentUser Anonymous() => new()
     {

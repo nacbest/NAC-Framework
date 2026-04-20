@@ -51,4 +51,23 @@ internal sealed class CurrentUserAccessor(IHttpContextAccessor httpContextAccess
     /// <inheritdoc/>
     public bool IsHost => string.Equals(
         User?.FindFirst(NacIdentityClaims.IsHost)?.Value, "true", StringComparison.OrdinalIgnoreCase);
+
+    /// <inheritdoc/>
+    public Guid? ImpersonatorId
+    {
+        get
+        {
+            var raw = User?.FindFirst(NacIdentityClaims.ActClaim)?.Value;
+            if (string.IsNullOrEmpty(raw)) return null;
+            try
+            {
+                using var doc = JsonDocument.Parse(raw);
+                if (doc.RootElement.TryGetProperty("sub", out var subEl)
+                    && Guid.TryParse(subEl.GetString(), out var id))
+                    return id;
+            }
+            catch (JsonException) { }
+            return null;
+        }
+    }
 }

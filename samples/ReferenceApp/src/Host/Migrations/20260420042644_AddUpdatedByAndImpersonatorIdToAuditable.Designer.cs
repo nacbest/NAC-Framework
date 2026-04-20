@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using ReferenceApp.Host;
@@ -11,9 +12,11 @@ using ReferenceApp.Host;
 namespace Host.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260420042644_AddUpdatedByAndImpersonatorIdToAuditable")]
+    partial class AddUpdatedByAndImpersonatorIdToAuditable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -124,66 +127,6 @@ namespace Host.Migrations
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("NacUserTokens", "identity");
-                });
-
-            modelBuilder.Entity("Nac.Identity.Impersonation.ImpersonationSession", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("HostUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ImpersonatorId")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("IssuedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Jti")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<DateTime?>("RevokedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("TenantId")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Jti")
-                        .IsUnique()
-                        .HasDatabaseName("IX_NacImpersonationSessions_Jti");
-
-                    b.HasIndex("HostUserId", "IssuedAt")
-                        .HasDatabaseName("IX_NacImpersonationSessions_HostUserId_IssuedAt");
-
-                    b.ToTable("NacImpersonationSessions", "identity");
                 });
 
             modelBuilder.Entity("Nac.Identity.Memberships.MembershipRole", b =>
