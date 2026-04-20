@@ -1,7 +1,9 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 using Nac.Core.Abstractions;
+using Nac.Core.Abstractions.Identity;
 using Nac.Persistence.Interceptors;
 using Nac.Persistence.Outbox;
 using Nac.Persistence.Tests.Helpers;
@@ -11,11 +13,22 @@ namespace Nac.Persistence.Tests.Outbox;
 
 public class OutboxInterceptorTests
 {
-    private static TestDbContext CreateContextWithOutboxInterceptor(IDateTimeProvider dateTimeProvider)
+    /// <summary>
+    /// Creates a <see cref="TestDbContext"/> wired with <see cref="OutboxInterceptor"/>.
+    /// <paramref name="currentUser"/> may be null to simulate unauthenticated / background-job contexts.
+    /// </summary>
+    private static TestDbContext CreateContextWithOutboxInterceptor(
+        IDateTimeProvider dateTimeProvider,
+        ICurrentUser? currentUser = null)
     {
+        var services = new ServiceCollection();
+        if (currentUser is not null)
+            services.AddSingleton(currentUser);
+        var serviceProvider = services.BuildServiceProvider();
+
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .AddInterceptors(new OutboxInterceptor(dateTimeProvider))
+            .AddInterceptors(new OutboxInterceptor(serviceProvider, dateTimeProvider))
             .Options;
         return new TestDbContext(options);
     }

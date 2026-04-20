@@ -29,6 +29,7 @@ public class HostQueryExtensionsTests
         public IReadOnlyList<string> Roles { get; set; } = [];
         public bool IsAuthenticated { get; set; } = true;
         public bool IsHost { get; set; }
+        public Guid? ImpersonatorId { get; set; }
     }
 
     [Fact]

@@ -13,5 +13,6 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <ProjectReference Include="..\..\src\Nac.Identity\Nac.Identity.csproj" />
+    <ProjectReference Include="..\..\src\Nac.Testing\Nac.Testing.csproj" />
   </ItemGroup>
 </Project>

@@ -10,6 +10,7 @@
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="xunit.runner.visualstudio" />
     <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="NSubstitute" />
     <PackageReference Include="Testcontainers.PostgreSql" />
     <PackageReference Include="Npgsql" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
@@ -22,5 +23,6 @@
     <ProjectReference Include="..\..\src\Nac.Identity.Management\Nac.Identity.Management.csproj" />
     <ProjectReference Include="..\..\src\Nac.Persistence\Nac.Persistence.csproj" />
     <ProjectReference Include="..\..\src\Nac.EventBus\Nac.EventBus.csproj" />
+    <ProjectReference Include="..\..\src\Nac.Testing\Nac.Testing.csproj" />
   </ItemGroup>
 </Project>
