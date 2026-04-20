@@ -1098,10 +1098,40 @@ services.AddNacIdentity<AppDbContext>(opts => {
     opts.JwtSigningKey = config["Jwt:Key"]!;
 });
 services.AddNacIdentityManagement();   // admin HTTP surface
+services.AddSingleton<IImpersonationRoleProvider, MyImpersonationRoleProvider>(); // required for impersonation
 // AddNacRoleTemplates() is called inside AddNacIdentity<T>.
 
 app.MapNacAuthEndpoints();
 app.UseNacAuthGate();                  // TenantRequiredGateMiddleware
+```
+
+### Host Impersonation for Support (v3.1)
+
+Short-lived tenant-scoped JWT + `ImpersonationSession` audit row. Host staff with `Host.ImpersonateTenant` get a 15-minute non-renewable token carrying RFC 8693 `act.sub = <hostId>`; `is_host` claim is forced absent; tenant is pinned. All mutations during the session stamp `UpdatedBy` (tenant persona = host user id) and `ImpersonatorId` (host user id) via `AuditableEntityInterceptor`. Outbox envelope carries `ActorUserId` + `ImpersonatorUserId`. JTI revocation via Redis blacklist (fail-closed on cache error). Rate limit 10 tokens / 5 min per host user (atomic Redis INCR). Nested impersonation rejected. See `docs/identity-and-rbac.md` §9 for full spec.
+
+```mermaid
+sequenceDiagram
+  participant Support as Host staff
+  participant Ctrl as TenantImpersonationController
+  participant Svc as ImpersonationService
+  participant Rp as IImpersonationRoleProvider
+  participant Jwt as JwtTokenService
+  participant Db as ImpersonationSession repo
+  Support->>+Ctrl: POST /api/admin/tenants/{id}/impersonate {reason}
+  Ctrl->>+Svc: IssueAsync(hostId, tenantId, reason)
+  Svc->>Rp: GetImpersonationRoleAsync(tenantId)
+  Rp-->>Svc: ImpersonationRoleTemplate(roleIds)
+  Svc->>Jwt: GenerateImpersonationToken(actorUserId=hostId, jti)
+  Svc->>Db: AddAsync(session)
+  Svc-->>-Ctrl: token, sessionId
+  Ctrl-->>-Support: 200 { accessToken, expiresAt, sessionId }
+  Note over Support,Db: Later — revoke
+  Support->>+Ctrl: POST /api/admin/impersonation-sessions/{id}/revoke
+  Ctrl->>+Svc: RevokeAsync(sessionId)
+  Svc->>Db: mark revoked (idempotent)
+  Svc->>Jwt: blacklist jti (RedisJtiBlacklist)
+  Svc-->>-Ctrl: 204
+  Ctrl-->>-Support: 204
 ```
 
 ---

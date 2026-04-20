@@ -4,6 +4,47 @@ All significant changes to the NAC Framework are documented here. Format follows
 
 ---
 
+## [3.1.0] — 2026-04-20 — Host Impersonation for Support
+
+### Added
+- **Endpoints** (`Nac.Identity.Management`):
+  - `POST /api/admin/tenants/{tenantId}/impersonate` — issue 15-min non-renewable tenant-scoped JWT; body `{ reason }` (10–500 chars, regex-validated)
+  - `GET /api/admin/impersonation-sessions?tenantId=&page=&pageSize=` — paged audit list (Jti excluded from DTO)
+  - `POST /api/admin/impersonation-sessions/{id}/revoke` — 204 idempotent revoke
+- **JWT claim:** RFC 8693 `act.sub = <hostUserId>` on impersonation tokens; `is_host` forced absent; `jti` random per issue
+- **Entities:** `ImpersonationSession` aggregate (`Nac.Identity`); `UpdatedBy` (string?) + `ImpersonatorId` (string?) added to `IAuditableEntity`
+- **Outbox envelope:** `ActorUserId` (Guid?), `ImpersonatorUserId` (Guid?), `TenantId` (string?) on `OutboxEvent`; populated by `OutboxInterceptor` at SaveChanges
+- **Services:** `ImpersonationService`, `RedisJtiBlacklist` (fail-closed on cache error), `RedisImpersonationRateLimiter` (atomic INCR, 10/5 min per host user), `JtiRevocationValidator`, `HostImpersonationFilter` (runtime `IPermissionChecker` — Pattern A, no claim-based policy)
+- **Permission:** `HostPermissions.ImpersonateTenant`
+- **Exception mapping:** `ImpersonationRateLimitExceededException` → 429 with `Retry-After: 300`
+
+### Migrations (consumer action required)
+- `AddUpdatedByAndImpersonatorIdToAuditable` — additive nullable columns on every `IAuditableEntity` table
+- `AddImpersonationSessions` — new `impersonation_sessions` table (`NacIdentityDbContext`)
+- `AddActorAndImpersonatorToOutbox` — 3 nullable columns on `__outbox_events`
+
+Run `dotnet ef database update` on Identity DbContext and any DbContext owning `IAuditableEntity` tables or `OutboxEvent`.
+
+### Consumer action required
+- Register `IImpersonationRoleProvider`. `AddNacIdentity<T>` fails fast at startup if no implementation is present. Returns `ImpersonationRoleTemplate(roleName, roleIds)` per tenant. Reference: `samples/ReferenceApp/src/Host/Impersonation/SampleImpersonationRoleProvider.cs`.
+
+### Non-breaking
+- Outbox envelope additions are JSON-additive; existing consumers using `System.Text.Json` ignore unknown fields.
+- `IAuditableEntity` column additions are nullable; existing rows untouched.
+
+### Docs
+- `docs/identity-and-rbac.md` §9 Host Impersonation — model, claims, lifecycle, integration, security, operational runbook
+- `docs/system-architecture.md` §9 Identity — Impersonation component + Mermaid sequence diagram for issue + revoke
+
+### Non-goals (YAGNI)
+- Tenant-owner visibility endpoint for own-tenant impersonation history — roadmap v3.2
+- IP/UA binding / `cnf` proof-of-possession — roadmap
+- Nested impersonation (rejected at service + filter layer)
+- Refresh tokens for impersonation (each session is a fresh audit event)
+- Reporting dashboards (SOC2/GDPR) — consumer responsibility
+
+---
+
 ## [3.0.0] — Pattern A Identity Migration (2026-04-20)
 
 > **BREAKING** release. Pre-release framework — no data migration path. Consumers drop-and-recreate dev DBs.

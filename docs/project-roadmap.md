@@ -276,6 +276,8 @@ Strategic roadmap for NAC Framework development through Q4 2026 and beyond.
 | 1.5.1 | 2026-04-17 | Consumer Reference Architecture (samples/ReferenceApp, EventBus idempotency fix) | ✅ Complete |
 | 1.6.0 | 2026-04-19 | Pattern A Identity Migration (Phases 01–07: Domain, Services, Auth, Roles, Membership, Admin, Host Permissions) | ✅ Complete |
 | 3.0.0 | 2026-04-20 | Pattern A Identity Migration v3.0 (Phases 08–09: Tests 164, Docs incl. Customer Identity Guide, `Nac.Identity.Management` package) | ✅ Complete |
+| 3.1.0 | 2026-04-20 | Host Impersonation for Support (RFC 8693 `act.sub`, `ImpersonationSession`, JTI blacklist, rate limit, audit stamping, outbox envelope actor fields) | ✅ Complete |
+| 3.2.0 | 2026-Q3 | Tenant-owner impersonation visibility endpoint (GDPR/SOC2), `cnf` proof-of-possession token binding | 📋 Planned |
 | 1.7.0 | 2026-Q3 | OutboxWorker<TContext> enhancement, multi-module outbox polling | 📋 Planned |
 | 2.0.0 | 2026-Q4 | dotnet new templates, Examples expansion | 📋 Planned |
 

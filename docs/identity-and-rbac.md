@@ -14,10 +14,11 @@
 6. [Role Templates + Clone Recipe](#6-role-templates--clone-recipe)
 7. [Customer Identity Pattern Guide](#7-customer-identity-pattern-guide)
 8. [Host User Pattern](#8-host-user-pattern)
-9. [Migration (Pre-release Reset)](#9-migration-pre-release-reset)
-10. [Performance & Caching](#10-performance--caching)
-11. [FAQ](#11-faq)
-12. [Unresolved / Roadmap](#12-unresolved--roadmap)
+9. [Host Impersonation for Support](#9-host-impersonation-for-support)
+10. [Migration (Pre-release Reset)](#10-migration-pre-release-reset)
+11. [Performance & Caching](#11-performance--caching)
+12. [FAQ](#12-faq)
+13. [Unresolved / Roadmap](#13-unresolved--roadmap)
 
 ---
 
@@ -450,7 +451,211 @@ Management endpoints under `/api/admin/tenants` are protected by `HostAdminOnlyF
 
 ---
 
-## 9. Migration (Pre-release Reset)
+## 9. Host Impersonation for Support
+
+Host staff need to READ+WRITE into customer tenants for support without creating fake memberships. Impersonation issues a short-lived JWT scoped to a target tenant, with an immutable audit trail distinguishing impersonator from tenant user.
+
+### Why Impersonation
+
+- **No fake memberships:** Support staff never appear as tenant users; all mutations bear the `ImpersonatorId` stamp.
+- **Instant revocation:** Redis-backed JTI blacklist means revoked tokens block within milliseconds (no token expiry wait).
+- **Audit trail:** Every mutation during a session is tagged with both `UpdatedBy` (the host staff member) and `ImpersonatorId` (same, always).
+
+### Model
+
+When a host user with `Host.ImpersonateTenant` permission calls `POST /api/admin/tenants/{tenantId}/impersonate`, the framework:
+
+1. **Validates** the caller is a host user + has permission
+2. **Issues a JWT** containing RFC 8693 `act.sub = <hostUserId>` claim, unique `jti`, and **no `is_host` claim** (always false for impersonation tokens)
+3. **Creates** an immutable `ImpersonationSession` row (append-only audit log)
+4. **Returns** the token with 15-minute TTL (non-renewable; each session is a fresh audit event)
+
+Token shape (excerpt):
+
+```json
+{
+  "sub": "00000000-0000-0000-0000-000000000001",
+  "tenant_id": "acme-corp",
+  "act": {
+    "sub": "00000000-0000-0000-0000-000000000002"
+  },
+  "jti": "c4e5b4d8-3f2c-4a6e-8d1f-2b5c9a7e0d3f",
+  "email": "support@host.com",
+  "role_ids": ["<uuid>"],
+  "is_host": false
+}
+```
+
+Key points:
+- `act.sub` = host user ID (impersonator)
+- `sub` = same (host user ID; tenant sees the impersonator)
+- `is_host` **absent** (impersonation forces it off; tenant queries see normal RBAC)
+- `jti` = JWT ID for revocation blacklist
+- `tenant_id` pinned at issue time; header-based tenant override rejected when `act` present
+
+### ImpersonationSession Entity
+
+```csharp
+public sealed class ImpersonationSession : AggregateRoot<Guid>, IAuditableEntity
+{
+    public Guid HostUserId { get; private set; }      // who issued the token
+    public string TenantId { get; private set; }       // target tenant
+    public string Reason { get; private set; }         // operator-supplied (10-500 chars)
+    public DateTime IssuedAt { get; private set; }
+    public DateTime ExpiresAt { get; private set; }     // 15 min from IssuedAt
+    public DateTime? RevokedAt { get; private set; }    // null until revoke called
+    public string Jti { get; private set; }             // JWT unique ID
+    
+    // IAuditableEntity
+    public string? CreatedBy { get; set; }
+    public string? UpdatedBy { get; set; }
+    public string? ImpersonatorId { get; set; }
+}
+```
+
+Persisted in `NacIdentityDbContext`. No soft-delete; revocation flips `RevokedAt` but row persists forever.
+
+### Lifecycle
+
+```
+1. Issue
+   Support staff: POST /api/admin/tenants/{id}/impersonate { reason }
+   → Token + SessionId + ExpiresAt returned
+
+2. Use
+   Client: Set Authorization: Bearer <token>
+   → All mutations during this request show UpdatedBy=<hostId>, ImpersonatorId=<hostId>
+
+3. Revoke (optional; expiry also works)
+   Support staff: POST /api/admin/impersonation-sessions/{sessionId}/revoke
+   → SessionId added to JTI blacklist; future requests rejected
+```
+
+### Integration: Consumer's Role Provider
+
+Consumers **must** implement and register `IImpersonationRoleProvider`:
+
+```csharp
+namespace Nac.Identity.Impersonation;
+
+public interface IImpersonationRoleProvider
+{
+    Task<ImpersonationRoleTemplate> GetImpersonationRoleAsync(
+        string tenantId, CancellationToken ct = default);
+}
+
+public sealed record ImpersonationRoleTemplate(
+    string RoleName,
+    IReadOnlyCollection<Guid> RoleIds);  // role IDs the impersonator runs with
+```
+
+The framework calls this during token issue to determine which roles the impersonator inherits in the target tenant. Example:
+
+```csharp
+public class SampleImpersonationRoleProvider : IImpersonationRoleProvider
+{
+    private static readonly Guid SupportOperatorRoleId = 
+        new Guid("00000000-0000-0000-0000-000000000042");
+
+    public Task<ImpersonationRoleTemplate> GetImpersonationRoleAsync(
+        string tenantId, CancellationToken ct = default)
+    {
+        return Task.FromResult(new ImpersonationRoleTemplate(
+            RoleName: "support-operator",
+            RoleIds: [SupportOperatorRoleId]));
+    }
+}
+
+// Program.cs
+services.AddSingleton<IImpersonationRoleProvider, SampleImpersonationRoleProvider>();
+```
+
+Authorization check happens at request time via `IPermissionChecker` (Pattern A). The JWT never embeds permission claims — roles resolve live against `PermissionGrant` table.
+
+### Audit Trail
+
+Every mutation **during** an impersonation session carries two audit stamps:
+
+- **`UpdatedBy` (string?):** Host user ID (the impersonator; same as `act.sub` in JWT)
+- **`ImpersonatorId` (string?):** Host user ID (redundant with `UpdatedBy` in impersonation case; `null` on normal writes)
+
+```csharp
+public interface IAuditableEntity
+{
+    DateTime CreatedAt { get; set; }
+    DateTime? UpdatedAt { get; set; }
+    string? CreatedBy { get; set; }
+    string? UpdatedBy { get; set; }           // tenant-scoped subject (host user ID during impersonation)
+    string? ImpersonatorId { get; set; }      // host user ID; null on non-impersonated writes
+}
+```
+
+**Example:** If host staff `alice@host.com` (ID: abc123) impersonates tenant `acme-corp` and updates a user, the row shows:
+
+```
+CreatedBy: 'xyz789' (original creator)
+UpdatedBy: 'abc123' (alice, the support staff)
+ImpersonatorId: 'abc123' (alice)
+```
+
+**Outbox envelope** also carries actor context:
+
+```csharp
+public sealed class OutboxEvent
+{
+    public Guid? ActorUserId { get; set; }          // effective actor (host user during impersonation)
+    public Guid? ImpersonatorUserId { get; set; }   // non-null only if impersonated
+}
+```
+
+Background jobs re-hydrate context from the envelope, not from request-scoped `ICurrentUser`.
+
+### Operational Limits
+
+| Limit | Value | Notes |
+|-------|-------|-------|
+| **Token TTL** | 15 min | Non-renewable. Caller must re-issue. |
+| **Rate limit** | 10 tokens / 5 min | Per host user. 429 if exceeded. Atomic Redis INCR. |
+| **Reason length** | 10–500 chars | Regex: `^[\w\s\-#:.,()/]+$` |
+| **Nesting** | Forbidden | `act.sub` already present → 403 Forbidden. |
+| **Cross-tenant reuse** | Forbidden | Token pinned to tenant; 403 on mismatch. |
+
+Rate limit falls back to DB counter if Redis unavailable (degraded SLO but still enforced).
+
+### Reason Format Convention
+
+Operators should follow: `TICKET-ID - action` (e.g., `ZEN-12345 - reset user MFA`). The field is stored internal-only and not exposed via public tenant APIs in v3.1.
+
+### Security
+
+- **Fail-closed on blacklist errors:** Redis down → all impersonation tokens rejected (non-impersonation traffic unaffected).
+- **Reason field is internal:** Not returned via public APIs; audit-log-only.
+- **is_host forced off:** Impersonation tokens cannot escalate to host scope; only the original host session has `is_host=true`.
+- **Tenant-pinned:** Header-based tenant override rejected when `act` claim present.
+- **Signed claims:** Same JWT signing as regular tokens; no separate key.
+
+### Visibility (v3.1)
+
+Host staff can:
+- `GET /api/admin/impersonation-sessions?tenantId=X` — Filtered by tenant; only host-level endpoint.
+- Tenant owners **cannot** query their own impersonation history in v3.1.
+- **Roadmap v3.2:** `GET /api/tenants/{tenantId}/impersonation-sessions` (tenant-admin scoped, `Reason` redacted, `HostUserId` opaque) for GDPR/SOC2 data-subject awareness.
+
+### Audit Gap Note
+
+Hard-deleted entities (no soft-delete) lose impersonation stamps. Recommend implementing `ISoftDeletable` for all tenant-mutating entities to preserve history.
+
+### Endpoints
+
+| Method | Route | Response | Notes |
+|--------|-------|----------|-------|
+| `POST` | `/api/admin/tenants/{tenantId}/impersonate` | 200 `{ accessToken, expiresAt, sessionId }` | Requires `Host.ImpersonateTenant` permission. |
+| `GET` | `/api/admin/impersonation-sessions?tenantId=X&page=1&pageSize=20` | 200 `ImpersonationSessionDto[]` | Host-only list. |
+| `POST` | `/api/admin/impersonation-sessions/{id}/revoke` | 204 NoContent | Idempotent. |
+
+---
+
+## 10. Migration (Pre-release Reset)
 
 v3 is a breaking change. Since the framework is pre-release, **no data migration is provided**. Consumers reset dev databases:
 
@@ -474,7 +679,7 @@ Breaking changes rolled up:
 
 ---
 
-## 10. Performance & Caching
+## 11. Performance & Caching
 
 | Knob | Default | Prod recommendation |
 |---|---|---|
@@ -489,7 +694,7 @@ Breaking changes rolled up:
 
 ---
 
-## 11. FAQ
+## 12. FAQ
 
 **Q: Why no permission claims in JWT?**
 A: Instant revoke. A revoked permission can't linger in an outstanding token. Tokens stay small (<2 KB).
@@ -517,7 +722,7 @@ A: `JwtTokenService` emits `ClaimTypes.NameIdentifier`, `ClaimTypes.Email`, `Cla
 
 ---
 
-## 12. Unresolved / Roadmap
+## 13. Unresolved / Roadmap
 
 | Item | Target | Notes |
 |---|---|---|
