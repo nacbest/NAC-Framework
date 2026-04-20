@@ -1,5 +1,8 @@
 using Billing;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Nac.Identity.Impersonation;
+using ReferenceApp.Host.Impersonation;
 using Orders.Contracts.IntegrationEvents;
 using Nac.Caching.Extensions;
 using Nac.Core.Abstractions;
@@ -107,6 +110,9 @@ builder.Services.AddNacIdentity<AppDbContext>(opt =>
     opt.Jwt.ExpirationMinutes = int.Parse(
         builder.Configuration["Jwt:ExpirationMinutes"] ?? "60");
 });
+
+// Impersonation role provider — required by AddNacIdentity startup validator.
+builder.Services.AddSingleton<IImpersonationRoleProvider, SampleImpersonationRoleProvider>();
 
 // ── 7. Caching ────────────────────────────────────────────────────────────────
 builder.Services.AddNacCaching();

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Nac.Identity.Impersonation;
 
 namespace Nac.WebApi.ExceptionHandling;
 
@@ -26,6 +27,10 @@ internal sealed class NacExceptionHandler(ILogger<NacExceptionHandler> logger) :
             logger.LogWarning(exception, "Request error ({StatusCode}): {Message}", statusCode, exception.Message);
 
         httpContext.Response.StatusCode = statusCode;
+
+        // Rate-limit: add Retry-After header before writing body.
+        if (exception is ImpersonationRateLimitExceededException)
+            httpContext.Response.Headers["Retry-After"] = "300";
 
         if (errors is not null)
         {
@@ -92,6 +97,12 @@ internal sealed class NacExceptionHandler(ILogger<NacExceptionHandler> logger) :
             StatusCodes.Status400BadRequest,
             "Bad Request",
             "The request was invalid.",
+            null
+        ),
+        ImpersonationRateLimitExceededException => (
+            StatusCodes.Status429TooManyRequests,
+            "Too Many Requests",
+            "Impersonation token rate limit exceeded. Retry after 300 seconds.",
             null
         ),
         _ => (

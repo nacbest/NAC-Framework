@@ -38,6 +38,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<RoleManagementService>();
         services.AddScoped<UserGrantManagementService>();
 
+        // Impersonation authorization filter — scoped because it depends on ICurrentUser (scoped).
+        services.AddScoped<HostImpersonationFilter>();
+
         // Tenant onboarding — idempotent role seeding triggered by TenantCreatedEvent.
         services.AddScoped<ITenantOnboardingService, TenantOnboardingService>();
 
