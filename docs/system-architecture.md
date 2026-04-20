@@ -1052,143 +1052,57 @@ public interface ITenantConnectionStringResolver
 
 ---
 
-## 9. Identity Layer (L2)
+## 9. Identity Layer (L2) — Pattern A (v3)
 
-### NacUser
-**Purpose:** Application user extending ASP.NET Core Identity
+> Full spec: **[docs/identity-and-rbac.md](identity-and-rbac.md)** — this section is a summary.
 
-**Extends:** `IdentityUser<Guid>`
+### Shape at a glance
 
-**Additional Properties:**
-- `TenantId`: Multi-tenancy support
-- `FullName`: Display name
-- `IsActive`: Account activation flag
-- `CreatedAt`, `UpdatedAt`, `CreatedBy`: Audit trail (IAuditableEntity)
-- `IsDeleted`, `DeletedAt`: Soft-delete (ISoftDeletable)
+- **Portable user.** `NacUser` is global — no `TenantId`.
+- **Tenant membership.** `UserTenantMembership` (M:N) mediates tenant access; holds `Status` (`Invited|Active|Suspended|Removed`), `IsDefault`.
+- **Tenant-scoped roles.** `NacRole.TenantId` nullable (null = system template); `MembershipRole` join assigns roles per membership.
+- **ABP-style grants.** Single `PermissionGrant(ProviderName, ProviderKey, PermissionName, TenantId?)` table. Providers: `U` (user-direct), `R` (role).
+- **Minimal JWT.** `sub, email, name?, tenant_id?, role_ids?, is_host?`. No permission claims.
+- **Runtime resolution.** `IPermissionChecker` unions user-direct + role grants via `IPermissionGrantCache` (10min TTL, invalidation-first).
+- **Role templates.** `IRoleTemplateProvider` + `RoleTemplateSeeder` seeds `owner`, `admin`, `member`, `guest` as `IsTemplate=true, TenantId=null`. Clone-on-onboarding produces tenant-scoped roles.
 
-### NacRole
-**Purpose:** Application role extending ASP.NET Core Identity
+### Key Services
 
-**Extends:** `IdentityRole<Guid>`
+| Service | Purpose |
+|---|---|
+| `JwtTokenService` (concrete) | Pure token generation — no DB reads. Minimal claims. No `IJwtTokenService` interface in v3. |
+| `IPermissionChecker` | Current-user / cross-user / cross-tenant checks. Resource-aware overload stubbed for v4. |
+| `IPermissionGrantCache` | `IDistributedCache` wrapper with pattern invalidation. |
+| `IMembershipService` | Invite / Accept / ChangeRoles / List memberships. Invalidates user cache on role change. |
+| `IRoleService` | CRUD + grant/revoke + CloneFromTemplate. |
+| `ITenantSwitchService` | Active-membership validation + tenant-scoped JWT re-issue. |
 
-**Supports:** Standard role-based authorization
+### Host User Gate
 
-### NacIdentityDbContext
-**Purpose:** EF Core DbContext for identity and application entities
+Two required conditions: `NacUser.IsHost == true` **and** `Host.AccessAllTenants` permission grant. Enforced by `HostAdminOnlyFilter` (management endpoints) and `AsHostQueryAsync<T>` (cross-tenant queries — bypasses `ITenantEntity` filter only after both checks pass).
 
-**Generics:** `NacIdentityDbContext<TContext>` for custom app entities
+### Auth Endpoints (`MapNacAuthEndpoints`)
 
-**Includes:**
-- ASP.NET Core Identity tables (Users, Roles, UserClaims, etc.)
-- Multi-tenancy support (TenantId on users)
-- Audit and soft-delete tracking
+`POST /auth/login` · `POST /auth/switch-tenant` · `POST /auth/refresh` (501 stub) · `POST /auth/logout` · `GET /auth/me` · `GET /auth/memberships` · `POST /auth/accept-invitation`. `[AllowTenantless]` on tenantless endpoints; `TenantRequiredGateMiddleware` 403s tenant-scoped endpoints when `tenant_id` is absent.
 
-### CurrentUserAccessor
-**Purpose:** Extract ICurrentUser from JWT claims
+### Admin Surface (`Nac.Identity.Management`)
 
-**Implementation:**
-- Reads claim set from HttpContext.User
-- Populates ICurrentUser with Id, Name, IsAuthenticated, Roles
-- Registered as scoped; null-safe for unauthenticated requests
+Controllers under `/api/identity/*`: `users`, `users/{id}/grants`, `roles`, `role-templates`, `memberships`, `permissions`, `onboarding`. Registered via `AddNacIdentityManagement()`. Tenant-onboarding handler subscribes to `TenantCreatedEvent` and clones templates for the new tenant.
 
-**Usage:**
+### DI Registration
+
 ```csharp
-var currentUser = context.ServiceProvider.GetRequiredService<ICurrentUser>();
-var userId = currentUser.Id; // From JWT subject claim
-var roles = currentUser.Roles; // From "role" claims
-```
-
-### IdentityService
-**Purpose:** Wrapper around UserManager for user queries
-
-**Methods:**
-- `GetUserInfoAsync(Guid userId)` → UserInfo with roles
-- `GetUsersAsync(IEnumerable<Guid> userIds)` → Bulk user info
-- `IsInRoleAsync(Guid userId, string role)` → Role check
-
-### JwtTokenService
-**Purpose:** Issue JWT tokens with configurable claims
-
-**Features:**
-- Configurable secret, issuer, audience
-- Auto-includes subject (UserId), roles, tenant
-- Expiration via JwtOptions
-- HMAC SHA-256 signature
-
-**Configuration (JwtOptions):**
-```csharp
-services.AddNacIdentity<MyContext>(options =>
-{
-    options.Jwt.SecretKey = config["Jwt:Secret"];
-    options.Jwt.Issuer = config["Jwt:Issuer"];
-    options.Jwt.Audience = config["Jwt:Audience"];
-    options.Jwt.ExpirationMinutes = 60;
+services.AddNacIdentity<AppDbContext>(opts => {
+    opts.JwtIssuer     = "my-app";
+    opts.JwtAudience   = "nac-staff";
+    opts.JwtSigningKey = config["Jwt:Key"]!;
 });
+services.AddNacIdentityManagement();   // admin HTTP surface
+// AddNacRoleTemplates() is called inside AddNacIdentity<T>.
+
+app.MapNacAuthEndpoints();
+app.UseNacAuthGate();                  // TenantRequiredGateMiddleware
 ```
-
-### PermissionDefinitionManager
-**Purpose:** Registry of all application permissions (FrozenDictionary)
-
-**Features:**
-- Hierarchical permission groups
-- IsGrantedByDefault flag
-- Immutable after registration
-- Thread-safe access
-
-**Usage:**
-```csharp
-public class MyPermissions : IPermissionDefinitionProvider
-{
-    public void Define(IPermissionDefinitionContext context)
-    {
-        var group = context.AddGroup("UserManagement");
-        group.AddPermission("Create", isGrantedByDefault: false);
-        group.AddPermission("Delete", isGrantedByDefault: false);
-    }
-}
-```
-
-### PermissionChecker
-**Purpose:** Check if user has permission via claims + hierarchical rules
-
-**Decision Logic:**
-1. Check JWT claims (role-based)
-2. Check hierarchical defaults (parent → child)
-3. Return boolean
-
-**Usage:**
-```csharp
-if (await _permissionChecker.IsGrantedAsync("Users.Create"))
-{
-    // User has permission
-}
-```
-
-### PermissionAuthorizationHandler
-**Purpose:** ASP.NET Core Authorization handler for permission gates
-
-**Requirement:** `PermissionRequirement(string permissionName)`
-
-**Usage (Controllers):**
-```csharp
-[Authorize(Policy = "Users.Delete")]
-public async Task<IActionResult> DeleteUser(Guid id)
-{
-    // Only users with "Users.Delete" permission
-}
-```
-
-### AddNacIdentity<TContext>() Extension
-**Registers:**
-- NacUser + NacRole via Identity
-- UserManager<NacUser>, RoleManager<NacRole>
-- IdentityService (IIdentityService)
-- CurrentUserAccessor (ICurrentUser)
-- JwtTokenService
-- PermissionDefinitionManager
-- PermissionChecker (IPermissionChecker)
-- PermissionAuthorizationHandler
-- NacIdentityModule
 
 ---
 

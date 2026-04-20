@@ -1,0 +1,128 @@
+# NAC Framework — LLM Context Index
+
+Source-of-truth one-liner index for LLM assistants. Full docs under `docs/`.
+
+## Orientation
+
+- **Framework:** .NET 10 LTS; DDD + multi-tenant + event-driven; layered NuGet packages.
+- **Layers:** L0 Core → L1 Cqrs/Caching → L2 features → L3 WebApi composition root.
+- **Status:** Wave 1/2A/2B/2C/3 complete; Pattern A Identity Migration v3.0 complete.
+
+## Packages
+
+| Package | Layer | Role |
+|---|---|---|
+| `Nac.Core` | L0 | DDD primitives, Result, modularity, abstractions |
+| `Nac.Cqrs` | L1 | Dispatcher (FrozenDictionary), pipeline behaviors |
+| `Nac.Caching` | L1 | `INacCache` over HybridCache, tenant-aware keys |
+| `Nac.Persistence` | L2 | `NacDbContext`, Repository, interceptors, Outbox |
+| `Nac.EventBus` | L2 | Publisher/Dispatcher, Channels transport, Outbox bridge |
+| `Nac.Testing` | L2 | 7 in-memory fakes, fluent builders, test fixtures |
+| `Nac.MultiTenancy` | L2 | ITenantContext/Store, 4 resolution strategies, RLS filters |
+| `Nac.MultiTenancy.Management` | L2 | Tenant aggregate, registry DB, admin REST, outbox events |
+| `Nac.Identity` | L2 | v3 Pattern A — portable user, membership, ABP grants |
+| `Nac.Identity.Management` | L2 | Admin HTTP surface `/api/identity/*` + onboarding handler |
+| `Nac.Observability` | L2 | Logging enrichment, ActivitySources, Meters |
+| `Nac.Jobs` | L2 | `IJobScheduler`, `IRecurringJobManager` abstractions |
+| `Nac.WebApi` | L3 | Composition root, module loader, middleware pipeline |
+
+## Identity & RBAC (v3 Pattern A)
+
+**Spec:** `docs/identity-and-rbac.md` (canonical).
+
+### Mental model
+
+- `NacUser` is global. No `TenantId` on user.
+- `UserTenantMembership(UserId, TenantId, Status, IsDefault)` M:N mediates tenant access.
+- `NacRole.TenantId` nullable (null = system template, non-null = tenant-scoped clone); `IsTemplate` flag; `BaseTemplateId` lineage.
+- `MembershipRole(MembershipId, RoleId)` assigns roles per membership.
+- `PermissionGrant(ProviderName, ProviderKey, PermissionName, TenantId?)` ABP-style table. Providers: `U` (user-direct), `R` (role).
+- JWT: `sub, email, name?, tenant_id?, role_ids?, is_host?`. No permission claims.
+- `IPermissionChecker` unions user-direct + role grants at request time via `IPermissionGrantCache` (10min TTL, invalidation-first).
+
+### Key services
+
+- `JwtTokenService.GenerateToken(userId, tenantId?, email, name?, roleIds, isHost)` — concrete class; no `IJwtTokenService` interface in v3. Pure; no DB.
+- `IPermissionChecker.IsGrantedAsync(...)` — current-user / cross-user / cross-tenant / resource (stub).
+- `IPermissionGrantCache` — `GetOrLoadAsync`, `InvalidateAsync`, `InvalidateByPatternAsync`.
+- `IMembershipService` — Invite, Accept, ChangeRoles (cache invalidate), List, CreateActiveMembershipAsync, GetRoleIdsAsync.
+- `IRoleService` — CRUD, CloneFromTemplateAsync, GrantPermissionAsync, RevokePermissionAsync, ListTemplatesAsync.
+- `ITenantSwitchService.IssueTokenForTenantAsync(userId, tenantId)` — validates Active membership → re-issues tenant-scoped JWT.
+
+### Role templates
+
+`DefaultRoleTemplateProvider` seeds: `owner`, `admin`, `member`, `guest`. Consumers implement `IRoleTemplateProvider` + `AddNacRoleTemplates()`. `RoleTemplateSeeder` (IHostedService) is idempotent via deterministic Guid from template key. v3 clones are **immutable**; template-sync is v4.
+
+### Host user gate
+
+`NacUser.IsHost == true` AND `Host.AccessAllTenants` permission grant — both required. Enforced by `HostAdminOnlyFilter` + `AsHostQueryAsync<T>` (bypasses `ITenantEntity` filter only after double check). `IsHost` is DB-managed — never mutated via API.
+
+### Auth endpoints (`MapNacAuthEndpoints`)
+
+- `POST /auth/login` — AllowAnonymous, AllowTenantless → tenantless JWT + memberships.
+- `POST /auth/switch-tenant` — RequireAuthorization, AllowTenantless → tenant-scoped JWT + roleIds.
+- `POST /auth/refresh` — v3 stub (501).
+- `POST /auth/logout` — refresh-token revocation placeholder.
+- `GET /auth/me` — current user snapshot.
+- `GET /auth/memberships` — user's tenant memberships.
+- `POST /auth/accept-invitation` — Invited → Active.
+
+`[AllowTenantless]` endpoints bypass `TenantRequiredGateMiddleware`.
+
+### Admin HTTP (`Nac.Identity.Management`, MVC controllers)
+
+- `/api/identity/users` — list, detail.
+- `/api/identity/users/{userId}/grants` — GET, POST, DELETE user-direct grants.
+- `/api/identity/roles` — list, detail, POST from-template.
+- `/api/identity/role-templates` — list.
+- `/api/identity/memberships` — POST invite, PATCH roles, DELETE.
+- `/api/identity/permissions` — GET read-only tree.
+- `/api/identity/onboarding` — POST /onboard.
+
+Tenant-onboarding handler subscribes to `TenantCreatedEvent` via `Nac.EventBus` (decouples circular dep with `Nac.MultiTenancy.Management`).
+
+### DI wiring
+
+```csharp
+services.AddNacIdentity<AppDbContext>(opts => { /* jwt */ });  // calls AddNacRoleTemplates() internally
+services.AddNacIdentityManagement();
+app.MapNacAuthEndpoints();
+app.UseNacAuthGate();   // TenantRequiredGateMiddleware
+```
+
+### Cache invalidation matrix
+
+| Change | Key(s) invalidated |
+|---|---|
+| User grant add/remove | `pn:U,pk:{userId},tn:{tenantId}` |
+| Role grant add/remove | pattern `pn:R,pk:{roleId},*` |
+| Membership role change | `pn:U,pk:{userId},tn:{tenantId}` |
+
+### v3 BREAKING vs v2
+
+- `NacUser.TenantId` removed.
+- `RolePermission` + claim storage replaced by `PermissionGrant`.
+- JWT no longer carries permission claims.
+- `UserInfo.TenantId` removed; use `TenantUserInfo`.
+
+### Customer identity (out-of-scope → recipe only)
+
+Framework ships staff/admin identity only. Customer (end-user) accounts belong in a **separate** tenant-owned stack. Recipe in `docs/identity-and-rbac.md#7-customer-identity-pattern-guide`:
+
+- `Customer` entity implements `ITenantEntity`; composite unique `(TenantId, Email)`.
+- Register `IPasswordHasher<Customer>` explicitly (framework only wires it for `NacUser`); instantiate a second `JwtTokenService` with a separate `JwtOptions` binding for audience `nac-customer`; reuse `IPermissionChecker` with a distinct permission namespace (`Customer.*`).
+- Separate `/customer/auth/*` endpoints + separate `AddJwtBearer("customer", ...)` scheme.
+- Tighter rate limiting (public surface).
+- Never mix into `NacUser` — breaks portability invariant and leaks enumeration across tenants.
+
+## Tests
+
+164 identity tests (150 unit + 14 Postgres integration via Testcontainers). Coverage: multi-tenant isolation (R1), instant revoke (R3), role-template seeder idempotency, tenant-onboarding service, permission resolution E2E.
+
+## Further reading
+
+- `docs/system-architecture.md` — full architecture incl. Identity Layer summary.
+- `docs/codebase-summary.md` — package-by-package module list.
+- `docs/project-changelog.md` — v3.0.0 BREAKING + Added entries.
+- `docs/project-roadmap.md` — phase timeline, v4 follow-ups.
+- `docs/code-standards.md` — coding conventions.

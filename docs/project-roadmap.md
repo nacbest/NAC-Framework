@@ -6,9 +6,9 @@ Strategic roadmap for NAC Framework development through Q4 2026 and beyond.
 
 ## Current State
 
-**Completed:** L0 Nac.Core + Wave 1 (L1 CQRS/Caching + L2 Persistence) + Wave 2A (Nac.EventBus, Nac.Testing) + Wave 2B (Nac.Identity, Nac.MultiTenancy) + Wave 2B-Enhancement (Nac.MultiTenancy.Management) + Wave 2C (Nac.Observability, Nac.Jobs) + Wave 3 (L3 Nac.WebApi) + Wave 4A (Consumer Reference Architecture) + **Pattern A Identity Migration** (Phases 01–07: Domain, Services, Auth, Roles, Membership, Admin, Host Permissions)  
+**Completed:** L0 Nac.Core + Wave 1 (L1 CQRS/Caching + L2 Persistence) + Wave 2A (Nac.EventBus, Nac.Testing) + Wave 2B (Nac.Identity, Nac.MultiTenancy) + Wave 2B-Enhancement (Nac.MultiTenancy.Management) + Wave 2C (Nac.Observability, Nac.Jobs) + Wave 3 (L3 Nac.WebApi) + Wave 4A (Consumer Reference Architecture) + **Pattern A Identity Migration v3.0** (Phases 01–09: Domain, Services, Auth, Roles, Admin, Onboarding, Cleanup, Tests, Docs)  
 **Tests:** 626 unit tests + 11 integration tests, all passing  
-**Packages:** 12 (Nac.Core, Nac.Cqrs, Nac.Caching, Nac.Persistence, Nac.EventBus, Nac.Testing, Nac.MultiTenancy, Nac.MultiTenancy.Management, Nac.Identity, Nac.Observability, Nac.Jobs, Nac.WebApi)
+**Packages:** 13 (Nac.Core, Nac.Cqrs, Nac.Caching, Nac.Persistence, Nac.EventBus, Nac.Testing, Nac.MultiTenancy, Nac.MultiTenancy.Management, Nac.Identity, **Nac.Identity.Management**, Nac.Observability, Nac.Jobs, Nac.WebApi)
 
 ---
 
@@ -98,10 +98,10 @@ Strategic roadmap for NAC Framework development through Q4 2026 and beyond.
 - Host-realm only (non-null TenantId rejected); ICurrentUser enforcement
 - Outbox integration for reliable domain event publication
 
-### Phase 8A-Ext2: Pattern A Identity Migration (COMPLETE ✅)
+### Phase 8A-Ext2: Pattern A Identity Migration v3.0 (COMPLETE ✅)
 
-**Completed (2026-04-19):**
-1. ✅ **Phases 01–07 Full Implementation** — Domain refactor, services, auth endpoints, role templates, membership services, tenant switching, admin endpoints, host permissions
+**Completed (2026-04-20):**
+1. ✅ **Phases 01–07 Implementation** — Domain refactor, services, auth endpoints, role templates, membership services, tenant switching, admin endpoints, host permissions
    - New files: `HostPermissions.cs`, `HostPermissionProvider.cs`, `HostQueryExtensions.cs`
    - Framework enhancement: `ForbiddenAccessException.cs` in Nac.Core/Domain
    - Middleware auto-registration: `TenantRequiredGateMiddleware` in `UseNacApplication`
@@ -109,14 +109,24 @@ Strategic roadmap for NAC Framework development through Q4 2026 and beyond.
    - Pattern A finalized: Global users, tenant-scoped memberships, runtime permission resolution
 2. ✅ **JWT Shape Finalized:** `sub, email, name?, tenant_id?, role_ids?, is_host?` (no permission claims)
 3. ✅ **Permission Resolution:** Cache-backed store with 10-minute TTL; invalidated on role/grant changes
+4. ✅ **Phase 08 Tests:** 164 identity tests (150 unit + 14 Postgres integration) covering R1 isolation, R3 instant revoke, template seeder, onboarding flow, permission E2E
+5. ✅ **Phase 09 Docs:** `docs/identity-and-rbac.md` (12 sections incl. Customer Identity Pattern Guide), v3.0.0 changelog, roadmap update, README quickstart
 
-**Tests Added:** 11 new tests + existing suite (626 total), all passing
+**Tests Added:** 164 identity tests + existing suite, all passing
 
 **Key Decisions:**
 - `NacUser` has no `TenantId` — users are global identities; memberships define tenant scope
 - Permissions evaluated at request time, not embedded in JWT (enables live updates)
 - Host realm (`IsHost=true`) users access all tenants via `Host.AccessAllTenants` permission
 - `TenantRequiredGateMiddleware` auto-gates tenant-scoped endpoints (403 if tenant null)
+- v3 role-template clones are **immutable** — template-sync deferred to v4
+
+**Follow-ups (v4):**
+- Deny-list grants (allow-only today)
+- Resource-aware permission grants (`IsGrantedAsync(perm, resourceType, resourceId)` stubbed)
+- Template-sync flow (propagate template edits to tenant clones)
+- Refresh token rotation (`/auth/refresh` 501 stub today)
+- Customer stack starter repo (beyond the docs recipe)
 
 ### Phase 8B: Framework Enhancements (Pending)
 
@@ -265,6 +275,7 @@ Strategic roadmap for NAC Framework development through Q4 2026 and beyond.
 | 1.5.0 | 2026-04-17 | Wave 3: L3 WebApi Composition Root (42 tests, 577 total) | ✅ Complete |
 | 1.5.1 | 2026-04-17 | Consumer Reference Architecture (samples/ReferenceApp, EventBus idempotency fix) | ✅ Complete |
 | 1.6.0 | 2026-04-19 | Pattern A Identity Migration (Phases 01–07: Domain, Services, Auth, Roles, Membership, Admin, Host Permissions) | ✅ Complete |
+| 3.0.0 | 2026-04-20 | Pattern A Identity Migration v3.0 (Phases 08–09: Tests 164, Docs incl. Customer Identity Guide, `Nac.Identity.Management` package) | ✅ Complete |
 | 1.7.0 | 2026-Q3 | OutboxWorker<TContext> enhancement, multi-module outbox polling | 📋 Planned |
 | 2.0.0 | 2026-Q4 | dotnet new templates, Examples expansion | 📋 Planned |
 
@@ -295,7 +306,7 @@ Roadmap reviewed quarterly (Jan, Apr, Jul, Oct):
 
 ---
 
-**Last Updated:** 2026-04-19 (Pattern A Identity Migration Phases 01–07 complete)  
+**Last Updated:** 2026-04-20 (Pattern A Identity Migration v3.0 complete — Phases 01–09 incl. 164 tests + docs/identity-and-rbac.md)  
 **Next Update:** 2026-07-19  
 **Maintainer:** Solo development  
 **License:** MIT

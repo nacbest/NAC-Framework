@@ -4,6 +4,48 @@ All significant changes to the NAC Framework are documented here. Format follows
 
 ---
 
+## [3.0.0] — Pattern A Identity Migration (2026-04-20)
+
+> **BREAKING** release. Pre-release framework — no data migration path. Consumers drop-and-recreate dev DBs.
+
+### BREAKING
+
+- **`NacUser.TenantId` removed.** Users are now global; tenant access flows through `UserTenantMembership`.
+- **`NacRole` gained** nullable `TenantId`, `IsTemplate` flag, `Description`, and `BaseTemplateId` (lineage back to template clone).
+- **JWT shape reshaped**: minimal claims only — `sub`, `email`, `name?`, `tenant_id?`, `role_ids?`, `is_host?`. **No permission claims embedded.**
+- **`PermissionGrant`** (ABP-style) replaces `RolePermission` + claim-based storage + `PermissionSet` concept. Single table; providers `U` (user-direct), `R` (role).
+- **`UserInfo.TenantId` removed**; per-tenant queries now use `TenantUserInfo`.
+- **`RolePermission` table dropped.** Permission storage unified under `PermissionGrant`.
+
+### Added
+
+- **`UserTenantMembership`** + **`MembershipRole`** M:N identity model.
+- **`PermissionGrant`** ABP-style table (provider U/R, tenant-scoped).
+- **`IPermissionGrantCache`** wrapping `IDistributedCache` with pattern invalidation.
+- **`IMembershipService`**, **`IRoleService`**, **`ITenantSwitchService`**.
+- **`Nac.Identity.Management`** HTTP admin package: `/api/identity/users`, `users/{id}/grants`, `roles`, `role-templates`, `memberships`, `permissions`, `onboarding`.
+- **`NacUser.IsHost`** + **`Host.AccessAllTenants`** permission + **`AsHostQueryAsync<T>`** helper (double-gate host queries).
+- **Role templates**: `IRoleTemplateProvider`, `RoleTemplateSeeder`, built-ins (`owner`, `admin`, `member`, `guest`).
+- **`TenantCreatedEvent` handler** in `Nac.Identity.Management` clones templates for new tenants (decoupled via `Nac.EventBus`).
+- **`TenantRequiredGateMiddleware`** + `[AllowTenantless]` attribute.
+- **Identity test suite** (Phase 08): 164 tests = 150 unit + 14 integration (Postgres). Covers R1 multi-tenant isolation, R3 instant revoke, role-template seeder idempotency, tenant-onboarding flow, permission resolution E2E.
+- **Docs**: `docs/identity-and-rbac.md` primary guide + Customer Identity Pattern Guide (~150 LoC recipe for consumers building customer stack alongside staff stack).
+
+### Fixed
+
+- **Cross-user permission checks** previously threw `NotSupportedException`; now resolved via `IPermissionChecker.IsGrantedAsync(userId, perm, tenantId)`.
+- **Instant revoke**: grant/revoke endpoint invalidates cache; next request reflects change (previously blocked by JWT-embedded claims).
+
+### Migration
+
+Drop dev DB. Delete old migration files. `dotnet ef database update`. `RoleTemplateSeeder` re-seeds templates on startup. See [Migration section](identity-and-rbac.md#9-migration-pre-release-reset).
+
+### Spec
+
+See [`docs/identity-and-rbac.md`](identity-and-rbac.md) for full mental model, ER diagram, JWT structure, permission evaluation, cache invalidation, role templates, host user pattern, and Customer Identity Pattern Guide.
+
+---
+
 ## [Unreleased] — Pattern A Identity Migration Phases 01–07 (2026-04-19)
 
 ### Added

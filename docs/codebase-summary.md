@@ -6,7 +6,7 @@
 
 NAC Framework is a foundational DDD-based framework published as a suite of layered NuGet packages. The mono-repo contains source code, tests, templates, examples, and documentation. Consumers integrate via NuGet—never copying source.
 
-**Current Status:** L0 Nac.Core + Wave 1 (L1 Nac.Cqrs, Nac.Caching + L2 Nac.Persistence) + Wave 2A (Nac.EventBus, Nac.Testing) + Wave 2B (Nac.Identity, Nac.MultiTenancy) + Wave 2C (Nac.Observability, Nac.Jobs) + Wave 3 (L3 Nac.WebApi) fully implemented and tested (626 framework unit tests + 11 consumer integration tests passing). Consumer reference blueprint shipped (samples/ReferenceApp). Pattern A Identity Migration (Phases 01–07) complete.
+**Current Status:** L0 Nac.Core + Wave 1 (L1 Nac.Cqrs, Nac.Caching + L2 Nac.Persistence) + Wave 2A (Nac.EventBus, Nac.Testing) + Wave 2B (Nac.Identity, Nac.MultiTenancy) + Wave 2C (Nac.Observability, Nac.Jobs) + Wave 3 (L3 Nac.WebApi) fully implemented and tested. **Pattern A Identity Migration (Phases 01–08) complete**, including `Nac.Identity.Management` admin HTTP surface and 164 identity tests (150 unit + 14 integration). Consumer reference blueprint shipped (samples/ReferenceApp). Spec: [identity-and-rbac.md](identity-and-rbac.md).
 
 ## Package Layers
 
@@ -66,6 +66,23 @@ Foundation layer with DDD primitives, modularity, and result patterns.
   - ForbiddenAccessException.cs (Nac.Core/Domain): Maps to HTTP 403 in NacExceptionHandler
   - JWT shape: `sub, email, name?, tenant_id?, role_ids?, is_host?`
   - Pattern A finalized: Global users, runtime permission resolution (cache→DB)
+
+### L2 — Feature Layers (Pattern A Phase 05 ADMIN — `Nac.Identity.Management`)
+**Package:** `Nac.Identity.Management` | **Status:** Complete | **Reference:** [identity-and-rbac.md](identity-and-rbac.md)
+
+- **Purpose:** HTTP admin surface for identity primitives (users, roles, memberships, grants, onboarding).
+- **Controllers (MVC, not Minimal API):** `/api/identity/users`, `/api/identity/users/{userId}/grants`, `/api/identity/roles`, `/api/identity/role-templates`, `/api/identity/memberships`, `/api/identity/permissions` (read-only tree), `/api/identity/onboarding`.
+- **Tenant onboarding:** Event handler subscribes to `TenantCreatedEvent` from `Nac.MultiTenancy.Management` (via `Nac.EventBus`) and clones role templates into the new tenant. Decouples circular dep.
+- **Authorization:** Host-only endpoints protected by `HostAdminOnlyFilter`; tenant-scoped endpoints use permission policies (`Users.*`, `Memberships.*`, `Roles.*`).
+- **DI:** `AddNacIdentityManagement()` registers services, validators, permission provider, controllers.
+- **Tests (Phase 08):** 164 identity tests passing = 150 unit + 14 integration (MultiTenantIsolation, InstantRevoke, RoleTemplateSeeder, TenantOnboarding, PermissionResolutionE2E).
+
+### L2 — Feature Layers (Pattern A Phase 08 TESTS)
+**Tests:** 164 identity tests passing (150 unit + 14 integration)
+
+- **Unit:** `Nac.Identity.UnitTests` — PermissionCheckerTests (cache hit/miss, cross-provider, cross-user, cross-tenant, resource, host), JwtTokenServiceTests (role_ids, size <2KB, no perm claim, tenantless), PermissionGrantCacheTests, MembershipServiceTests, RoleServiceTests, TenantSwitchServiceTests, RoleTemplateSeederTests.
+- **Integration:** `Nac.Identity.IntegrationTests` (Postgres via Testcontainers) — MultiTenantIsolation (R1), InstantRevoke (R3), RoleTemplateSeeder idempotent, TenantOnboardingService (idempotency, host creator), PermissionResolutionE2E.
+- **HTTP test host:** deferred to Phase 08.1 follow-up.
 
 ### L2 — Feature Layers (Wave 2B-Enhancement COMPLETE)
 **Tests:** 38 new tests (all passing)
